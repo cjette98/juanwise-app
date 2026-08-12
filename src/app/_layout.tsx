@@ -1,18 +1,33 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { LanguageProvider } from '@/shared/i18n/language-context';
+import { UserProvider } from '@/features/auth/context/user-context';
+import { StudentResultsProvider } from '@/features/results/context/student-results-context';
+import { GameProgressProvider } from '@/features/learning/context/game-progress-context';
+import { ClassProvider } from '@/features/teacher/context/class-context';
+import { AdminContentProvider } from '@/features/admin/context/admin-content-context';
 
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <LanguageProvider>
+        <UserProvider>
+          <StudentResultsProvider>
+            <GameProgressProvider>
+              <ClassProvider>
+                <AdminContentProvider>
+                  <StatusBar style="auto" />
+                  {/* Every screen draws its own header/background, exactly as the
+                      original native-stack did with headerShown: false. */}
+                  <Stack screenOptions={{ headerShown: false }} />
+                </AdminContentProvider>
+              </ClassProvider>
+            </GameProgressProvider>
+          </StudentResultsProvider>
+        </UserProvider>
+      </LanguageProvider>
+    </SafeAreaProvider>
   );
 }
