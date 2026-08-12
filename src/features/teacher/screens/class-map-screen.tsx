@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
@@ -23,16 +23,34 @@ export default function ClassMapScreen() {
 
   const [draftCategory, setDraftCategory] = useState<string | null>(assignment?.category ?? null);
   const [draftGameType, setDraftGameType] = useState<GameType | null>(assignment?.gameType ?? null);
+  const [busy, setBusy] = useState(false);
 
-  const handleAssign = () => {
-    if (!draftCategory || !draftGameType) return;
-    setAssignment(draftCategory, draftGameType);
+  // PUT /classes/:id/assignment — the lock now lives on the class document, so
+  // every student in the class sees it, not just this device.
+  const handleAssign = async () => {
+    if (!draftCategory || !draftGameType || busy) return;
+    setBusy(true);
+    try {
+      const result = await setAssignment(draftCategory, draftGameType);
+      if (!result.success) Alert.alert(t('assignLockTitle'), result.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleClear = () => {
-    clearAssignment();
-    setDraftCategory(null);
-    setDraftGameType(null);
+  const handleClear = async () => {
+    setBusy(true);
+    try {
+      const result = await clearAssignment();
+      if (!result.success) {
+        Alert.alert(t('assignLockTitle'), result.message);
+        return;
+      }
+      setDraftCategory(null);
+      setDraftGameType(null);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -97,14 +115,22 @@ export default function ClassMapScreen() {
 
           <View style={styles.actionRow}>
             <TouchableOpacity
-              style={[styles.actionBtn, styles.assignBtn, (!draftCategory || !draftGameType) && styles.disabledBtn]}
+              style={[styles.actionBtn, styles.assignBtn, (!draftCategory || !draftGameType || busy) && styles.disabledBtn]}
               onPress={handleAssign}
-              disabled={!draftCategory || !draftGameType}
+              disabled={!draftCategory || !draftGameType || busy}
             >
-              <Text style={styles.actionBtnText}>{t('assignBtn')}</Text>
+              {busy ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Text style={styles.actionBtnText}>{t('assignBtn')}</Text>
+              )}
             </TouchableOpacity>
             {!!assignment && (
-              <TouchableOpacity style={[styles.actionBtn, styles.clearBtn]} onPress={handleClear}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.clearBtn, busy && styles.disabledBtn]}
+                onPress={handleClear}
+                disabled={busy}
+              >
                 <Text style={styles.actionBtnText}>{t('clearAssignBtn')}</Text>
               </TouchableOpacity>
             )}

@@ -1,56 +1,64 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ImageBackground, Modal, TextInput, Alert, Image } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ImageBackground, Modal, TextInput, Alert, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '@/features/auth/context/user-context';
 import { useStudentResults } from '@/features/results/context/student-results-context';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useClass } from '@/features/teacher/context/class-context';
+import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { images } from '@/shared/assets/images';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 export default function StudentHome() {
   const router = useRouter();
-  const { name, avatar, photoUri, setUser, grade, section, lrn, email, username } = useUser();
+  const { name, avatar, photoUri, uid, classId } = useUser();
   const { results } = useStudentResults();
   const { t } = useLanguage();
-  const { students, joinClass } = useClass();
+  const { joinClass } = useClass();
+  const { unlockedLevel } = useGameProgress();
 
   const [codeModalVisible, setCodeModalVisible] = useState(false);
   const [codeInput, setCodeInput] = useState('');
+  const [joining, setJoining] = useState(false);
 
-  const { name: paramName } = useLocalSearchParams<{ name?: string }>();
-
-  useEffect(() => {
-    if (paramName && paramName !== name) setUser(paramName, 'student');
-  }, [paramName]);
-
-  const myResults = useMemo(() => results.filter((r) => r.studentName === name), [results, name]);
+  const myResults = useMemo(() => results.filter((r) => r.uid === uid), [results, uid]);
   const points = myResults.reduce((sum, r) => sum + r.points, 0);
 
-  const isJoined = useMemo(
-    () => students.some((s) => s.username === username),
-    [students, username]
-  );
+  // The roster is teacher-only, so membership is read off the student's own
+  // profile — `POST /classes/join` sets `classId` on it.
+  const isJoined = !!classId;
 
-  const handleJoin = () => {
-    if (!codeInput.trim()) return;
-    const result = joinClass(codeInput, {
-      name,
-      grade,
-      section,
-      lrn,
-      email,
-      username,
-      joinedAt: Date.now(),
-    });
-    if (!result.success) {
-      Alert.alert(t('invalidClassCode'), result.message);
-      return;
+  // Highest level opened across every category and both activity types, so the
+  // row of level pips reflects real progress instead of a hardcoded "1-3".
+  const highestUnlocked = useMemo(() => {
+    const categories = ['history', 'culture', 'geography', 'festival', 'national', 'heroes'];
+    let best = 1;
+    for (const category of categories) {
+      for (const type of ['quiz', 'jigsaw'] as const) {
+        best = Math.max(best, unlockedLevel(category, type));
+      }
     }
-    Alert.alert(t('registerSuccess'), result.message);
-    setCodeModalVisible(false);
-    setCodeInput('');
+    return best;
+  }, [unlockedLevel]);
+
+  const handleJoin = async () => {
+    if (!codeInput.trim() || joining) return;
+    setJoining(true);
+    try {
+      // Resolved against Firestore, so the code works no matter which device
+      // the teacher created the class on.
+      const result = await joinClass(codeInput);
+      if (!result.success) {
+        Alert.alert(t('invalidClassCode'), result.message);
+        return;
+      }
+      Alert.alert(t('registerSuccess'), result.message);
+      setCodeModalVisible(false);
+      setCodeInput('');
+    } finally {
+      setJoining(false);
+    }
   };
 
   const menuItems = [
@@ -115,8 +123,11 @@ export default function StudentHome() {
 
           <View style={styles.levelRow}>
             {[1, 2, 3, 4, 5].map((lvl) => (
-              <View key={lvl} style={[styles.levelCircle, lvl <= 3 ? styles.levelUnlocked : styles.levelLocked]}>
-                <Text style={styles.levelText}>{lvl <= 3 ? lvl : '🔒'}</Text>
+              <View
+                key={lvl}
+                style={[styles.levelCircle, lvl <= highestUnlocked ? styles.levelUnlocked : styles.levelLocked]}
+              >
+                <Text style={styles.levelText}>{lvl <= highestUnlocked ? lvl : '🔒'}</Text>
               </View>
             ))}
           </View>
@@ -146,12 +157,21 @@ export default function StudentHome() {
               placeholderTextColor="#AAB"
             />
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnJoin]} onPress={handleJoin}>
-                <Text style={styles.modalBtnText}>{t('saveCode')}</Text>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnJoin, joining && styles.modalBtnBusy]}
+                onPress={handleJoin}
+                disabled={joining}
+              >
+                {joining ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={styles.modalBtnText}>{t('saveCode')}</Text>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtn, styles.modalBtnCancel]}
                 onPress={() => { setCodeModalVisible(false); setCodeInput(''); }}
+                disabled={joining}
               >
                 <Text style={styles.modalBtnText}>{t('cancelCode')}</Text>
               </TouchableOpacity>
@@ -197,7 +217,8 @@ const styles = StyleSheet.create({
   modalInput: { borderWidth: 2, borderColor: '#0038A8', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, fontSize: 18, fontWeight: 'bold', letterSpacing: 2, color: '#1A1A1A', width: '100%', textAlign: 'center', marginBottom: 14 },
   modalBtnRow: { flexDirection: 'row', gap: 10 },
   modalBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 14 },
-  modalBtnJoin: { backgroundColor: '#2E9E5B' },
+  modalBtnJoin: { backgroundColor: '#2E9E5B', minWidth: 90, alignItems: 'center' },
+  modalBtnBusy: { opacity: 0.7 },
   modalBtnCancel: { backgroundColor: '#B23A3A' },
   modalBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
 });

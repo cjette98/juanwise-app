@@ -13,6 +13,7 @@ import {
   UIManager,
   Image,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '@/features/auth/context/user-context';
 import { useStudentResults } from '@/features/results/context/student-results-context';
 import { useLanguage } from '@/shared/i18n/language-context';
+import { errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -44,12 +46,19 @@ type FieldDef = {
   draft: string;
   onChangeText: (v: string) => void;
   keyboardType?: 'default' | 'numeric' | 'email-address';
+  /**
+   * Identity, not a preference. `PATCH /users/me` refuses role, username,
+   * email, LRN and teacher ID — changing them would desynchronise the username
+   * reservation and the Firebase Auth record — so they render read-only.
+   */
+  readOnly?: boolean;
 };
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { t } = useLanguage();
   const {
+    uid,
     role,
     name,
     grade,
@@ -60,32 +69,26 @@ export default function ProfileScreen() {
     age,
     email,
     username,
-    password,
     teacherId,
     depedGmail,
     updateProfile,
+    uploadPhoto,
+    requestPasswordReset,
+    logout,
   } = useUser();
   const { results } = useStudentResults();
-  const isTeacher = role === 'teacher';
+  const isTeacher = role === 'teacher' || role === 'admin';
   const AVATAR_OPTIONS = isTeacher ? TEACHER_AVATAR_OPTIONS : STUDENT_AVATAR_OPTIONS;
 
   const [editing, setEditing] = useState(false);
-  const [changingPassword, setChangingPassword] = useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const [draftName, setDraftName] = useState(name);
-  const [draftLrn, setDraftLrn] = useState(lrn);
   const [draftAge, setDraftAge] = useState(age);
   const [draftGrade, setDraftGrade] = useState(grade);
   const [draftSection, setDraftSection] = useState(section);
-  const [draftEmail, setDraftEmail] = useState(email);
-  const [draftUsername, setDraftUsername] = useState(username);
-  const [draftTeacherId, setDraftTeacherId] = useState(teacherId);
-  const [draftDepedGmail, setDraftDepedGmail] = useState(depedGmail);
-
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -94,8 +97,8 @@ export default function ProfileScreen() {
   }, [fadeAnim]);
 
   const myResults = useMemo(
-    () => (isTeacher ? [] : results.filter((r) => r.studentName === name)),
-    [results, name, isTeacher]
+    () => (isTeacher ? [] : results.filter((r) => r.uid === uid)),
+    [results, uid, isTeacher]
   );
   const totalPoints = myResults.reduce((sum, r) => sum + r.points, 0);
   const lastResult = useMemo(
@@ -107,16 +110,10 @@ export default function ProfileScreen() {
 
   const startEditing = () => {
     setDraftName(name);
-    setDraftLrn(lrn);
     setDraftAge(age);
     setDraftGrade(grade);
     setDraftSection(section);
-    setDraftEmail(email);
-    setDraftUsername(username);
-    setDraftTeacherId(teacherId);
-    setDraftDepedGmail(depedGmail);
     expand();
-    setChangingPassword(false);
     setEditing(true);
   };
 
@@ -125,69 +122,57 @@ export default function ProfileScreen() {
     setEditing(false);
   };
 
-  const saveProfile = () => {
+  // PATCH /users/me. Only the editable half is sent — identity fields are
+  // fixed at registration and the API rejects them.
+  const saveProfile = async () => {
     const requiredValues = isTeacher
-      ? [draftName, draftTeacherId, draftGrade, draftSection, draftDepedGmail, draftUsername]
-      : [draftName, draftLrn, draftAge, draftGrade, draftSection, draftEmail, draftUsername];
+      ? [draftName, draftGrade, draftSection]
+      : [draftName, draftAge, draftGrade, draftSection];
 
     if (requiredValues.some((v) => !v.trim())) {
       Alert.alert(t('requiredFieldTitle'), t('requiredFieldMsg'));
       return;
     }
 
-    if (isTeacher) {
-      updateProfile({
+    setSaving(true);
+    try {
+      await updateProfile({
         name: draftName.trim(),
-        teacherId: draftTeacherId.trim(),
         grade: draftGrade.trim(),
         section: draftSection.trim(),
-        depedGmail: draftDepedGmail.trim(),
-        username: draftUsername.trim(),
+        ...(isTeacher ? {} : { age: draftAge.trim() }),
       });
-    } else {
-      updateProfile({
-        name: draftName.trim(),
-        lrn: draftLrn.trim(),
-        age: draftAge.trim(),
-        grade: draftGrade.trim(),
-        section: draftSection.trim(),
-        email: draftEmail.trim(),
-        username: draftUsername.trim(),
-      });
+      expand();
+      setEditing(false);
+      Alert.alert(t('profileUpdatedTitle'), t('profileUpdatedMsg'));
+    } catch (err) {
+      Alert.alert(t('requiredFieldTitle'), errorMessage(err));
+    } finally {
+      setSaving(false);
     }
-
-    expand();
-    setEditing(false);
-    Alert.alert(t('profileUpdatedTitle'), t('profileUpdatedMsg'));
   };
 
-  const startChangingPassword = () => {
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmNewPassword('');
-    expand();
-    setEditing(false);
-    setChangingPassword(true);
-  };
-
-  const cancelChangingPassword = () => {
-    expand();
-    setChangingPassword(false);
-  };
-
-  const savePassword = () => {
-    if (currentPassword !== password) {
-      Alert.alert(t('currentPasswordWrongTitle'), t('currentPasswordWrongMsg'));
-      return;
-    }
-    if (!newPassword.trim() || newPassword !== confirmNewPassword) {
-      Alert.alert(t('passwordMismatch'), t('passwordMismatchMsg'));
-      return;
-    }
-    updateProfile({ password: newPassword.trim() });
-    expand();
-    setChangingPassword(false);
-    Alert.alert(t('passwordUpdatedTitle'), t('passwordUpdatedMsg'));
+  /**
+   * There is no "change password" endpoint by design: the API never sees a
+   * password. Recovery goes through Firebase's reset email, the same route the
+   * Forgot Password screen uses.
+   */
+  const handleChangePassword = () => {
+    const target = isTeacher ? depedGmail || email : email;
+    Alert.alert(t('changePasswordBtn'), t('passwordResetPrompt', { email: target || '—' }), [
+      { text: t('cancelBtn'), style: 'cancel' },
+      {
+        text: t('sendOtpBtn'),
+        onPress: async () => {
+          try {
+            await requestPasswordReset(target);
+            Alert.alert(t('step5Title'), t('resetSuccessMsg'));
+          } catch (err) {
+            Alert.alert(t('changePasswordBtn'), errorMessage(err));
+          }
+        },
+      },
+    ]);
   };
 
   const handleLogout = () => {
@@ -196,9 +181,12 @@ export default function ProfileScreen() {
       {
         text: t('logOutBtn'),
         style: 'destructive',
-        // Equivalent of the old navigation.reset() — wipe the history so
-        // "back" can't walk the user straight back into the logged-in app.
-        onPress: () => {
+        // POST /auth/logout revokes every refresh token for the account, so the
+        // session is dead server-side too, not just wiped off this device.
+        onPress: async () => {
+          await logout();
+          // Equivalent of the old navigation.reset() — wipe the history so
+          // "back" can't walk the user straight back into the logged-in app.
           if (router.canDismiss()) router.dismissAll();
           router.replace('/login');
         },
@@ -206,40 +194,61 @@ export default function ProfileScreen() {
     ]);
   };
 
+  // The file goes to Cloud Storage via a signed URL, and the profile stores the
+  // resulting public URL — so the photo follows the account to a new device
+  // instead of being a file:// path that only this phone can resolve.
   const pickPhotoFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(t('photoPermissionTitle'), t('photoPermissionMsg'));
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
     });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      updateProfile({ photoUri: result.assets[0].uri });
+    const asset = picked.assets?.[0];
+    if (picked.canceled || !asset?.uri) return;
+
+    setUploading(true);
+    try {
+      await uploadPhoto(asset.uri, asset.mimeType ?? undefined);
       setAvatarModalVisible(false);
+    } catch (err) {
+      Alert.alert(t('photoPermissionTitle'), errorMessage(err));
+    } finally {
+      setUploading(false);
     }
   };
 
-  const chooseAvatar = (emoji: string) => {
-    updateProfile({ avatar: emoji, photoUri: '' });
-    setAvatarModalVisible(false);
+  const chooseAvatar = async (emoji: string) => {
+    try {
+      await updateProfile({ avatar: emoji, photoUri: '' });
+      setAvatarModalVisible(false);
+    } catch (err) {
+      Alert.alert(t('profilePhotoTitle'), errorMessage(err));
+    }
   };
 
-  const removePhoto = () => {
-    updateProfile({ photoUri: '' });
-    setAvatarModalVisible(false);
+  const removePhoto = async () => {
+    try {
+      await updateProfile({ photoUri: '' });
+      setAvatarModalVisible(false);
+    } catch (err) {
+      Alert.alert(t('profilePhotoTitle'), errorMessage(err));
+    }
   };
 
   const handleAvatarPress = () => setAvatarModalVisible(true);
 
+  const noop = () => {};
+
   const fields: FieldDef[] = isTeacher
     ? [
         { key: 'fullName', label: t('fullName'), icon: 'person-outline', value: name, draft: draftName, onChangeText: setDraftName },
-        { key: 'teacherId', label: t('teacherId'), icon: 'id-card-outline', value: teacherId, draft: draftTeacherId, onChangeText: setDraftTeacherId },
+        { key: 'teacherId', label: t('teacherId'), icon: 'id-card-outline', value: teacherId, draft: teacherId, onChangeText: noop, readOnly: true },
         {
           key: 'gradeSection',
           label: t('gradeSectionLabel'),
@@ -248,12 +257,14 @@ export default function ProfileScreen() {
           draft: draftGrade,
           onChangeText: setDraftGrade,
         },
-        { key: 'depedGmail', label: t('depedGmail'), icon: 'mail-outline', value: depedGmail, draft: draftDepedGmail, onChangeText: setDraftDepedGmail, keyboardType: 'email-address' },
-        { key: 'username', label: t('username'), icon: 'person-circle-outline', value: username, draft: draftUsername, onChangeText: setDraftUsername },
+        // `email` is the same column server-side — falling back to it keeps the
+        // row populated for any staff role, not just `teacher`.
+        { key: 'depedGmail', label: t('depedGmail'), icon: 'mail-outline', value: depedGmail || email, draft: depedGmail || email, onChangeText: noop, keyboardType: 'email-address', readOnly: true },
+        { key: 'username', label: t('username'), icon: 'person-circle-outline', value: username, draft: username, onChangeText: noop, readOnly: true },
       ]
     : [
         { key: 'fullName', label: t('fullName'), icon: 'person-outline', value: name, draft: draftName, onChangeText: setDraftName },
-        { key: 'lrn', label: t('lrn'), icon: 'card-outline', value: lrn, draft: draftLrn, onChangeText: setDraftLrn, keyboardType: 'numeric' },
+        { key: 'lrn', label: t('lrn'), icon: 'card-outline', value: lrn, draft: lrn, onChangeText: noop, keyboardType: 'numeric', readOnly: true },
         { key: 'age', label: t('age'), icon: 'calendar-outline', value: age, draft: draftAge, onChangeText: setDraftAge, keyboardType: 'numeric' },
         {
           key: 'gradeSection',
@@ -263,8 +274,8 @@ export default function ProfileScreen() {
           draft: draftGrade,
           onChangeText: setDraftGrade,
         },
-        { key: 'email', label: t('email'), icon: 'mail-outline', value: email, draft: draftEmail, onChangeText: setDraftEmail, keyboardType: 'email-address' },
-        { key: 'username', label: t('username'), icon: 'person-circle-outline', value: username, draft: draftUsername, onChangeText: setDraftUsername },
+        { key: 'email', label: t('email'), icon: 'mail-outline', value: email, draft: email, onChangeText: noop, keyboardType: 'email-address', readOnly: true },
+        { key: 'username', label: t('username'), icon: 'person-circle-outline', value: username, draft: username, onChangeText: noop, readOnly: true },
       ];
 
   return (
@@ -331,10 +342,15 @@ export default function ProfileScreen() {
                 <View style={styles.cardBody}>
                   <Text style={styles.cardLabel}>{f.label}</Text>
 
-                  {!editing ? (
-                    <Text style={styles.cardValue} numberOfLines={1}>
-                      {f.value || '—'}
-                    </Text>
+                  {!editing || f.readOnly ? (
+                    <>
+                      <Text style={styles.cardValue} numberOfLines={1}>
+                        {f.value || '—'}
+                      </Text>
+                      {editing && f.readOnly && (
+                        <Text style={styles.lockedHint}>🔒 {t('fieldLockedHint')}</Text>
+                      )}
+                    </>
                   ) : isGradeSection ? (
                     <View style={styles.inlineRow}>
                       <TextInput
@@ -364,7 +380,7 @@ export default function ProfileScreen() {
                   )}
                 </View>
 
-                {!editing && (
+                {!editing && !f.readOnly && (
                   <TouchableOpacity style={styles.pencilBtn} onPress={startEditing}>
                     <Ionicons name="pencil" size={16} color="#8E8E93" />
                   </TouchableOpacity>
@@ -376,40 +392,27 @@ export default function ProfileScreen() {
 
         {editing && (
           <View style={styles.editActionsRow}>
-            <TouchableOpacity style={styles.cancelButton} onPress={cancelEditing}>
+            <TouchableOpacity style={styles.cancelButton} onPress={cancelEditing} disabled={saving}>
               <Text style={styles.cancelButtonText}>{t('cancelBtn')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
-              <Text style={styles.saveButtonText}>{t('saveBtn')}</Text>
+            <TouchableOpacity style={styles.saveButton} onPress={saveProfile} disabled={saving}>
+              {saving ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Text style={styles.saveButtonText}>{t('saveBtn')}</Text>
+              )}
             </TouchableOpacity>
           </View>
         )}
 
-        {changingPassword && (
-          <View style={styles.passwordCard}>
-            <Text style={styles.passwordCardTitle}>{t('changePasswordBtn')}</Text>
-            <Field label={t('currentPassword')} value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry />
-            <Field label={t('newPassword')} value={newPassword} onChangeText={setNewPassword} secureTextEntry />
-            <Field label={t('confirmNewPassword')} value={confirmNewPassword} onChangeText={setConfirmNewPassword} secureTextEntry />
-            <View style={styles.editActionsRow}>
-              <TouchableOpacity style={styles.cancelButton} onPress={cancelChangingPassword}>
-                <Text style={styles.cancelButtonText}>{t('cancelBtn')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={savePassword}>
-                <Text style={styles.saveButtonText}>{t('saveBtn')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {!editing && !changingPassword && (
+        {!editing && (
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.updateBtn} onPress={startEditing}>
               <Ionicons name="create-outline" size={16} color="#FFF" />
               <Text style={styles.actionBtnText}>{t('updateProfileInfoBtn')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.passwordBtn} onPress={startChangingPassword}>
+            <TouchableOpacity style={styles.passwordBtn} onPress={handleChangePassword}>
               <Ionicons name="key-outline" size={16} color="#FFF" />
               <Text style={styles.actionBtnText}>{t('changePasswordBtn')}</Text>
             </TouchableOpacity>
@@ -432,9 +435,13 @@ export default function ProfileScreen() {
           <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={() => {}}>
             <Text style={styles.modalTitle}>{t('profilePhotoTitle')}</Text>
 
-            <TouchableOpacity style={styles.uploadRow} onPress={pickPhotoFromLibrary}>
+            <TouchableOpacity style={styles.uploadRow} onPress={pickPhotoFromLibrary} disabled={uploading}>
               <View style={[styles.uploadIconWrap, { backgroundColor: '#0038A8' }]}>
-                <Ionicons name="image-outline" size={18} color="#FFF" />
+                {uploading ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Ionicons name="image-outline" size={18} color="#FFF" />
+                )}
               </View>
               <Text style={styles.uploadRowText}>{t('uploadFromGalleryBtn')}</Text>
             </TouchableOpacity>
@@ -467,15 +474,6 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
-  );
-}
-
-function Field({ label, ...props }: any) {
-  return (
-    <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput style={styles.fieldInput} placeholderTextColor="#B0B0B0" {...props} />
-    </View>
   );
 }
 
@@ -531,6 +529,7 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1 },
   cardLabel: { fontSize: 11, color: '#8E8E93', fontWeight: '600', marginBottom: 2 },
   cardValue: { fontSize: 15, color: '#1A1A1A', fontWeight: '600' },
+  lockedHint: { fontSize: 10.5, color: '#8E8E93', marginTop: 2, fontStyle: 'italic' },
   cardInput: {
     fontSize: 15, color: '#1A1A1A', fontWeight: '600', borderBottomWidth: 1,
     borderBottomColor: '#D0D0D0', paddingVertical: 2,

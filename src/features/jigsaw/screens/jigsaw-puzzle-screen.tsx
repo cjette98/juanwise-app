@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, Image, Animated, PanResponder, Dimensions, TouchableOpacity, Modal, ScrollView,
+  View, Text, StyleSheet, Image, Animated, PanResponder, Dimensions, TouchableOpacity, Modal, ScrollView, Alert,
 } from 'react-native';
 import Svg, { Path, Image as SvgImage, ClipPath, Defs, G } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
-import categoryContent from '@/shared/content/category-content';
-import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult, Medal } from '@/shared/components/activity-timer';
-import { useStudentResults } from '@/features/results/context/student-results-context';
+import { useAdminContent } from '@/features/admin/context/admin-content-context';
+import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
+import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { useLanguage } from '@/shared/i18n/language-context';
+import { errorMessage } from '@/shared/api';
 import { generateEdgeMap, getPieceEdges, piecePathD } from '@/features/jigsaw/lib/jigsaw-shapes';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
@@ -35,22 +36,11 @@ function shuffle<T>(arr: T[]): T[] {
   return out;
 }
 
-// Jigsaw scoring rule (per spec — Time Bonus & Star Allocation, based on
-// time USED out of the 120s timer):
-//   00:01 – 00:40  -> +15 pts | 3 Stars
-//   00:41 – 01:20  -> +10 pts | 2 Stars
-//   01:21 – 02:00  -> +5 pts  | 1 Star
-//   Not solved / Timeout -> 0 pts | No Star | Red Flag
-// Max per level = 15 * 6 activities = 90 pts (same cap as Quiz).
-// Local to this screen only — does not touch ActivityTimer's shared
-// medal/points constants, so Quiz's scoring is untouched.
-function computeJigsawScore(timeUsed: number): { stars: 0 | 1 | 2 | 3; points: number; medal: Medal } {
-  if (timeUsed <= 40) return { stars: 3, points: 15, medal: 'gold' };
-  if (timeUsed <= 80) return { stars: 2, points: 10, medal: 'silver' };
-  if (timeUsed <= 120) return { stars: 1, points: 5, medal: 'bronze' };
-  return { stars: 0, points: 0, medal: null };
-}
-
+// Points and the medal behind the star rating are awarded by the API
+// (`POST /results` → juanwise-be `results/scoring.ts`) out of the 120s budget
+// this screen reports against. Scoring lives in one place now, so the jigsaw
+// results, the leaderboard and the class analytics can never disagree.
+// Max per level is still 15 * 6 activities = 90 pts, the same cap as Quiz.
 function starsLabel(stars: number) {
   if (stars >= 3) return '⭐⭐⭐ 3 Stars';
   if (stars === 2) return '⭐⭐ 2 Stars';
@@ -85,6 +75,7 @@ export default function JigsawPuzzleScreen() {
   const { completeActivity, failActivity } = useGameProgress();
   const { addResult } = useStudentResults();
   const { name: studentName } = useUser();
+  const { getEffectiveCategoryContent } = useAdminContent();
   const { t } = useLanguage();
 
   const { rows, cols } = getGrid(pieceCount);
@@ -97,7 +88,9 @@ export default function JigsawPuzzleScreen() {
   const canvasW = pieceWidth + marginX * 2;
   const canvasH = pieceHeight + marginY * 2;
 
-  const content = categoryContent[category] || categoryContent.history;
+  // An admin-uploaded picture (PUT /content/categories/:key) replaces the
+  // bundled one for every student, not just the device it was picked on.
+  const content = getEffectiveCategoryContent(category);
   const puzzleImage = content.image;
 
   // Generated once per attempt: which internal edges are tabs vs. blanks,
@@ -131,7 +124,8 @@ export default function JigsawPuzzleScreen() {
     phaseRef.current = phase;
   }, [phase]);
 
-  const [result, setResult] = useState<(ActivityTimerResult & { stars: number }) | null>(null);
+  const [result, setResult] = useState<(ActivityTimerResult & { stars: number; points: number }) | null>(null);
+  const [queued, setQueued] = useState(false);
 
   // Shows a zoomed-in reveal of the completed picture the moment the puzzle
   // is solved, before the activity-results modal appears.
@@ -176,14 +170,46 @@ export default function JigsawPuzzleScreen() {
   // One attempt per visit — no auto-reshuffle-and-continue. A failed/timed
   // out attempt marks the activity red on the Activity List; retrying means
   // backing out and reopening the card for a fresh shuffle + fresh timer.
+  //
+  // The screen reports solved/not-solved as 1-of-1 or 0-of-1 correct; the API
+  // turns that plus the time used into points and a medal.
+  const recordAttempt = async (timerResult: ActivityTimerResult, solved: boolean) => {
+    try {
+      const { result: recorded, queued } = await addResult({
+        category,
+        activityType: 'jigsaw',
+        level,
+        activityNum,
+        timeUsed: timerResult.timeUsed,
+        timedOut: timerResult.timedOut,
+        correctCount: solved ? 1 : 0,
+        requiredCount: 1,
+      });
+
+      setQueued(queued);
+      setResult({
+        ...timerResult,
+        medal: recorded.medal,
+        points: recorded.points,
+        stars: starsForMedal(recorded.medal),
+      });
+
+      if (recorded.medal) {
+        await completeActivity(category, 'jigsaw', level, activityNum);
+        setTimeout(() => setPhase('success'), 250);
+      } else {
+        await failActivity(category, 'jigsaw', level, activityNum);
+        setPhase('failed');
+      }
+    } catch (err) {
+      Alert.alert('Hindi Naitala', errorMessage(err, 'Hindi naitala ang resulta mo. Subukan ulit.'));
+      phaseRef.current = 'playing';
+      setPhase('playing');
+    }
+  };
+
   const recordFailedAttempt = (timerResult: ActivityTimerResult) => {
-    setResult({ ...timerResult, medal: null, points: 0, stars: 0 });
-    addResult({
-      studentName, category, activityType: 'jigsaw', level, activityNum,
-      medal: null, points: 0, timeUsed: timerResult.timeUsed, timedOut: timerResult.timedOut,
-    });
-    failActivity(category, 'jigsaw', level, activityNum);
-    setPhase('failed');
+    void recordAttempt(timerResult, false);
   };
 
   const handleWin = (finalPlaced: Set<number>) => {
@@ -191,16 +217,7 @@ export default function JigsawPuzzleScreen() {
     if (isSolved && phaseRef.current === 'playing') {
       phaseRef.current = 'success';
       const timerResult = timerRef.current?.stop();
-      if (timerResult) {
-        const score = computeJigsawScore(timerResult.timeUsed);
-        setResult({ ...timerResult, medal: score.medal, points: score.points, stars: score.stars });
-        addResult({
-          studentName, category, activityType: 'jigsaw', level, activityNum,
-          medal: score.medal, points: score.points, timeUsed: timerResult.timeUsed, timedOut: false,
-        });
-      }
-      completeActivity(category, 'jigsaw', level, activityNum);
-      setTimeout(() => setPhase('success'), 250);
+      if (timerResult) void recordAttempt(timerResult, true);
     }
   };
 
@@ -490,6 +507,7 @@ export default function JigsawPuzzleScreen() {
               <Text style={styles.detailLine}>📂 Category: {label}</Text>
               <Text style={styles.detailLine}>🎮 Activity Type: Jigsaw Puzzle ({pieceCount} pieces)</Text>
               <Text style={styles.detailLine}>🔢 Activity #: {activityNum} of 6 · Level {level}/5</Text>
+              {queued && <Text style={styles.queuedLine}>📶 Offline — ipapadala ang resultang ito pagbalik ng internet.</Text>}
             </View>
             <TouchableOpacity style={[styles.continueButton, { backgroundColor: color }]} onPress={handleContinue}>
               <Text style={styles.continueButtonText}>Proceed to Next Activity</Text>
@@ -511,6 +529,7 @@ export default function JigsawPuzzleScreen() {
               <Text style={styles.detailLine}>📂 Category: {label}</Text>
               <Text style={styles.detailLine}>🎮 Activity Type: Jigsaw Puzzle ({pieceCount} pieces)</Text>
               <Text style={styles.detailLine}>🔢 Activity #: {activityNum} of 6 · Level {level}/5</Text>
+              {queued && <Text style={styles.queuedLine}>📶 Offline — ipapadala ang resultang ito pagbalik ng internet.</Text>}
             </View>
             <TouchableOpacity style={[styles.continueButton, { backgroundColor: color }]} onPress={handleContinue}>
               <Text style={styles.continueButtonText}>Proceed to other Activity — maybe you can form it, try it</Text>
@@ -550,6 +569,7 @@ const styles = StyleSheet.create({
   detailBlock: { width: '100%', marginBottom: 18, gap: 6 },
   detailLine: { fontSize: 13.5, color: '#2B2B2B', lineHeight: 19 },
   flagLine: { color: '#C4304A', fontWeight: 'bold' },
+  queuedLine: { fontSize: 12.5, color: '#8A5A2B', fontStyle: 'italic', marginTop: 4 },
   continueButton: { width: '100%', paddingVertical: 14, borderRadius: 25, alignItems: 'center' },
   continueButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, textAlign: 'center' },
 });

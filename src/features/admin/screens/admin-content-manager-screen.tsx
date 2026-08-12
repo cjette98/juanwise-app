@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
@@ -21,19 +21,41 @@ export default function AdminContentManagerScreen() {
   const router = useRouter();
   const [category, setCategory] = useState(CATEGORIES[0].key);
   const [level, setLevel] = useState(1);
-  const { getEffectiveQuestion, isOverridden, deleteQuestionOverride, showMiniLesson, setShowMiniLesson } = useAdminContent();
+  // Every read and write here goes through the content module, so an edit made
+  // on this device is what every student's app fetches next.
+  const {
+    ready,
+    error,
+    getEffectiveQuestion,
+    isOverridden,
+    deleteQuestionOverride,
+    showMiniLesson,
+    setShowMiniLesson,
+  } = useAdminContent();
 
   const activeCategory = CATEGORIES.find((c) => c.key === category)!;
 
   const handleDelete = (activityNum: number) => {
     Alert.alert(
       'Alisin ang Custom na Tanong?',
-      `Babalik ito sa default/placeholder na tanong para sa Activity ${activityNum}.`,
+      `Babalik ito sa default na tanong para sa Activity ${activityNum}.`,
       [
         { text: 'Kanselahin', style: 'cancel' },
-        { text: 'Alisin', style: 'destructive', onPress: () => deleteQuestionOverride(category, level, activityNum) },
+        {
+          text: 'Alisin',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await deleteQuestionOverride(category, level, activityNum);
+            if (!result.success) Alert.alert('Hindi Naalis', result.message);
+          },
+        },
       ]
     );
+  };
+
+  const handleToggleMiniLesson = async (value: boolean) => {
+    const result = await setShowMiniLesson(value);
+    if (!result.success) Alert.alert('Hindi Na-save', result.message);
   };
 
   return (
@@ -46,17 +68,25 @@ export default function AdminContentManagerScreen() {
         <Text style={styles.headerSubtitle}>I-edit, i-update, o burahin ang mga tanong sa quiz</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catRow} contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}>
-        {CATEGORIES.map((c) => (
-          <TouchableOpacity
-            key={c.key}
-            style={[styles.catChip, { borderColor: c.color }, category === c.key && { backgroundColor: c.color }]}
-            onPress={() => setCategory(c.key)}
-          >
-            <Text style={[styles.catChipText, { color: category === c.key ? '#FFF' : c.color }]}>{c.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.catRowWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.catRowContent}
+        >
+          {CATEGORIES.map((c) => (
+            <TouchableOpacity
+              key={c.key}
+              style={[styles.catChip, { borderColor: c.color }, category === c.key && { backgroundColor: c.color }]}
+              onPress={() => setCategory(c.key)}
+            >
+              <Text style={[styles.catChipText, { color: category === c.key ? '#FFF' : c.color }]}>
+                {c.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <View style={styles.levelRow}>
         {LEVELS.map((lvl) => (
@@ -79,14 +109,28 @@ export default function AdminContentManagerScreen() {
         </View>
         <Switch
           value={showMiniLesson}
-          onValueChange={setShowMiniLesson}
+          onValueChange={handleToggleMiniLesson}
           trackColor={{ false: '#D0D0D0', true: activeCategory.color }}
           thumbColor="#FFF"
         />
       </View>
 
+      {!!error && (
+        <View style={styles.errorBanner}>
+          <Ionicons name="cloud-offline-outline" size={16} color="#FFF" />
+          <Text style={styles.errorBannerText}>{error}</Text>
+        </View>
+      )}
+
+      {!ready && (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={activeCategory.color} />
+          <Text style={styles.loadingText}>Kinukuha ang nilalaman mula sa server...</Text>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.list}>
-        {ACTIVITIES.map((num) => {
+        {ready && ACTIVITIES.map((num) => {
           const q = getEffectiveQuestion(category, level, num);
           const custom = isOverridden(category, level, num);
           return (
@@ -136,8 +180,25 @@ const styles = StyleSheet.create({
   headerBack: { marginBottom: 4 },
   headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
   headerSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.9, marginTop: 2 },
-  catRow: { marginTop: 12, maxHeight: 44 },
-  catChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, backgroundColor: '#FFF' },
+  /**
+   * One scrollable line of category chips.
+   *
+   * Every cross-axis size here is explicit on purpose. A horizontal ScrollView
+   * in a column layout has no natural height, so it either grows to fill the
+   * screen or collapses — and the usual patches for that are what broke this
+   * row twice: `maxHeight` capped the box but let the chips lay out taller and
+   * clipped their labels, and `alignItems: 'center'` against an indefinite
+   * cross-size collapsed the labels to nothing while the pills kept their
+   * shape. With a fixed height on the wrapper *and* on the chip, nothing has to
+   * be inferred: the wrapper defines the band, the chip defines its own pill,
+   * and the label is centred inside a box that is already 34px tall.
+   */
+  catRowWrap: { height: 46, marginTop: 12 },
+  catRowContent: { paddingHorizontal: 12, gap: 8, alignItems: 'center' },
+  catChip: {
+    height: 34, paddingHorizontal: 12, borderRadius: 17, borderWidth: 1.5,
+    backgroundColor: '#FFF', justifyContent: 'center',
+  },
   catChipText: { fontWeight: 'bold', fontSize: 12 },
   levelRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 12, paddingHorizontal: 12 },
   levelChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#E5DCC8' },
@@ -149,6 +210,13 @@ const styles = StyleSheet.create({
   },
   miniLessonTitle: { fontWeight: 'bold', fontSize: 13.5, color: '#1A1A1A' },
   miniLessonSub: { fontSize: 11.5, color: '#8E8E93', marginTop: 2, lineHeight: 16 },
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#B23A3A',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginHorizontal: 16, marginTop: 12,
+  },
+  errorBannerText: { color: '#FFF', fontSize: 12, flex: 1 },
+  loadingWrap: { alignItems: 'center', paddingVertical: 24, gap: 8 },
+  loadingText: { fontSize: 12.5, color: '#8E8E93' },
   list: { padding: 16, gap: 12 },
   card: { backgroundColor: '#FFF', borderRadius: 14, padding: 14, borderWidth: 1.5, borderColor: '#E0D5BE' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },

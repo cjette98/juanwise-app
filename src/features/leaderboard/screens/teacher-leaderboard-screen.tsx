@@ -70,10 +70,19 @@ export default function TeacherLeaderboardScreen() {
     return list;
   }, [leaderboard, sortMode]);
 
+  // DELETE /results is scoped to this class and admin-only — a teacher gets a
+  // clear 403 message back rather than a button that silently does nothing.
   const handleClear = () => {
-    Alert.alert('I-clear ang Leaderboard?', 'Buburahin lahat ng naitalang resulta ng mga estudyante.', [
+    Alert.alert('I-clear ang Leaderboard?', 'Buburahin lahat ng naitalang resulta ng klaseng ito.', [
       { text: 'Kanselahin', style: 'cancel' },
-      { text: 'I-clear', style: 'destructive', onPress: clearResults },
+      {
+        text: 'I-clear',
+        style: 'destructive',
+        onPress: async () => {
+          const result = await clearResults();
+          Alert.alert(result.success ? 'Tapos na' : 'Hindi Nabura', result.message);
+        },
+      },
     ]);
   };
 

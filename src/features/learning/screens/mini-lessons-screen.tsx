@@ -4,8 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
-import { getQuizQuestion } from '@/shared/content/quiz-content';
-import categoryContent from '@/shared/content/category-content';
+import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 import { useRouter } from 'expo-router';
 
@@ -21,14 +20,17 @@ interface LessonCard {
 
 export default function MiniLessonsScreen() {
   const router = useRouter();
-  const { name } = useUser();
+  const { uid } = useUser();
   const { results, ready } = useStudentResults();
+  // Explanations and category write-ups come from the content module, so an
+  // admin's edit shows up in the unlocked lesson too.
+  const { getEffectiveQuestion, getEffectiveCategoryContent } = useAdminContent();
 
   // A "mini-lesson" is unlocked the first time the student answers that
   // exact category/level/activity/type correctly — dedupe on that key and
   // show only the most recent unlock per lesson.
   const lessons = useMemo<LessonCard[]>(() => {
-    const mine = results.filter((r) => r.studentName === name);
+    const mine = results.filter((r) => r.uid === uid);
     const byKey = new Map<string, LessonCard>();
 
     for (const r of mine) {
@@ -38,8 +40,8 @@ export default function MiniLessonsScreen() {
 
       const text =
         r.activityType === 'quiz'
-          ? getQuizQuestion(r.category, r.level, r.activityNum).explanation
-          : (categoryContent[r.category] || categoryContent.history).context_tl;
+          ? getEffectiveQuestion(r.category, r.level, r.activityNum).explanation
+          : getEffectiveCategoryContent(r.category).context;
 
       byKey.set(key, {
         key,
@@ -53,7 +55,7 @@ export default function MiniLessonsScreen() {
     }
 
     return Array.from(byKey.values()).sort((a, b) => b.timestamp - a.timestamp);
-  }, [results, name]);
+  }, [results, uid, getEffectiveQuestion, getEffectiveCategoryContent]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -87,7 +89,7 @@ export default function MiniLessonsScreen() {
 
         {lessons.map((lesson) => {
           const meta = getCategoryMeta(lesson.category);
-          const image = (categoryContent[lesson.category] || categoryContent.history).image;
+          const image = getEffectiveCategoryContent(lesson.category).image;
           return (
             <View key={lesson.key} style={[styles.card, { borderColor: meta.color }]}>
               <View style={styles.cardTop}>

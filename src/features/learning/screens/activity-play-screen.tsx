@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
-import { getQuizQuestion } from '@/shared/content/quiz-content';
-import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult, Medal } from '@/shared/components/activity-timer';
-import { useStudentResults } from '@/features/results/context/student-results-context';
+import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
+import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
+import { errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 
@@ -19,21 +19,12 @@ function shuffleChoices(choices: string[]) {
   return arr;
 }
 
-// New Quiz scoring rule (per spec):
-// Wrong / unanswered  = 0 pts, no star, 🚩 red flag — Needs Retry
-// Correct, 41-60s left on the clock = 15 pts / ⭐⭐⭐
-// Correct, 21-40s left             = 10 pts / ⭐⭐
-// Correct, 1-20s left              =  5 pts / ⭐
-// Max per level = 15 * 6 activities = 90 pts.
-// (Local to the Quiz screen only — does NOT touch ActivityTimer's shared
-// medal/points constants, so Jigsaw's scoring is untouched.)
-function computeQuizScore(timeRemaining: number): { stars: 0 | 1 | 2 | 3; points: number; medal: Medal } {
-  if (timeRemaining >= 41) return { stars: 3, points: 15, medal: 'gold' };
-  if (timeRemaining >= 21) return { stars: 2, points: 10, medal: 'silver' };
-  if (timeRemaining >= 1) return { stars: 1, points: 5, medal: 'bronze' };
-  return { stars: 0, points: 0, medal: null };
-}
-
+// Points and the medal behind the star rating are awarded by the API
+// (`POST /results` → juanwise-be `results/scoring.ts`) from what this screen
+// reports: how many required answers were correct, the time used, and whether
+// the clock ran out. The client no longer decides what an attempt is worth, so
+// a tampered payload cannot mint points and the leaderboard can never disagree
+// with the score the student just saw.
 function starsLabel(stars: number) {
   if (stars >= 3) return '⭐⭐⭐ 3 Stars';
   if (stars === 2) return '⭐⭐ 2 Stars';
@@ -72,23 +63,43 @@ export default function ActivityPlayScreen() {
   const { completeActivity, failActivity } = useGameProgress();
   const { addResult } = useStudentResults();
   const { name: studentName } = useUser();
-  // Admin can turn the "Mini-Lesson" hint step off app-wide (Content Manager).
-  const { showMiniLesson, ready: adminReady } = useAdminContent();
+  // Content and the app-wide "Mini-Lesson" toggle both come from the content
+  // module now, so an admin's edit reaches every student's device.
+  const { showMiniLesson, ready: adminReady, getEffectiveQuestion } = useAdminContent();
 
-  const q = getQuizQuestion(category, level, activityNum);
+  const q = useMemo(
+    () => getEffectiveQuestion(category, level, activityNum),
+    [getEffectiveQuestion, category, level, activityNum],
+  );
+  // `getEffectiveQuestion` builds a fresh object each call, so identity is not a
+  // usable dependency — key the reset effects on the content itself instead.
+  const questionSignature = `${q.type}|${q.question}|${(q.choices ?? []).join('~')}|${q.requiredAnswers ?? ''}`;
+
   // Number of input "tabs" to show for Enumeration — the Admin's required
   // count (falls back to the pool size, or 1, if somehow unset).
   const requiredAnswers = q.type === 'enumeration' ? Math.max(1, q.requiredAnswers || q.answerPool?.length || 1) : 0;
 
   const [phase, setPhase] = useState<Phase>('hint');
-  const [choices, setChoices] = useState<string[]>(() => (q.choices ? shuffleChoices(q.choices) : []));
+  const [choices, setChoices] = useState<string[]>([]);
   const [textAnswer, setTextAnswer] = useState('');
-  const [enumAnswers, setEnumAnswers] = useState<string[]>(() => Array(requiredAnswers).fill(''));
-  const [result, setResult] = useState<(ActivityTimerResult & { stars: number }) | null>(null);
+  const [enumAnswers, setEnumAnswers] = useState<string[]>([]);
+  const [result, setResult] = useState<(ActivityTimerResult & { stars: number; points: number }) | null>(null);
   const [enumCorrectCount, setEnumCorrectCount] = useState(0);
-  const [attemptKey, setAttemptKey] = useState(0);
+  const [queued, setQueued] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [attemptKey] = useState(0);
 
   const timerRef = useRef<ActivityTimerHandle>(null);
+
+  // The question can arrive (or change) after the first render, once the
+  // content fetch lands — re-shuffle the choices and re-size the enumeration
+  // boxes when it does.
+  useEffect(() => {
+    setChoices(q.choices ? shuffleChoices(q.choices) : []);
+    setEnumAnswers(Array(requiredAnswers).fill(''));
+    setTextAnswer('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionSignature, requiredAnswers]);
 
   // Once the admin setting has loaded, skip straight to the question if
   // Mini-Lesson is turned off — but only while we're still sitting on the
@@ -125,76 +136,78 @@ export default function ActivityPlayScreen() {
 
   const handleStartQuestion = () => setPhase('question');
 
-  // One shot per attempt: right answer scores based on time left; anything
-  // else (wrong choice, or leaving without answering) ends the attempt as a
-  // 🚩 red-flag "Needs Retry" — no in-place reshuffle/retry anymore.
-  const recordFailedAttempt = (timerResult: ActivityTimerResult, timedOut: boolean, correctCount?: number) => {
-    setResult({ ...timerResult, medal: null, points: 0, stars: 0 });
+  /**
+   * One shot per attempt. What the screen reports is only what it observed —
+   * how many required answers were right, the time used, whether the clock ran
+   * out. The API turns that into points and a medal and advances progress in
+   * the same call, then this shows back what the server actually awarded.
+   */
+  const recordAttempt = async (
+    timerResult: ActivityTimerResult,
+    passed: boolean,
+    timedOut: boolean,
+    correctCount?: number,
+  ) => {
     if (typeof correctCount === 'number') setEnumCorrectCount(correctCount);
-    addResult({
-      studentName,
-      category,
-      activityType: 'quiz',
-      level,
-      activityNum,
-      medal: null,
-      points: 0,
-      timeUsed: timerResult.timeUsed,
-      timedOut,
-      ...(q.type === 'enumeration'
-        ? { correctCount: correctCount ?? 0, requiredCount: requiredAnswers }
-        : {}),
-    });
-    failActivity(category, activityType, level, activityNum);
-    setPhase('incorrect');
-  };
 
-  const recordPassedAttempt = (timerResult: ActivityTimerResult, correctCount?: number) => {
-    const score = computeQuizScore(timerResult.timeRemaining);
-    setResult({ ...timerResult, medal: score.medal, points: score.points, stars: score.stars });
-    if (typeof correctCount === 'number') setEnumCorrectCount(correctCount);
-    addResult({
-      studentName,
-      category,
-      activityType: 'quiz',
-      level,
-      activityNum,
-      medal: score.medal,
-      points: score.points,
-      timeUsed: timerResult.timeUsed,
-      timedOut: false,
-      ...(q.type === 'enumeration'
-        ? { correctCount: correctCount ?? requiredAnswers, requiredCount: requiredAnswers }
-        : {}),
-    });
-    completeActivity(category, activityType, level, activityNum);
-    setPhase('success');
+    const requiredCount = q.type === 'enumeration' ? requiredAnswers : 1;
+    const observedCorrect =
+      q.type === 'enumeration' ? (correctCount ?? 0) : passed ? 1 : 0;
+
+    setSubmitting(true);
+    try {
+      const { result: recorded, queued: wasQueued } = await addResult({
+        category,
+        activityType: 'quiz',
+        level,
+        activityNum,
+        timeUsed: timerResult.timeUsed,
+        timedOut,
+        correctCount: observedCorrect,
+        requiredCount,
+      });
+
+      setQueued(wasQueued);
+      setResult({
+        ...timerResult,
+        medal: recorded.medal,
+        points: recorded.points,
+        stars: starsForMedal(recorded.medal),
+      });
+
+      if (recorded.medal) {
+        await completeActivity(category, activityType, level, activityNum);
+        setPhase('success');
+      } else {
+        await failActivity(category, activityType, level, activityNum);
+        setPhase('incorrect');
+      }
+    } catch (err) {
+      // Only a payload the server refuses outright lands here — an outage is
+      // queued by addResult instead. Let the student retry rather than
+      // silently losing the attempt.
+      Alert.alert('Hindi Naitala', errorMessage(err, 'Hindi naitala ang sagot mo. Subukan ulit.'));
+      setPhase('question');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleAnswer = (given: string) => {
-    if (phase !== 'question') return;
+    if (phase !== 'question' || submitting) return;
     const timerResult = timerRef.current?.stop();
     if (!timerResult) return;
-
-    if (isCorrect(given)) {
-      recordPassedAttempt(timerResult);
-    } else {
-      recordFailedAttempt(timerResult, false);
-    }
+    void recordAttempt(timerResult, isCorrect(given), false);
   };
 
   // Enumeration: submits all filled tabs at once.
   const handleSubmitEnumeration = () => {
-    if (phase !== 'question') return;
+    if (phase !== 'question' || submitting) return;
     const timerResult = timerRef.current?.stop();
     if (!timerResult) return;
 
     const { correctCount, passed } = checkEnumerationAnswers(enumAnswers);
-    if (passed) {
-      recordPassedAttempt(timerResult, correctCount);
-    } else {
-      recordFailedAttempt(timerResult, false, correctCount);
-    }
+    void recordAttempt(timerResult, passed, false, correctCount);
   };
 
   const updateEnumAnswer = (index: number, value: string) => {
@@ -207,26 +220,21 @@ export default function ActivityPlayScreen() {
 
   const handleExpire = (timerResult: ActivityTimerResult) => {
     if (phase === 'success' || phase === 'incorrect') return;
-    if (q.type === 'enumeration') {
-      const { correctCount } = checkEnumerationAnswers(enumAnswers);
-      recordFailedAttempt(timerResult, true, correctCount);
-    } else {
-      recordFailedAttempt(timerResult, true);
-    }
+    const correctCount =
+      q.type === 'enumeration' ? checkEnumerationAnswers(enumAnswers).correctCount : undefined;
+    void recordAttempt(timerResult, false, true, correctCount);
   };
 
   // Leaving the question unanswered (Back button) also counts as "left
   // unanswered" per spec — same 🚩 red-flag outcome as a wrong answer.
   const handleBackPress = () => {
     if (phase === 'question') {
+      if (submitting) return;
       const timerResult = timerRef.current?.stop();
       if (timerResult) {
-        if (q.type === 'enumeration') {
-          const { correctCount } = checkEnumerationAnswers(enumAnswers);
-          recordFailedAttempt(timerResult, false, correctCount);
-        } else {
-          recordFailedAttempt(timerResult, false);
-        }
+        const correctCount =
+          q.type === 'enumeration' ? checkEnumerationAnswers(enumAnswers).correctCount : undefined;
+        void recordAttempt(timerResult, false, false, correctCount);
       }
     } else {
       router.back();
@@ -256,7 +264,14 @@ export default function ActivityPlayScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
-        {phase === 'hint' && (
+        {!adminReady && (
+          <View style={styles.hintCard}>
+            <ActivityIndicator color={color} />
+            <Text style={styles.loadingText}>Kinukuha ang pinakabagong tanong...</Text>
+          </View>
+        )}
+
+        {adminReady && phase === 'hint' && (
           <View style={styles.hintCard}>
             <Text style={styles.hintLabel}>💡 Mini-Lesson</Text>
             <Text style={styles.hintText}>{q.hint}</Text>
@@ -266,7 +281,7 @@ export default function ActivityPlayScreen() {
           </View>
         )}
 
-        {phase === 'question' && (
+        {adminReady && phase === 'question' && (
           <View style={styles.questionCard}>
             <Text style={styles.questionText}>{q.question}</Text>
 
@@ -354,6 +369,7 @@ export default function ActivityPlayScreen() {
               <Text style={styles.detailLine}>📂 Category: {label}</Text>
               <Text style={styles.detailLine}>🎮 Activity Type: Quiz ({formatQuestionType(q.type)})</Text>
               <Text style={styles.detailLine}>🔢 Activity #: {activityNum} of 6 · Level {level}/5</Text>
+              {queued && <Text style={styles.queuedLine}>📶 Offline — ipapadala ang resultang ito pagbalik ng internet.</Text>}
             </View>
             <TouchableOpacity style={[styles.continueButton, { backgroundColor: color }]} onPress={handleContinue}>
               <Text style={styles.continueButtonText}>Proceed to Next Activity</Text>
@@ -378,6 +394,7 @@ export default function ActivityPlayScreen() {
               <Text style={styles.detailLine}>📂 Category: {label}</Text>
               <Text style={styles.detailLine}>🎮 Activity Type: Quiz ({formatQuestionType(q.type)})</Text>
               <Text style={styles.detailLine}>🔢 Activity #: {activityNum} of 6 · Level {level}/5</Text>
+              {queued && <Text style={styles.queuedLine}>📶 Offline — ipapadala ang resultang ito pagbalik ng internet.</Text>}
             </View>
             <TouchableOpacity style={[styles.continueButton, { backgroundColor: color }]} onPress={handleContinue}>
               <Text style={styles.continueButtonText}>Proceed to other Activity — maybe you can answer it, try it</Text>
@@ -429,6 +446,8 @@ const styles = StyleSheet.create({
   detailBlock: { width: '100%', marginBottom: 18, gap: 5 },
   detailLine: { fontSize: 13.5, color: '#2B2B2B', lineHeight: 19 },
   flagLine: { color: '#C4304A', fontWeight: 'bold' },
+  queuedLine: { fontSize: 12.5, color: '#8A5A2B', fontStyle: 'italic', marginTop: 4 },
+  loadingText: { fontSize: 13, color: '#8E8E93', marginTop: 10 },
   continueButton: { width: '100%', paddingVertical: 14, borderRadius: 25, alignItems: 'center' },
   continueButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, textAlign: 'center' },
 });

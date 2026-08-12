@@ -4,17 +4,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useUser } from '@/features/auth/context/user-context';
+import { useClass } from '@/features/teacher/context/class-context';
 import { images } from '@/shared/assets/images';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 export default function TeacherDashboardScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { avatar, photoUri } = useUser();
-  const { name: paramName } = useLocalSearchParams<{ name?: string }>();
-  const name = paramName || 'Maria Cruz';
-  const grade = '5-Ponce';
-  const totalStudents = 40;
+  // Name, grade and section come off the signed-in profile now, and the roster
+  // count is whatever GET /classes/mine reports — no more placeholders.
+  const { avatar, photoUri, name, grade: profileGrade, section } = useUser();
+  const { currentClass, totalStudents } = useClass();
+
+  const grade =
+    currentClass?.gradeLevel || profileGrade
+      ? [currentClass?.gradeLevel ?? profileGrade, currentClass?.section ?? section]
+          .filter(Boolean)
+          .join('-')
+      : '—';
 
   const menuItems = [
     { label: t('classOverview'), icon: 'people', color: '#E8801A', href: '/class-overview' },

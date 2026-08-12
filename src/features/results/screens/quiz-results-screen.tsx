@@ -16,15 +16,17 @@ function medalEmoji(medal: ActivityResult['medal']) {
 
 export default function QuizResultsScreen() {
   const router = useRouter();
-  const { name } = useUser();
+  const { uid } = useUser();
   const { results, ready } = useStudentResults();
 
+  // Matched on uid rather than name — two students in a class can share a name,
+  // and the API stamps every attempt with the account that made it.
   const quizResults = useMemo(
     () =>
       results
-        .filter((r) => r.studentName === name && r.activityType === 'quiz')
+        .filter((r) => r.uid === uid && r.activityType === 'quiz')
         .sort((a, b) => b.timestamp - a.timestamp),
-    [results, name]
+    [results, uid]
   );
 
   const totalPoints = quizResults.reduce((sum, r) => sum + r.points, 0);

@@ -8,20 +8,30 @@ import {
   ScrollView,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { images } from '@/shared/assets/images';
+import { errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
 
 const LRN_REGEX = /^\d{12}$/;
 const TEACHER_ID_REGEX = /^\d{7}$/;
 const GRADE_REGEX = /^\d+$/;
 const GMAIL_REGEX = /^[^\s@]+@gmail\.com$/i;
-const DEPED_GMAIL_REGEX = /^\S+@deped\.gov\.ph$/i;
 const USERNAME_REGEX = /^\S+$/;
+
+/**
+ * Mirrors TEACHER_EMAIL_DOMAINS in juanwise-be `shared/constants.ts` — kept here
+ * only for instant feedback; the API re-checks it. Not every teacher has a
+ * department mailbox yet, and an admin is a teacher account granted the claim
+ * out of band, so admins inherit the same list.
+ */
+const TEACHER_EMAIL_DOMAINS = ['@deped.gov.ph', '@gmail.com', '@yopmail.com'];
+const TEACHER_EMAIL_REGEX = /^\S+@(deped\.gov\.ph|gmail\.com|yopmail\.com)$/i;
 
 function isFullName(name: string) {
   return name.trim().split(/\s+/).length >= 2;
@@ -30,8 +40,9 @@ function isFullName(name: string) {
 export default function RegisterScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { registerUser } = useUser();
+  const { register } = useUser();
   const [role, setRole] = useState<'student' | 'teacher'>('student');
+  const [busy, setBusy] = useState(false);
 
   const [lrn, setLrn] = useState('');
   const [fullName, setFullName] = useState('');
@@ -80,10 +91,10 @@ export default function RegisterScreen() {
   const teacherNameError = errorFor('teacherName', teacherName, isFullName(teacherName), t('invalidFullNameMsg'));
   const teacherIdError = errorFor('teacherId', teacherId, TEACHER_ID_REGEX.test(teacherId), t('invalidTeacherIdMsg'));
   const handleGradeError = errorFor('handleGrade', handleGrade, GRADE_REGEX.test(handleGrade), t('invalidGradeMsg'));
-  const depedGmailError = errorFor('depedGmail', depedGmail, DEPED_GMAIL_REGEX.test(depedGmail), t('invalidDepedGmailMsg'));
+  const depedGmailError = errorFor('depedGmail', depedGmail, TEACHER_EMAIL_REGEX.test(depedGmail), t('invalidDepedGmailMsg'));
   const usernameError = errorFor('username', username, USERNAME_REGEX.test(username), t('invalidUsernameMsg'));
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     setTouched({
       lrn: true, fullName: true, grade: true, email: true,
       teacherName: true, teacherId: true, handleGrade: true, depedGmail: true,
@@ -120,7 +131,7 @@ export default function RegisterScreen() {
         Alert.alert(t('missingInfo'), t('invalidGmailMsg'));
         return;
       }
-      registerUser({
+      await submit({
         role: 'student',
         name: fullName,
         lrn,
@@ -132,6 +143,7 @@ export default function RegisterScreen() {
         password,
         avatar: '🧑‍🎓',
       });
+      return;
     } else {
       if (!teacherName || !teacherId || !handleGrade || !teacherSection || !depedGmail) {
         Alert.alert(t('missingInfo'), t('fillUsernamePass'));
@@ -149,26 +161,43 @@ export default function RegisterScreen() {
         Alert.alert(t('missingInfo'), t('invalidGradeMsg'));
         return;
       }
-      if (!DEPED_GMAIL_REGEX.test(depedGmail)) {
+      if (!TEACHER_EMAIL_REGEX.test(depedGmail)) {
         Alert.alert(t('missingInfo'), t('invalidDepedGmailMsg'));
         return;
       }
-      registerUser({
+      await submit({
         role: 'teacher',
         name: teacherName,
         teacherId,
         grade: handleGrade,
         section: teacherSection,
-        depedGmail,
+        // The API keeps one email column, whatever the role.
+        email: depedGmail,
         username,
         password,
         avatar: '🧑‍🏫',
       });
     }
+  };
 
-    Alert.alert(t('registerSuccess'), t('registerSuccessMsg'), [
-      { text: 'OK', onPress: () => router.navigate('/login') },
-    ]);
+  // POST /auth/register creates the Firebase account and signs it in, so the
+  // new user goes straight to their dashboard rather than back to Login.
+  const submit = async (input: Parameters<typeof register>[0]) => {
+    setBusy(true);
+    try {
+      const profile = await register(input);
+      Alert.alert(t('registerSuccess'), t('registerSuccessMsg'), [
+        {
+          text: 'OK',
+          onPress: () =>
+            router.replace(profile.role === 'student' ? '/student-home' : '/teacher-dashboard'),
+        },
+      ]);
+    } catch (err) {
+      Alert.alert(t('missingInfo'), errorMessage(err, 'Hindi nakumpleto ang pagpaparehistro.'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -278,6 +307,7 @@ export default function RegisterScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               error={depedGmailError}
+              hint={TEACHER_EMAIL_DOMAINS.join(' · ')}
             />
           </>
         )}
@@ -315,8 +345,16 @@ export default function RegisterScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
-          <Text style={styles.registerButtonText}>{t('registerBtn')}</Text>
+        <TouchableOpacity
+          style={[styles.registerButton, busy && styles.registerButtonBusy]}
+          onPress={handleRegister}
+          disabled={busy}
+        >
+          {busy ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.registerButtonText}>{t('registerBtn')}</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.navigate('/login')}>
@@ -329,7 +367,7 @@ export default function RegisterScreen() {
   );
 }
 
-function Field({ label, error, ...props }: any) {
+function Field({ label, error, hint, ...props }: any) {
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -344,6 +382,7 @@ function Field({ label, error, ...props }: any) {
           <Text style={styles.warnText}>{error}</Text>
         </View>
       )}
+      {!error && !!hint && <Text style={styles.hintText}>{hint}</Text>}
     </View>
   );
 }
@@ -385,6 +424,7 @@ const styles = StyleSheet.create({
   eyeBtn: { padding: 6, marginLeft: 4 },
   warnRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   warnText: { fontSize: 10, color: '#CE1126', flexShrink: 1 },
+  hintText: { fontSize: 10, color: '#8E8E93', marginTop: 2 },
   pwChecklist: { marginTop: 6, gap: 3 },
   pwRuleRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   pwRuleText: { fontSize: 10.5, color: '#8E8E93' },
@@ -393,6 +433,7 @@ const styles = StyleSheet.create({
     width: '100%', backgroundColor: '#E8801A', paddingVertical: 13,
     borderRadius: 22, alignItems: 'center', marginTop: 8, marginBottom: 12,
   },
+  registerButtonBusy: { opacity: 0.7 },
   registerButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 15, letterSpacing: 0.5 },
   signInText: { fontSize: 12, color: '#555' },
   signInLink: { color: '#E8801A', fontWeight: 'bold' },

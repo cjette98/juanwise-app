@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import { QuizType, MIN_ENUMERATION_POOL } from '@/shared/content/quiz-content';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
+
+/**
+ * Only the two types the API can store are offered. `identification` still
+ * exists in the app for the bundled fallback content, but
+ * `PUT /content/questions/...` accepts multiple-choice and enumeration only, so
+ * an identification question authored here could never be published.
+ */
+const PUBLISHABLE_TYPES: { key: Extract<QuizType, 'multiple-choice' | 'enumeration'>; label: string }[] = [
+  { key: 'multiple-choice', label: 'Multiple Choice' },
+  { key: 'enumeration', label: 'Enumeration' },
+];
 
 export default function QuestionEditorScreen() {
   const router = useRouter();
@@ -21,7 +32,12 @@ export default function QuestionEditorScreen() {
   const { getEffectiveQuestion, upsertQuestion } = useAdminContent();
   const existing = getEffectiveQuestion(category, level, activityNum);
 
-  const [type, setType] = useState<QuizType>(existing.type);
+  const [saving, setSaving] = useState(false);
+  // An existing `identification` slot opens as multiple-choice, since that is
+  // the closest type the server can hold.
+  const [type, setType] = useState<QuizType>(
+    existing.type === 'identification' ? 'multiple-choice' : existing.type,
+  );
   const [hint, setHint] = useState(existing.hint);
   const [question, setQuestion] = useState(existing.question);
   const [choices, setChoices] = useState<string[]>(existing.choices ?? ['', '', '', '']);
@@ -59,7 +75,25 @@ export default function QuestionEditorScreen() {
     setAnswerPool((prev) => prev.filter((_, idx) => idx !== i));
   };
 
-  const handleSave = () => {
+  // PUT /content/questions/:category/:level/:activityNum. The API re-validates
+  // everything checked below, so a question that renders wrong cannot be
+  // published even if this screen were bypassed.
+  const save = async (payload: Parameters<typeof upsertQuestion>[3]) => {
+    setSaving(true);
+    try {
+      const result = await upsertQuestion(category, level, activityNum, payload);
+      if (!result.success) {
+        Alert.alert('Hindi Na-save', result.message);
+        return;
+      }
+      Alert.alert('Naka-save!', result.message, [{ text: 'OK', onPress: () => router.back() }]);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (saving) return;
     if (!question.trim() || !hint.trim()) {
       Alert.alert('Kulang na Impormasyon', 'Kailangan ng mini-lesson at tanong.');
       return;
@@ -105,7 +139,7 @@ export default function QuestionEditorScreen() {
         return;
       }
 
-      upsertQuestion(category, level, activityNum, {
+      await save({
         hint: hint.trim(),
         type,
         question: question.trim(),
@@ -114,11 +148,10 @@ export default function QuestionEditorScreen() {
         requiredAnswers: requiredNum,
         explanation: explanation.trim() || hint.trim(),
       });
-      Alert.alert('Naka-save!', 'Na-update ang tanong.', [{ text: 'OK', onPress: () => router.back() }]);
       return;
     }
 
-    upsertQuestion(category, level, activityNum, {
+    await save({
       hint: hint.trim(),
       type,
       question: question.trim(),
@@ -126,8 +159,6 @@ export default function QuestionEditorScreen() {
       correctAnswer: correctAnswer.trim(),
       explanation: explanation.trim() || hint.trim(),
     });
-
-    Alert.alert('Naka-save!', 'Na-update ang tanong.', [{ text: 'OK', onPress: () => router.back() }]);
   };
 
   return (
@@ -139,24 +170,17 @@ export default function QuestionEditorScreen() {
       <ScrollView contentContainerStyle={styles.form}>
         <Text style={styles.label}>Uri ng Tanong</Text>
         <View style={styles.typeRow}>
-          <TouchableOpacity
-            style={[styles.typeChip, type === 'multiple-choice' && styles.typeChipActive]}
-            onPress={() => setType('multiple-choice')}
-          >
-            <Text style={[styles.typeChipText, type === 'multiple-choice' && styles.typeChipTextActive]}>Multiple Choice</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeChip, type === 'identification' && styles.typeChipActive]}
-            onPress={() => setType('identification')}
-          >
-            <Text style={[styles.typeChipText, type === 'identification' && styles.typeChipTextActive]}>Identification</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeChip, type === 'enumeration' && styles.typeChipActive]}
-            onPress={() => setType('enumeration')}
-          >
-            <Text style={[styles.typeChipText, type === 'enumeration' && styles.typeChipTextActive]}>Enumeration</Text>
-          </TouchableOpacity>
+          {PUBLISHABLE_TYPES.map((option) => (
+            <TouchableOpacity
+              key={option.key}
+              style={[styles.typeChip, type === option.key && styles.typeChipActive]}
+              onPress={() => setType(option.key)}
+            >
+              <Text style={[styles.typeChipText, type === option.key && styles.typeChipTextActive]}>
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <Text style={styles.label}>Mini-Lesson / Hint</Text>
@@ -227,10 +251,18 @@ export default function QuestionEditorScreen() {
         <Text style={styles.label}>Paliwanag (pagkatapos ng tamang sagot)</Text>
         <TextInput style={[styles.input, styles.multiline]} value={explanation} onChangeText={setExplanation} multiline placeholder="Bakit tama ang sagot..." />
 
-        <TouchableOpacity style={[styles.saveButton, { backgroundColor: categoryColor || '#3B7DD8' }]} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>I-save ang Tanong</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, { backgroundColor: categoryColor || '#3B7DD8' }, saving && styles.saveButtonBusy]}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>I-save ang Tanong</Text>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()} disabled={saving}>
           <Text style={styles.cancelButtonText}>Kanselahin</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -270,6 +302,7 @@ const styles = StyleSheet.create({
   },
   addPoolButtonText: { color: '#3B7DD8', fontWeight: 'bold', fontSize: 12.5 },
   saveButton: { marginTop: 24, paddingVertical: 15, borderRadius: 25, alignItems: 'center' },
+  saveButtonBusy: { opacity: 0.7 },
   saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
   cancelButton: { marginTop: 10, paddingVertical: 12, alignItems: 'center' },
   cancelButtonText: { color: '#8E8E93', fontWeight: '600' },

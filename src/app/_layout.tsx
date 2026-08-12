@@ -13,19 +13,23 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <LanguageProvider>
+        {/* Order matters now that these read from the API: UserProvider owns the
+            session every other request needs, ClassProvider resolves the classId
+            the teacher's results are scoped by, and StudentResultsProvider reads
+            both. */}
         <UserProvider>
-          <StudentResultsProvider>
-            <GameProgressProvider>
-              <ClassProvider>
+          <ClassProvider>
+            <StudentResultsProvider>
+              <GameProgressProvider>
                 <AdminContentProvider>
                   <StatusBar style="auto" />
                   {/* Every screen draws its own header/background, exactly as the
                       original native-stack did with headerShown: false. */}
                   <Stack screenOptions={{ headerShown: false }} />
                 </AdminContentProvider>
-              </ClassProvider>
-            </GameProgressProvider>
-          </StudentResultsProvider>
+              </GameProgressProvider>
+            </StudentResultsProvider>
+          </ClassProvider>
         </UserProvider>
       </LanguageProvider>
     </SafeAreaProvider>

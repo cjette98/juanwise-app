@@ -1,0 +1,350 @@
+import { request, uploadToSignedUrl } from './client';
+import { clearSession, setSession } from './session';
+import type {
+  AnalyticsFilter,
+  ApiCategory,
+  ApiCategoryKey,
+  ApiClass,
+  ApiClassMember,
+  ApiContentSettings,
+  ApiCurrentUser,
+  ApiActivityResult,
+  ApiAssignment,
+  ApiLeaderboard,
+  ApiProgress,
+  ApiProgressTrack,
+  ApiQuestion,
+  ApiSession,
+  ApiStudentProgression,
+  ApiStudentSummary,
+  ApiUserProfile,
+  CreateClassRequest,
+  JoinClassResponse,
+  ListResultsQuery,
+  LoginRequest,
+  MarkActivityRequest,
+  Page,
+  RegisterRequest,
+  SubmitResultRequest,
+  UpdateCategoryRequest,
+  UpdateProfileRequest,
+  UploadUrlRequest,
+  UploadUrlResponse,
+  UpsertQuestionRequest,
+} from './types';
+
+/* -------------------------------------------------------------------- auth */
+
+export const authApi = {
+  /** Creates the account and signs it in; the session is stored as a side effect. */
+  async register(input: RegisterRequest): Promise<ApiSession> {
+    const session = await request<ApiSession>('/auth/register', {
+      method: 'POST',
+      body: input,
+      auth: false,
+    });
+    await setSession(session);
+    return session;
+  },
+
+  async login(input: LoginRequest): Promise<ApiSession> {
+    const session = await request<ApiSession>('/auth/login', {
+      method: 'POST',
+      body: input,
+      auth: false,
+    });
+    await setSession(session);
+    return session;
+  },
+
+  /** Always resolves, whether or not the address is registered. */
+  forgotPassword(email: string): Promise<{ message: string }> {
+    return request('/auth/forgot-password', { method: 'POST', body: { email }, auth: false });
+  },
+
+  me(): Promise<ApiCurrentUser> {
+    return request('/auth/me');
+  },
+
+  /**
+   * Revokes every refresh token server-side, then drops the local session.
+   * The local half runs even if the network call fails — signing out must not
+   * be blocked by a dead connection.
+   */
+  async logout(): Promise<void> {
+    try {
+      await request('/auth/logout', { method: 'POST' });
+    } catch {
+      // best effort
+    } finally {
+      await clearSession();
+    }
+  },
+};
+
+/* ------------------------------------------------------------------- users */
+
+export const usersApi = {
+  me(): Promise<ApiUserProfile> {
+    return request('/users/me');
+  },
+
+  updateMe(patch: UpdateProfileRequest): Promise<ApiUserProfile> {
+    return request('/users/me', { method: 'PATCH', body: patch });
+  },
+
+  /** Teachers may read student profiles; admins may read any. */
+  get(uid: string): Promise<ApiUserProfile> {
+    return request(`/users/${encodeURIComponent(uid)}`);
+  },
+
+  list(query: { role?: string; grade?: string; section?: string; limit?: number; cursor?: string } = {}): Promise<Page<ApiUserProfile>> {
+    return request('/users', { query });
+  },
+};
+
+/* ----------------------------------------------------------------- classes */
+
+export const classesApi = {
+  create(input: CreateClassRequest): Promise<ApiClass> {
+    return request('/classes', { method: 'POST', body: input });
+  },
+
+  /** Teachers get every class they own; students get the one they joined. */
+  async mine(): Promise<ApiClass[]> {
+    const { items } = await request<{ items: ApiClass[] }>('/classes/mine');
+    return items;
+  },
+
+  get(id: string): Promise<ApiClass> {
+    return request(`/classes/${encodeURIComponent(id)}`);
+  },
+
+  updateCode(id: string, code: string): Promise<ApiClass> {
+    return request(`/classes/${encodeURIComponent(id)}/code`, { method: 'PATCH', body: { code } });
+  },
+
+  /** Resolved against Firestore, so a student can join from any device. */
+  join(code: string): Promise<JoinClassResponse> {
+    return request('/classes/join', { method: 'POST', body: { code } });
+  },
+
+  members(
+    id: string,
+    query: { includeRemoved?: boolean; limit?: number; cursor?: string } = {},
+  ): Promise<Page<ApiClassMember>> {
+    return request(`/classes/${encodeURIComponent(id)}/members`, {
+      query: {
+        limit: query.limit,
+        cursor: query.cursor,
+        includeRemoved: query.includeRemoved === undefined ? undefined : String(query.includeRemoved),
+      },
+    });
+  },
+
+  /** Pages through the whole roster — classes are small enough to hold in memory. */
+  async allMembers(id: string, includeRemoved = false): Promise<ApiClassMember[]> {
+    const out: ApiClassMember[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await classesApi.members(id, { includeRemoved, limit: 100, cursor });
+      out.push(...page.items);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    return out;
+  },
+
+  removeMember(id: string, uid: string): Promise<void> {
+    return request(`/classes/${encodeURIComponent(id)}/members/${encodeURIComponent(uid)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  setAssignment(id: string, assignment: ApiAssignment): Promise<ApiClass> {
+    return request(`/classes/${encodeURIComponent(id)}/assignment`, {
+      method: 'PUT',
+      body: assignment,
+    });
+  },
+
+  clearAssignment(id: string): Promise<ApiClass> {
+    return request(`/classes/${encodeURIComponent(id)}/assignment`, { method: 'DELETE' });
+  },
+};
+
+/* ----------------------------------------------------------------- content */
+
+export const contentApi = {
+  async categories(): Promise<ApiCategory[]> {
+    const { items } = await request<{ items: ApiCategory[] }>('/content/categories');
+    return items;
+  },
+
+  category(key: ApiCategoryKey): Promise<ApiCategory> {
+    return request(`/content/categories/${key}`);
+  },
+
+  updateCategory(key: ApiCategoryKey, patch: UpdateCategoryRequest): Promise<ApiCategory> {
+    return request(`/content/categories/${key}`, { method: 'PUT', body: patch });
+  },
+
+  /**
+   * Returns every slot in the grid, not just admin edits — a slot with no
+   * override comes back with `isOverride: false`.
+   */
+  async questions(query: { category?: ApiCategoryKey; level?: number } = {}): Promise<ApiQuestion[]> {
+    const { items } = await request<{ items: ApiQuestion[] }>('/content/questions', { query });
+    return items;
+  },
+
+  question(category: ApiCategoryKey, level: number, activityNum: number): Promise<ApiQuestion> {
+    return request(`/content/questions/${category}/${level}/${activityNum}`);
+  },
+
+  upsertQuestion(
+    category: ApiCategoryKey,
+    level: number,
+    activityNum: number,
+    input: UpsertQuestionRequest,
+  ): Promise<ApiQuestion> {
+    return request(`/content/questions/${category}/${level}/${activityNum}`, {
+      method: 'PUT',
+      body: input,
+    });
+  },
+
+  /** Reverts to the seeded default; 404s when there was no override. */
+  revertQuestion(category: ApiCategoryKey, level: number, activityNum: number): Promise<ApiQuestion> {
+    return request(`/content/questions/${category}/${level}/${activityNum}`, { method: 'DELETE' });
+  },
+
+  settings(): Promise<ApiContentSettings> {
+    return request('/content/settings');
+  },
+
+  updateSettings(showMiniLesson: boolean): Promise<ApiContentSettings> {
+    return request('/content/settings', { method: 'PUT', body: { showMiniLesson } });
+  },
+};
+
+/* ---------------------------------------------------------------- progress */
+
+export const progressApi = {
+  /** Pass `uid` to read a student you teach; omit for your own. */
+  get(uid?: string): Promise<ApiProgress> {
+    return request('/progress/me', { query: { uid } });
+  },
+
+  complete(input: MarkActivityRequest): Promise<ApiProgressTrack> {
+    return request('/progress/complete', { method: 'POST', body: input });
+  },
+
+  fail(input: MarkActivityRequest): Promise<ApiProgressTrack> {
+    return request('/progress/fail', { method: 'POST', body: input });
+  },
+};
+
+/* ----------------------------------------------------------------- results */
+
+export const resultsApi = {
+  /** Submitting also advances progress server-side. */
+  submit(input: SubmitResultRequest): Promise<ApiActivityResult> {
+    return request('/results', { method: 'POST', body: input });
+  },
+
+  list(query: ListResultsQuery = {}): Promise<Page<ApiActivityResult>> {
+    return request('/results', {
+      query: {
+        ...query,
+        canonicalOnly: query.canonicalOnly === undefined ? undefined : String(query.canonicalOnly),
+      },
+    });
+  },
+
+  /**
+   * Pages through every attempt matching the filter. The results screens all
+   * compute their own totals over the full attempt history, so they need the
+   * whole set rather than one page.
+   */
+  async listAll(query: Omit<ListResultsQuery, 'cursor' | 'limit'> = {}): Promise<ApiActivityResult[]> {
+    const out: ApiActivityResult[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await resultsApi.list({ ...query, limit: 100, cursor });
+      out.push(...page.items);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    return out;
+  },
+
+  /** Admin only; requires `uid` or `classId`. */
+  deleteMany(query: { uid?: string; classId?: string; category?: ApiCategoryKey }): Promise<{ deleted: number }> {
+    return request('/results', { method: 'DELETE', query });
+  },
+};
+
+/* --------------------------------------------------------------- analytics */
+
+export const analyticsApi = {
+  leaderboard(classId: string, filter: AnalyticsFilter = {}, limit = 50): Promise<ApiLeaderboard> {
+    return request('/analytics/leaderboard', { query: { classId, ...filter, limit } });
+  },
+
+  async progression(classId: string, filter: AnalyticsFilter = {}): Promise<ApiStudentProgression[]> {
+    const { items } = await request<{ classId: string; items: ApiStudentProgression[] }>(
+      '/analytics/progression',
+      { query: { classId, ...filter } },
+    );
+    return items;
+  },
+
+  studentSummary(uid: string, filter: AnalyticsFilter = {}): Promise<ApiStudentSummary> {
+    return request(`/analytics/students/${encodeURIComponent(uid)}/summary`, { query: { ...filter } });
+  },
+};
+
+/* ------------------------------------------------------------------- media */
+
+const CONTENT_TYPE_BY_EXTENSION: Record<string, UploadUrlRequest['contentType']> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
+function contentTypeFor(uri: string, mimeType?: string): UploadUrlRequest['contentType'] {
+  if (mimeType && mimeType in CONTENT_TYPE_BY_EXTENSION) {
+    return CONTENT_TYPE_BY_EXTENSION[mimeType];
+  }
+  if (mimeType === 'image/jpeg' || mimeType === 'image/png' || mimeType === 'image/webp') {
+    return mimeType;
+  }
+  const extension = uri.split('?')[0].split('.').pop()?.toLowerCase() ?? '';
+  return CONTENT_TYPE_BY_EXTENSION[extension] ?? 'image/jpeg';
+}
+
+export const mediaApi = {
+  createUploadUrl(input: UploadUrlRequest): Promise<UploadUrlResponse> {
+    return request('/media/upload-url', { method: 'POST', body: input });
+  },
+
+  /**
+   * Two-step upload: ask the API for a signed URL, PUT the bytes straight to
+   * Cloud Storage, then hand back the public URL to store on the profile or
+   * the category.
+   */
+  async upload(
+    fileUri: string,
+    purpose: UploadUrlRequest['purpose'],
+    options: { categoryKey?: string; mimeType?: string } = {},
+  ): Promise<string> {
+    const contentType = contentTypeFor(fileUri, options.mimeType);
+    const signed = await mediaApi.createUploadUrl({
+      purpose,
+      contentType,
+      categoryKey: options.categoryKey,
+    });
+    await uploadToSignedUrl(signed.uploadUrl, fileUri, contentType);
+    return signed.publicUrl;
+  },
+};

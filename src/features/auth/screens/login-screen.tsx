@@ -7,57 +7,64 @@ import {
   StyleSheet,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { images } from '@/shared/assets/images';
+import { ApiError, errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { registered, username: savedUsername, password: savedPassword, role: savedRole, name: savedName, setUser } = useUser();
+  const { login, logout } = useUser();
   const [role, setRole] = useState<'student' | 'teacher'>('student');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const logo =
     role === 'student'
       ? images.studentLogo
       : images.teacherLogo;
 
-  const handleLogin = () => {
+  // Credentials are checked by Firebase Auth through POST /auth/login — the app
+  // never holds a password, and the account works from any device.
+  const handleLogin = async () => {
     if (!username || !password) {
       Alert.alert(t('missingInfo'), t('enterUsernamePass'));
       return;
     }
 
-    if (!registered) {
-      Alert.alert(t('noAccountFound'), t('noAccountFoundMsg'));
-      return;
-    }
+    setBusy(true);
+    try {
+      const profile = await login(username, password);
 
-    if (savedRole !== role) {
-      Alert.alert(t('wrongAccountType'), t('wrongAccountTypeMsg'));
-      return;
-    }
+      // Admins are granted by custom claim and have no toggle of their own;
+      // they land on the teacher dashboard, which is where content management is.
+      if (profile.role !== role && profile.role !== 'admin') {
+        await logout();
+        Alert.alert(t('wrongAccountType'), t('wrongAccountTypeMsg'));
+        return;
+      }
 
-    if (savedUsername !== username || savedPassword !== password) {
-      Alert.alert(t('invalidLogin'), t('invalidLoginMsg'));
-      return;
-    }
-
-    // Credentials match — sync context with the real registered name (not
-    // the typed username) so nothing gets overwritten downstream.
-    setUser(savedName, savedRole);
-
-    if (role === 'student') {
-      router.navigate({ pathname: '/student-home', params: { name: savedName } });
-    } else {
-      router.navigate({ pathname: '/teacher-dashboard', params: { name: savedName } });
+      router.replace(profile.role === 'student' ? '/student-home' : '/teacher-dashboard');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        Alert.alert(t('invalidLogin'), t('invalidLoginMsg'));
+        return;
+      }
+      if (err instanceof ApiError && err.status === 404) {
+        Alert.alert(t('noAccountFound'), t('noAccountFoundMsg'));
+        return;
+      }
+      Alert.alert(t('invalidLogin'), errorMessage(err));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -111,8 +118,16 @@ export default function LoginScreen() {
           <Text style={styles.forgotText}>{t('forgotPassword')}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>{t('loginBtn')}</Text>
+        <TouchableOpacity
+          style={[styles.loginButton, busy && styles.loginButtonBusy]}
+          onPress={handleLogin}
+          disabled={busy}
+        >
+          {busy ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.loginButtonText}>{t('loginBtn')}</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.navigate('/register')}>
@@ -151,6 +166,7 @@ const styles = StyleSheet.create({
     width: '100%', backgroundColor: '#E8801A', paddingVertical: 16,
     borderRadius: 25, alignItems: 'center', marginBottom: 14,
   },
+  loginButtonBusy: { opacity: 0.7 },
   loginButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16, letterSpacing: 1 },
   signUpText: { fontSize: 13, color: '#555' },
   signUpLink: { color: '#E8801A', fontWeight: 'bold' },

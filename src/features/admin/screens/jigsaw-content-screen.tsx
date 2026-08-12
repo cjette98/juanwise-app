@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,24 +17,49 @@ const CATEGORIES = [
 
 export default function JigsawContentScreen() {
   const router = useRouter();
-  const { getEffectiveCategoryContent, setCategoryImageUri, setCategoryContext, resetCategoryImage } = useAdminContent();
+  const { ready, error, getEffectiveCategoryContent, setCategoryImageUri, setCategoryContext, resetCategoryImage } =
+    useAdminContent();
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draftText, setDraftText] = useState('');
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
+  /**
+   * The picked file is uploaded straight to Cloud Storage with a signed URL
+   * from `POST /media/upload-url`, then its public URL is saved on the
+   * category — so the picture follows the category to every device instead of
+   * being a local file:// path only this phone can open.
+   */
   const pickImage = async (categoryKey: string) => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('Kailangan ng Pahintulot', 'Payagan ang app na ma-access ang iyong mga larawan para makapili ng puzzle picture.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setCategoryImageUri(categoryKey, result.assets[0].uri);
+    const asset = picked.assets?.[0];
+    if (picked.canceled || !asset?.uri) return;
+
+    setBusyKey(categoryKey);
+    try {
+      const result = await setCategoryImageUri(categoryKey, asset.uri, asset.mimeType ?? undefined);
+      if (!result.success) Alert.alert('Hindi Na-upload', result.message);
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleReset = async (categoryKey: string) => {
+    setBusyKey(categoryKey);
+    try {
+      const result = await resetCategoryImage(categoryKey);
+      if (!result.success) Alert.alert('Hindi Naibalik', result.message);
+    } finally {
+      setBusyKey(null);
     }
   };
 
@@ -43,13 +68,22 @@ export default function JigsawContentScreen() {
     setDraftText(currentText);
   };
 
-  const saveLesson = (categoryKey: string) => {
+  const saveLesson = async (categoryKey: string) => {
     if (!draftText.trim()) {
       Alert.alert('Walang Laman', 'Maglagay ng teksto para sa mini-lesson.');
       return;
     }
-    setCategoryContext(categoryKey, draftText.trim());
-    setEditingKey(null);
+    setBusyKey(categoryKey);
+    try {
+      const result = await setCategoryContext(categoryKey, draftText.trim());
+      if (!result.success) {
+        Alert.alert('Hindi Na-save', result.message);
+        return;
+      }
+      setEditingKey(null);
+    } finally {
+      setBusyKey(null);
+    }
   };
 
   return (
@@ -62,10 +96,25 @@ export default function JigsawContentScreen() {
         <Text style={styles.headerSubtitle}>Piliin ang larawan ng puzzle at i-edit ang mini-lesson bawat kategorya</Text>
       </View>
 
+      {!!error && (
+        <View style={styles.errorBanner}>
+          <Ionicons name="cloud-offline-outline" size={16} color="#FFF" />
+          <Text style={styles.errorBannerText}>{error}</Text>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.list}>
-        {CATEGORIES.map((cat) => {
+        {!ready && (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color="#9B4FD6" />
+            <Text style={styles.loadingText}>Kinukuha ang nilalaman mula sa server...</Text>
+          </View>
+        )}
+
+        {ready && CATEGORIES.map((cat) => {
           const content = getEffectiveCategoryContent(cat.key);
           const isEditing = editingKey === cat.key;
+          const busy = busyKey === cat.key;
           return (
             <View key={cat.key} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -76,12 +125,24 @@ export default function JigsawContentScreen() {
               <Image source={content.image} style={styles.preview} resizeMode="cover" />
 
               <View style={styles.imageActions}>
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: cat.color }]} onPress={() => pickImage(cat.key)}>
-                  <Ionicons name="image-outline" size={16} color="#FFF" />
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: cat.color }, busy && styles.busyBtn]}
+                  onPress={() => pickImage(cat.key)}
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Ionicons name="image-outline" size={16} color="#FFF" />
+                  )}
                   <Text style={styles.actionBtnText}>Palitan ang Larawan</Text>
                 </TouchableOpacity>
                 {content.hasCustomImage && (
-                  <TouchableOpacity style={[styles.actionBtn, styles.resetBtn]} onPress={() => resetCategoryImage(cat.key)}>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.resetBtn, busy && styles.busyBtn]}
+                    onPress={() => handleReset(cat.key)}
+                    disabled={busy}
+                  >
                     <Ionicons name="refresh-outline" size={16} color="#FFF" />
                     <Text style={styles.actionBtnText}>Ibalik sa Default</Text>
                   </TouchableOpacity>
@@ -98,10 +159,18 @@ export default function JigsawContentScreen() {
                     placeholder="I-type ang mini-lesson..."
                   />
                   <View style={styles.lessonActions}>
-                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: cat.color }]} onPress={() => saveLesson(cat.key)}>
+                    <TouchableOpacity
+                      style={[styles.actionBtn, { backgroundColor: cat.color }, busy && styles.busyBtn]}
+                      onPress={() => saveLesson(cat.key)}
+                      disabled={busy}
+                    >
                       <Text style={styles.actionBtnText}>I-save</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.actionBtn, styles.resetBtn]} onPress={() => setEditingKey(null)}>
+                    <TouchableOpacity
+                      style={[styles.actionBtn, styles.resetBtn]}
+                      onPress={() => setEditingKey(null)}
+                      disabled={busy}
+                    >
                       <Text style={styles.actionBtnText}>Kanselahin</Text>
                     </TouchableOpacity>
                   </View>
@@ -135,6 +204,14 @@ const styles = StyleSheet.create({
   imageActions: { flexDirection: 'row', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14 },
   resetBtn: { backgroundColor: '#8E8E93' },
+  busyBtn: { opacity: 0.6 },
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#B23A3A',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginHorizontal: 16, marginTop: 12,
+  },
+  errorBannerText: { color: '#FFF', fontSize: 12, flex: 1 },
+  loadingWrap: { alignItems: 'center', paddingVertical: 24, gap: 8 },
+  loadingText: { fontSize: 12.5, color: '#8E8E93' },
   actionBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
   lessonText: { fontSize: 13, color: '#2B2B2B', lineHeight: 19 },
   editLessonLink: { fontSize: 12, fontWeight: 'bold', marginTop: 6 },

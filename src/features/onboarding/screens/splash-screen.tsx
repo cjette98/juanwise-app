@@ -1,11 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Animated, Text } from 'react-native';
 import { images } from '@/shared/assets/images';
+import { useUser } from '@/features/auth/context/user-context';
 import { useRouter } from 'expo-router';
 
 export default function SplashScreen() {
   const router = useRouter();
+  const { ready, signedIn, role } = useUser();
   const progress = useRef(new Animated.Value(0)).current;
+  const navigated = useRef(false);
 
   useEffect(() => {
     Animated.timing(progress, {
@@ -13,13 +16,25 @@ export default function SplashScreen() {
       duration: 2500,
       useNativeDriver: false,
     }).start();
+  }, [progress]);
+
+  // The API session is restored from storage on launch, so a signed-in user
+  // goes straight back to their dashboard rather than through Welcome → Login.
+  // The splash still holds for its full animation before deciding.
+  useEffect(() => {
+    if (!ready || navigated.current) return;
 
     const timer = setTimeout(() => {
-      router.replace('/welcome');
+      navigated.current = true;
+      if (!signedIn) {
+        router.replace('/welcome');
+      } else {
+        router.replace(role === 'student' ? '/student-home' : '/teacher-dashboard');
+      }
     }, 2700);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [ready, signedIn, role, router]);
 
   const barWidth = progress.interpolate({
     inputRange: [0, 1],

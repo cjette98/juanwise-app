@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   Share,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,15 +20,35 @@ import { useRouter } from 'expo-router';
 export default function ClassOverviewScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { classCode, students, totalStudents, generateCode, setCustomCode } = useClass();
+  // The roster comes from GET /classes/:id/members, so every student who joined
+  // with this code shows up here regardless of the device they joined from.
+  const { classCode, students, totalStudents, generateCode, setCustomCode, removeStudent, refresh, error } =
+    useClass();
 
   const [editing, setEditing] = useState(false);
   const [draftCode, setDraftCode] = useState(classCode);
+  const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const handleGenerate = () => {
-    const code = generateCode();
-    setDraftCode(code);
-    setEditing(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  };
+
+  const handleGenerate = async () => {
+    setBusy(true);
+    try {
+      const result = await generateCode();
+      if (!result.success) {
+        Alert.alert(t('invalidClassCode'), result.message);
+        return;
+      }
+      if (result.code) setDraftCode(result.code);
+      setEditing(false);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleStartEdit = () => {
@@ -34,13 +56,32 @@ export default function ClassOverviewScreen() {
     setEditing(true);
   };
 
-  const handleSaveCustom = () => {
-    const result = setCustomCode(draftCode);
-    if (!result.success) {
-      Alert.alert(t('invalidClassCode'), result.message);
-      return;
+  const handleSaveCustom = async () => {
+    setBusy(true);
+    try {
+      const result = await setCustomCode(draftCode);
+      if (!result.success) {
+        Alert.alert(t('invalidClassCode'), result.message);
+        return;
+      }
+      setEditing(false);
+    } finally {
+      setBusy(false);
     }
-    setEditing(false);
+  };
+
+  const handleRemove = (uid: string, name: string) => {
+    Alert.alert('Alisin sa Klase?', `Aalisin si ${name} sa roster. Mananatili ang mga naitala niyang resulta.`, [
+      { text: 'Kanselahin', style: 'cancel' },
+      {
+        text: 'Alisin',
+        style: 'destructive',
+        onPress: async () => {
+          const result = await removeStudent(uid);
+          if (!result.success) Alert.alert(t('invalidClassCode'), result.message);
+        },
+      },
+    ]);
   };
 
   const handleShare = async () => {
@@ -64,7 +105,19 @@ export default function ClassOverviewScreen() {
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#FFF" />
+        }
+      >
+        {!!error && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="cloud-offline-outline" size={16} color="#FFF" />
+            <Text style={styles.errorBannerText}>{error}</Text>
+          </View>
+        )}
+
         {/* CLASS CODE CARD */}
         <View style={styles.codeCard}>
           <Text style={styles.codeLabel}>{t('classCodeLabel')}</Text>
@@ -81,12 +134,17 @@ export default function ClassOverviewScreen() {
                 placeholderTextColor="#AAB"
               />
               <View style={styles.codeBtnRow}>
-                <TouchableOpacity style={[styles.smallBtn, styles.saveBtn]} onPress={handleSaveCustom}>
+                <TouchableOpacity
+                  style={[styles.smallBtn, styles.saveBtn, busy && styles.busyBtn]}
+                  onPress={handleSaveCustom}
+                  disabled={busy}
+                >
                   <Text style={styles.smallBtnText}>{t('saveCode')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.smallBtn, styles.cancelBtn]}
                   onPress={() => setEditing(false)}
+                  disabled={busy}
                 >
                   <Text style={styles.smallBtnText}>{t('cancelCode')}</Text>
                 </TouchableOpacity>
@@ -96,8 +154,16 @@ export default function ClassOverviewScreen() {
             <>
               <Text style={styles.codeValue}>{classCode || '— — — — — — — — — —'}</Text>
               <View style={styles.codeBtnRow}>
-                <TouchableOpacity style={[styles.smallBtn, styles.generateBtn]} onPress={handleGenerate}>
-                  <Ionicons name="refresh" size={14} color="#FFF" />
+                <TouchableOpacity
+                  style={[styles.smallBtn, styles.generateBtn, busy && styles.busyBtn]}
+                  onPress={handleGenerate}
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Ionicons name="refresh" size={14} color="#FFF" />
+                  )}
                   <Text style={styles.smallBtnText}>{t('generateCode')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.smallBtn, styles.editBtn]} onPress={handleStartEdit}>
@@ -131,7 +197,7 @@ export default function ClassOverviewScreen() {
           </View>
         ) : (
           students.map((s) => (
-            <View key={s.username} style={styles.studentCard}>
+            <View key={s.uid} style={styles.studentCard}>
               <View style={styles.studentAvatar}>
                 <Text style={styles.studentAvatarText}>🧑‍🎓</Text>
               </View>
@@ -141,6 +207,9 @@ export default function ClassOverviewScreen() {
                 <Text style={styles.studentDetail}>{t('lrnShort')}: {s.lrn}</Text>
                 <Text style={styles.studentDetail}>{t('gmailShort')}: {s.email}</Text>
               </View>
+              <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemove(s.uid, s.name)}>
+                <Ionicons name="person-remove-outline" size={18} color="#B23A3A" />
+              </TouchableOpacity>
             </View>
           ))
         )}
@@ -182,7 +251,16 @@ const styles = StyleSheet.create({
   shareBtn: { backgroundColor: '#2E9E5B' },
   saveBtn: { backgroundColor: '#2E9E5B' },
   cancelBtn: { backgroundColor: '#B23A3A' },
+  busyBtn: { opacity: 0.6 },
   smallBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#B23A3A',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12,
+  },
+  errorBannerText: { color: '#FFF', fontSize: 12, flex: 1 },
+
+  removeBtn: { padding: 8, borderRadius: 10, backgroundColor: '#FCEAEA' },
 
   totalPill: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
