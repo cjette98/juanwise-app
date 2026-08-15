@@ -90,7 +90,9 @@ export default function JigsawPuzzleScreen() {
 
   // An admin-uploaded picture (PUT /content/categories/:key) replaces the
   // bundled one for every student, not just the device it was picked on.
-  const content = getEffectiveCategoryContent(category);
+  // Level and activity decide which picture from the category's jigsaw library
+  // this attempt gets, so consecutive activities are not the same image.
+  const content = getEffectiveCategoryContent(category, level, activityNum);
   const puzzleImage = content.image;
 
   // Generated once per attempt: which internal edges are tabs vs. blanks,
@@ -483,7 +485,27 @@ export default function JigsawPuzzleScreen() {
           <Animated.View style={[styles.revealCard, { transform: [{ scale: revealScale }] }]}>
             <Text style={styles.revealTitle}>🧩 Picture Complete!</Text>
             <Image source={puzzleImage} style={styles.revealImage} resizeMode="cover" />
-            <Text style={styles.revealCaption}>{label}</Text>
+            <Text style={styles.revealCaption}>{content.title ?? label}</Text>
+            {/* What the admin wrote about this picture in the JuanWise Admin
+                console: the one-line definition, then the mini-lesson behind it.
+                Solving the puzzle is what earns the lesson, so this is the
+                moment to teach rather than before the timer starts.
+
+                Scrollable because a mini-lesson can run to a few paragraphs and
+                the card must not push its own Continue button off-screen. */}
+            {!!content.definition && (
+              <Text style={styles.revealDefinition}>{content.definition}</Text>
+            )}
+            {!!content.context && (
+              <ScrollView
+                style={styles.revealLessonScroll}
+                contentContainerStyle={styles.revealLessonContent}
+                showsVerticalScrollIndicator
+              >
+                <Text style={styles.revealLessonHeading}>📖 Alamin</Text>
+                <Text style={styles.revealLesson}>{content.context}</Text>
+              </ScrollView>
+            )}
             <TouchableOpacity
               style={[styles.continueButton, { backgroundColor: color, marginTop: 16 }]}
               onPress={() => setRevealSeen(true)}
@@ -564,6 +586,12 @@ const styles = StyleSheet.create({
   revealTitle: { fontSize: 19, fontWeight: 'bold', color: '#3E9E4F', marginBottom: 14, textAlign: 'center' },
   revealImage: { width: BOARD_SIZE * 0.85, height: BOARD_SIZE * 0.85, borderRadius: 16, borderWidth: 3, borderColor: '#FCD116' },
   revealCaption: { fontSize: 14, color: '#7A6142', marginTop: 10, fontWeight: '600' },
+  revealDefinition: { fontSize: 13, color: '#5A4A38', marginTop: 6, textAlign: 'center', lineHeight: 18 },
+  // Capped so a long lesson scrolls inside the card instead of growing it.
+  revealLessonScroll: { maxHeight: 150, width: '100%', marginTop: 12 },
+  revealLessonContent: { backgroundColor: '#FFF7DB', borderRadius: 12, padding: 12 },
+  revealLessonHeading: { fontSize: 12.5, fontWeight: 'bold', color: '#8A6D00', marginBottom: 4 },
+  revealLesson: { fontSize: 13, color: '#4A3F2E', lineHeight: 19 },
   successTitle: { fontSize: 18, fontWeight: 'bold', color: '#3E9E4F', marginBottom: 14, textAlign: 'center' },
   timeUpTitle: { fontSize: 18, fontWeight: 'bold', color: '#C4304A', marginBottom: 14, textAlign: 'center' },
   detailBlock: { width: '100%', marginBottom: 18, gap: 6 },

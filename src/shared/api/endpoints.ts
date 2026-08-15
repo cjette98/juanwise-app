@@ -344,7 +344,7 @@ export const mediaApi = {
       contentType,
       categoryKey: options.categoryKey,
     });
-    await uploadToSignedUrl(signed.uploadUrl, fileUri, contentType);
+    await uploadToSignedUrl(signed.uploadUrl, fileUri, contentType, signed.requiredHeaders);
     return signed.publicUrl;
   },
 };

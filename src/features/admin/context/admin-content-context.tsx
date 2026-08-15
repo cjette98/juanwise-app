@@ -33,6 +33,14 @@ export type EffectiveCategoryContent = {
   /** Pass straight into <Image source={...}> — either a require() id or a { uri } object. */
   image: any;
   context: string;
+  /**
+   * The admin's one-line summary of the picture, shown on the jigsaw reveal.
+   * Null when nobody has written one — the reveal then shows the label alone,
+   * so there is no bundled fallback to layer here.
+   */
+  definition: string | null;
+  /** The library picture's own name, when one was rotated in. */
+  title: string | null;
   hasCustomImage: boolean;
 };
 
@@ -119,7 +127,16 @@ type AdminContentContextType = {
   deleteQuestionOverride: (category: string, level: number, activityNum: number) => Promise<ActionResult>;
 
   // Jigsaw picture + mini-lesson CRUD (per category)
-  getEffectiveCategoryContent: (category: string) => EffectiveCategoryContent;
+  /**
+   * Pass `level` and `activityNum` for a jigsaw activity: an admin can give
+   * each one its own picture, so the slot decides which comes back. Omit them
+   * for the category-wide picture.
+   */
+  getEffectiveCategoryContent: (
+    category: string,
+    level?: number,
+    activityNum?: number,
+  ) => EffectiveCategoryContent;
   /** Uploads the picked image to Cloud Storage, then saves its URL on the category. */
   setCategoryImageUri: (category: string, uri: string, mimeType?: string) => Promise<ActionResult>;
   setCategoryContext: (category: string, text: string) => Promise<ActionResult>;
@@ -259,12 +276,37 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
   );
 
   const getEffectiveCategoryContent = useCallback(
-    (category: string): EffectiveCategoryContent => {
+    (category: string, level?: number, activityNum?: number): EffectiveCategoryContent => {
       const base = categoryContent[category] || categoryContent.history;
       const api = categories[category];
+
+      // Each jigsaw activity can be given its own picture in the admin console,
+      // so a student is not solving the same image thirty times. Callers that do
+      // not name an activity (the mini-lesson list, for one) still get the
+      // category-wide picture, as does any activity nobody has assigned.
+      const assignedId =
+        level !== undefined && activityNum !== undefined
+          ? api?.jigsawSlots?.[`${level}_${activityNum}`]
+          : undefined;
+      const picked = assignedId ? api?.jigsaws?.find((item) => item.id === assignedId) : undefined;
+
+      if (picked) {
+        return {
+          image: { uri: picked.imageUrl },
+          // Tagalog first; English is better than nothing when only one
+          // language was filled in, and the category text is the last resort.
+          context: picked.context_tl ?? picked.context_en ?? api?.context_tl ?? base.context_tl,
+          definition: picked.definition_tl ?? picked.definition_en ?? null,
+          title: picked.title,
+          hasCustomImage: true,
+        };
+      }
+
       return {
         image: api?.imageUrl ? { uri: api.imageUrl } : base.image,
         context: api?.context_tl ?? base.context_tl,
+        definition: api?.definition_tl ?? api?.definition_en ?? null,
+        title: null,
         hasCustomImage: !!api?.imageUrl,
       };
     },

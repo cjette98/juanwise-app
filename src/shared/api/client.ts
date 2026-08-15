@@ -241,13 +241,19 @@ export async function uploadToSignedUrl(
   uploadUrl: string,
   fileUri: string,
   contentType: string,
+  /**
+   * From `POST /media/upload-url`. These were signed, so omitting one makes the
+   * signature invalid; `x-goog-acl` is what makes the object readable at the
+   * `publicUrl` that gets stored on the category or the profile.
+   */
+  requiredHeaders: Record<string, string> = {},
 ): Promise<void> {
   const file = await fetch(fileUri);
   const blob = await file.blob();
 
   const response = await fetchWithTimeout(uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': contentType },
+    headers: { 'Content-Type': contentType, ...requiredHeaders },
     body: blob,
   });
 

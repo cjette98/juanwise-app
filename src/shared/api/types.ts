@@ -155,6 +155,20 @@ export interface JoinClassResponse {
 
 /* ----------------------------------------------------------------- content */
 
+/**
+ * One picture available to a category's jigsaw activities. Which activity plays
+ * it is decided by `ApiCategory.jigsawSlots`, not by its position here.
+ */
+export interface ApiJigsawItem {
+  id: string;
+  title: string;
+  imageUrl: string;
+  definition_en: string | null;
+  definition_tl: string | null;
+  context_en: string | null;
+  context_tl: string | null;
+}
+
 export interface ApiCategory {
   key: ApiCategoryKey;
   label: string;
@@ -162,6 +176,16 @@ export interface ApiCategory {
   imageUrl: string | null;
   context_en: string | null;
   context_tl: string | null;
+  /** One-line summary of the picture, shown when the puzzle is completed. */
+  definition_en: string | null;
+  definition_tl: string | null;
+  /** Pictures available to this category's jigsaw activities. */
+  jigsaws: ApiJigsawItem[];
+  /**
+   * Which picture each activity plays, keyed `"{level}_{activityNum}"`. An
+   * activity with no entry falls back to `imageUrl` above.
+   */
+  jigsawSlots: Record<string, string>;
   updatedBy: string | null;
   updatedAt: string | null;
 }
@@ -172,6 +196,8 @@ export interface UpdateCategoryRequest {
   imageUrl?: string | null;
   context_en?: string | null;
   context_tl?: string | null;
+  definition_en?: string | null;
+  definition_tl?: string | null;
 }
 
 export interface ApiQuestion {
@@ -349,4 +375,9 @@ export interface UploadUrlResponse {
   publicUrl: string;
   objectPath: string;
   expiresAt: string;
+  /**
+   * Must be sent on the PUT — they were signed, so omitting one invalidates the
+   * signature. Carries `x-goog-acl`, which is what makes `publicUrl` readable.
+   */
+  requiredHeaders: Record<string, string>;
 }
