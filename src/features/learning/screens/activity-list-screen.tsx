@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
+import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
@@ -10,12 +11,6 @@ function getLevelDifficulty(level: number) {
   if (level === 1) return { label: 'Easy', color: '#3E9E4F' };
   if (level === 2 || level === 3) return { label: 'Normal', color: '#E8A93D' };
   return { label: 'Hard', color: '#C4304A' };
-}
-
-function getPieceCount(num: number) {
-  if (num <= 2) return 6;
-  if (num <= 4) return 9;
-  return 12;
 }
 
 export default function ActivityListScreen() {
@@ -30,6 +25,9 @@ export default function ActivityListScreen() {
   const { category, label, color, activityType } = params;
   const level = toNum(params.level, 1);
   const { getProgress, getFailed } = useGameProgress();
+  // The admin console sets the cut per activity; unset ones keep the ramp that
+  // used to be hardcoded here.
+  const { getJigsawPieceCount } = useAdminContent();
   const { name: studentName } = useUser();
   const completed = getProgress(category, activityType, level);
   const failed = getFailed(category, activityType, level);
@@ -40,7 +38,7 @@ export default function ActivityListScreen() {
     const globalId = (level - 1) * 6 + num;
     const isDone = completed.includes(globalId);
     const isFailed = !isDone && failed.includes(globalId);
-    const pieceCount = getPieceCount(num);
+    const pieceCount = getJigsawPieceCount(category, level, num);
     return { num, globalId, isDone, isFailed, pieceCount };
   });
 

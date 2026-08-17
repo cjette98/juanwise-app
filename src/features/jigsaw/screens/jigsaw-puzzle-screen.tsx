@@ -109,7 +109,17 @@ export default function JigsawPuzzleScreen() {
     return paths;
   }, [edgeMap, rows, cols, pieceWidth, pieceHeight, marginX, marginY]);
 
-  const trayOrder = useMemo(() => shuffle(Array.from({ length: pieceCount }, (_, i) => i)), [pieceCount]);
+  // The tray is dealt in a random order, and Shuffle deals it again. Only the
+  // order pieces sit in changes — nothing is taken off the board and the timer
+  // keeps running, so re-dealing is a way to bring a buried piece to hand
+  // rather than a restart.
+  const [deal, setDeal] = useState(0);
+  const trayOrder = useMemo(
+    () => shuffle(Array.from({ length: pieceCount }, (_, i) => i)),
+    // `deal` is not read here — bumping it is what asks for a fresh deal.
+    [pieceCount, deal],
+  );
+  const reshuffleTray = () => setDeal((n) => n + 1);
 
   const [placedIds, setPlacedIds] = useState<Set<number>>(new Set());
   const placedRef = useRef(placedIds);
@@ -338,6 +348,7 @@ export default function JigsawPuzzleScreen() {
   );
 
   const remainingTray = trayOrder.filter((id) => !placedIds.has(id));
+  const canShuffle = phase === 'playing' && dragPieceId === null && remainingTray.length > 1;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -425,6 +436,16 @@ export default function JigsawPuzzleScreen() {
         </View>
 
         <View style={styles.trayWrap}>
+          {/* Nothing to re-deal with one piece left, and shuffling mid-drag
+              would move the tray out from under the finger. */}
+          <TouchableOpacity
+            style={[styles.shuffleButton, !canShuffle && styles.shuffleButtonDisabled]}
+            onPress={reshuffleTray}
+            disabled={!canShuffle}
+          >
+            <Text style={styles.shuffleButtonText}>🔀 {t('shufflePieces')}</Text>
+          </TouchableOpacity>
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -575,6 +596,18 @@ const styles = StyleSheet.create({
   board: { position: 'relative', backgroundColor: '#DDD', borderWidth: 2, borderColor: '#999', overflow: 'hidden' },
   ghostImage: { position: 'absolute', top: 0, left: 0 },
   trayWrap: { width: '100%', marginTop: 18, minHeight: 10 },
+  shuffleButton: {
+    alignSelf: 'center',
+    backgroundColor: '#FCD116',
+    paddingVertical: 7,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#C9A200',
+    marginBottom: 10,
+  },
+  shuffleButtonDisabled: { opacity: 0.4 },
+  shuffleButtonText: { color: '#5C3A21', fontWeight: 'bold', fontSize: 13 },
   trayContent: { paddingHorizontal: 16, gap: 10, alignItems: 'center' },
   dragOverlay: { ...StyleSheet.absoluteFill, zIndex: 999, elevation: 30 },
   dragOverlayPiece: { position: 'absolute' },

@@ -7,6 +7,7 @@ import {
   writeCache,
   type ApiCategory,
   type ApiCategoryKey,
+  type ApiJigsawPieceCount,
   type ApiQuestion,
   type UpsertQuestionRequest,
 } from '@/shared/api';
@@ -55,6 +56,20 @@ const SETTINGS_CACHE_KEY = 'content-settings';
 
 const slotId = (category: string, level: number, activityNum: number) =>
   `${category}_${level}_${activityNum}`;
+
+/** The key a jigsaw activity's picture and cut are stored under. */
+const jigsawSlotKey = (level: number, activityNum: number) => `${level}_${activityNum}`;
+
+/**
+ * The cut an activity plays when the admin has not chosen one — the ramp
+ * across a level's six activities, which is what every activity used before
+ * the console could set this per activity.
+ */
+function rampPieceCount(activityNum: number): ApiJigsawPieceCount {
+  if (activityNum <= 2) return 6;
+  if (activityNum <= 4) return 9;
+  return 12;
+}
 
 /** API question → the shape the Quiz screen and the editor already speak. */
 function toQuizQuestion(api: ApiQuestion, fallback: QuizQuestion): QuizQuestion {
@@ -137,6 +152,12 @@ type AdminContentContextType = {
     level?: number,
     activityNum?: number,
   ) => EffectiveCategoryContent;
+  /**
+   * How many pieces a jigsaw activity is cut into: the admin's choice when
+   * there is one, otherwise the difficulty ramp across the level's six
+   * activities.
+   */
+  getJigsawPieceCount: (category: string, level: number, activityNum: number) => ApiJigsawPieceCount;
   /** Uploads the picked image to Cloud Storage, then saves its URL on the category. */
   setCategoryImageUri: (category: string, uri: string, mimeType?: string) => Promise<ActionResult>;
   setCategoryContext: (category: string, text: string) => Promise<ActionResult>;
@@ -286,7 +307,7 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       // category-wide picture, as does any activity nobody has assigned.
       const assignedId =
         level !== undefined && activityNum !== undefined
-          ? api?.jigsawSlots?.[`${level}_${activityNum}`]
+          ? api?.jigsawSlots?.[jigsawSlotKey(level, activityNum)]
           : undefined;
       const picked = assignedId ? api?.jigsaws?.find((item) => item.id === assignedId) : undefined;
 
@@ -310,6 +331,15 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
         hasCustomImage: !!api?.imageUrl,
       };
     },
+    [categories],
+  );
+
+  const getJigsawPieceCount = useCallback(
+    (category: string, level: number, activityNum: number): ApiJigsawPieceCount =>
+      // An unset activity is not a gap to fill with a default number: it means
+      // "keep the ramp", so a cut nobody chose still changes with the activity.
+      categories[category]?.jigsawPieces?.[jigsawSlotKey(level, activityNum)] ??
+      rampPieceCount(activityNum),
     [categories],
   );
 
@@ -380,13 +410,14 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       upsertQuestion,
       deleteQuestionOverride,
       getEffectiveCategoryContent,
+      getJigsawPieceCount,
       setCategoryImageUri,
       setCategoryContext,
       resetCategoryImage,
       showMiniLesson,
       setShowMiniLesson,
     }),
-    [ready, error, refresh, getEffectiveQuestion, isOverridden, upsertQuestion, deleteQuestionOverride, getEffectiveCategoryContent, setCategoryImageUri, setCategoryContext, resetCategoryImage, showMiniLesson, setShowMiniLesson],
+    [ready, error, refresh, getEffectiveQuestion, isOverridden, upsertQuestion, deleteQuestionOverride, getEffectiveCategoryContent, getJigsawPieceCount, setCategoryImageUri, setCategoryContext, resetCategoryImage, showMiniLesson, setShowMiniLesson],
   );
 
   return <AdminContentContext.Provider value={value}>{children}</AdminContentContext.Provider>;

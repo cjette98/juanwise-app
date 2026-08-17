@@ -169,6 +169,9 @@ export interface ApiJigsawItem {
   context_tl: string | null;
 }
 
+/** The three cuts the puzzle screen can lay out: 2×3, 3×3 and 3×4. */
+export type ApiJigsawPieceCount = 6 | 9 | 12;
+
 export interface ApiCategory {
   key: ApiCategoryKey;
   label: string;
@@ -186,6 +189,12 @@ export interface ApiCategory {
    * activity with no entry falls back to `imageUrl` above.
    */
   jigsawSlots: Record<string, string>;
+  /**
+   * How many pieces each activity is cut into, keyed the same way. An activity
+   * with no entry follows the difficulty ramp in `getJigsawPieceCount` — the
+   * admin has not chosen for it, which is not the same as choosing 6.
+   */
+  jigsawPieces: Record<string, ApiJigsawPieceCount>;
   updatedBy: string | null;
   updatedAt: string | null;
 }
