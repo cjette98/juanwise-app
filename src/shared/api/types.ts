@@ -14,7 +14,6 @@ export type ApiActivityType = 'quiz' | 'jigsaw';
 export type ApiMedal = 'gold' | 'silver' | 'bronze' | 'none';
 export type ApiTrophy = 'gold' | 'silver' | 'bronze' | 'none';
 export type ApiPace = 'fast' | 'average' | 'slow' | 'none';
-/** The API stores only these two; the app's local `identification` has no server form. */
 export type ApiQuestionType = 'multiple-choice' | 'enumeration' | 'identification';
 
 export interface Page<T> {
