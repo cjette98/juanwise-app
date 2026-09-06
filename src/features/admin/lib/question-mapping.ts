@@ -1,4 +1,4 @@
-import type { ApiQuestion } from '@/shared/api';
+import type { ApiQuestion, UpsertQuestionRequest } from '@/shared/api';
 import type { QuizQuestion } from '@/shared/content/quiz-content';
 
 /**
@@ -22,6 +22,7 @@ export function toQuizQuestion(api: ApiQuestion, fallback: QuizQuestion): QuizQu
       answerPool,
       requiredAnswers: api.requiredAnswers ?? Math.min(3, answerPool.length || 1),
       explanation: api.explanation ?? fallback.explanation,
+      miniLesson: api.miniLesson ?? fallback.miniLesson,
     };
   }
 
@@ -34,6 +35,7 @@ export function toQuizQuestion(api: ApiQuestion, fallback: QuizQuestion): QuizQu
       // Null on a document written before identification existed.
       acceptedAnswers: api.acceptedAnswers ?? [],
       explanation: api.explanation ?? fallback.explanation,
+      miniLesson: api.miniLesson ?? fallback.miniLesson,
     };
   }
 
@@ -44,5 +46,57 @@ export function toQuizQuestion(api: ApiQuestion, fallback: QuizQuestion): QuizQu
     choices: api.choices ?? [],
     correctAnswer: api.correctAnswer ?? '',
     explanation: api.explanation ?? fallback.explanation,
+    miniLesson: api.miniLesson ?? fallback.miniLesson,
+  };
+}
+
+/**
+ * The text the Mini-Lessons screen shows for a quiz activity.
+ *
+ * Prefers the authored mini-lesson and falls back to `explanation`, which is
+ * what the screen showed before the field existed — so every question written
+ * before mini-lessons, and every one an admin has not filled in, keeps working
+ * rather than rendering an empty card.
+ */
+export function quizLessonText(question: QuizQuestion): string {
+  return question.miniLesson?.trim() || question.explanation;
+}
+
+/** Sends only the answer fields the chosen type owns. */
+export function toUpsertRequest(q: QuizQuestion): UpsertQuestionRequest {
+  const common = {
+    question: q.question.trim(),
+    hint: q.hint.trim() || null,
+    explanation: q.explanation.trim() || null,
+    // Sent on every save, not only when edited: the PUT is a full overwrite, so
+    // omitting it would clear the write-up the Mini-Lessons screen shows.
+    miniLesson: q.miniLesson?.trim() || null,
+  };
+
+  if (q.type === 'enumeration') {
+    return {
+      ...common,
+      type: 'enumeration',
+      answerPool: (q.answerPool ?? []).map((a) => a.trim()).filter(Boolean),
+      requiredAnswers: q.requiredAnswers ?? 1,
+    };
+  }
+
+  if (q.type === 'identification') {
+    return {
+      ...common,
+      type: 'identification',
+      correctAnswer: q.correctAnswer.trim(),
+      // Blank rows are dropped rather than sent: the server rejects an empty
+      // alternative, and an editor that left one behind would fail the save.
+      acceptedAnswers: (q.acceptedAnswers ?? []).map((a) => a.trim()).filter(Boolean),
+    };
+  }
+
+  return {
+    ...common,
+    type: 'multiple-choice',
+    choices: (q.choices ?? []).map((c) => c.trim()).filter(Boolean),
+    correctAnswer: q.correctAnswer.trim(),
   };
 }

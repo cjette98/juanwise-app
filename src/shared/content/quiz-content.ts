@@ -43,6 +43,12 @@ export interface QuizQuestion {
    * Connected to / expands on `hint`, and defines why the answer is correct.
    */
   explanation: string;
+  /**
+   * Longer write-up shown on the Mini-Lessons screen once the activity is
+   * unlocked. Optional: the bundled content predates the field, and a question
+   * without one falls back to `explanation` — see `quizLessonText`.
+   */
+  miniLesson?: string;
 }
 
 // content-driven map: category -> level -> activityNum -> question.

@@ -6,6 +6,7 @@ import { useStudentResults } from '@/features/results/context/student-results-co
 import { useUser } from '@/features/auth/context/user-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
+import { quizLessonText } from '@/features/admin/lib/question-mapping';
 import { useRouter } from 'expo-router';
 
 interface LessonCard {
@@ -22,8 +23,9 @@ export default function MiniLessonsScreen() {
   const router = useRouter();
   const { uid } = useUser();
   const { results, ready } = useStudentResults();
-  // Explanations and category write-ups come from the content module, so an
-  // admin's edit shows up in the unlocked lesson too.
+  // Mini-lessons and category write-ups come from the content module, so an
+  // admin's edit shows up in the unlocked lesson too. A quiz activity whose
+  // mini-lesson is empty falls back to its explanation — see `quizLessonText`.
   const { getEffectiveQuestion, getEffectiveCategoryContent } = useAdminContent();
 
   // A "mini-lesson" is unlocked the first time the student answers that
@@ -40,7 +42,7 @@ export default function MiniLessonsScreen() {
 
       const text =
         r.activityType === 'quiz'
-          ? getEffectiveQuestion(r.category, r.level, r.activityNum).explanation
+          ? quizLessonText(getEffectiveQuestion(r.category, r.level, r.activityNum))
           : getEffectiveCategoryContent(r.category).context;
 
       byKey.set(key, {
