@@ -16,6 +16,8 @@ interface LessonCard {
   activityNum: number;
   source: 'quiz' | 'jigsaw';
   text: string;
+  /** Ready for <Image source={...}> — a require() id or a { uri } object. */
+  image: any;
   timestamp: number;
 }
 
@@ -40,10 +42,20 @@ export default function MiniLessonsScreen() {
       const existing = byKey.get(key);
       if (existing && existing.timestamp >= r.timestamp) continue;
 
-      const text =
+      const categoryContent = getEffectiveCategoryContent(r.category);
+      const question =
         r.activityType === 'quiz'
-          ? quizLessonText(getEffectiveQuestion(r.category, r.level, r.activityNum))
-          : getEffectiveCategoryContent(r.category).context;
+          ? getEffectiveQuestion(r.category, r.level, r.activityNum)
+          : null;
+
+      const text = question ? quizLessonText(question) : categoryContent.context;
+      // A quiz activity shows the picture the admin uploaded for that exact
+      // mini-lesson. Anything without one — every jigsaw activity, and every
+      // question nobody has illustrated — keeps the category picture, which is
+      // what this screen showed before per-question images existed.
+      const image = question?.miniLessonImageUrl
+        ? { uri: question.miniLessonImageUrl }
+        : categoryContent.image;
 
       byKey.set(key, {
         key,
@@ -52,6 +64,7 @@ export default function MiniLessonsScreen() {
         activityNum: r.activityNum,
         source: r.activityType,
         text,
+        image,
         timestamp: r.timestamp,
       });
     }
@@ -91,11 +104,10 @@ export default function MiniLessonsScreen() {
 
         {lessons.map((lesson) => {
           const meta = getCategoryMeta(lesson.category);
-          const image = getEffectiveCategoryContent(lesson.category).image;
           return (
             <View key={lesson.key} style={[styles.card, { borderColor: meta.color }]}>
               <View style={styles.cardTop}>
-                <Image source={image} style={styles.cardImage} />
+                <Image source={lesson.image} style={styles.cardImage} />
                 <View style={styles.cardTopText}>
                   <Text style={[styles.cardCategory, { color: meta.color }]}>{meta.label}</Text>
                   <Text style={styles.cardMeta}>

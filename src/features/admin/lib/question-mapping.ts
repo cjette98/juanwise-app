@@ -23,6 +23,7 @@ export function toQuizQuestion(api: ApiQuestion, fallback: QuizQuestion): QuizQu
       requiredAnswers: api.requiredAnswers ?? Math.min(3, answerPool.length || 1),
       explanation: api.explanation ?? fallback.explanation,
       miniLesson: api.miniLesson ?? fallback.miniLesson,
+      miniLessonImageUrl: api.miniLessonImageUrl ?? null,
     };
   }
 
@@ -36,6 +37,7 @@ export function toQuizQuestion(api: ApiQuestion, fallback: QuizQuestion): QuizQu
       acceptedAnswers: api.acceptedAnswers ?? [],
       explanation: api.explanation ?? fallback.explanation,
       miniLesson: api.miniLesson ?? fallback.miniLesson,
+      miniLessonImageUrl: api.miniLessonImageUrl ?? null,
     };
   }
 
@@ -47,6 +49,7 @@ export function toQuizQuestion(api: ApiQuestion, fallback: QuizQuestion): QuizQu
     correctAnswer: api.correctAnswer ?? '',
     explanation: api.explanation ?? fallback.explanation,
     miniLesson: api.miniLesson ?? fallback.miniLesson,
+    miniLessonImageUrl: api.miniLessonImageUrl ?? null,
   };
 }
 
@@ -71,6 +74,9 @@ export function toUpsertRequest(q: QuizQuestion): UpsertQuestionRequest {
     // Sent on every save, not only when edited: the PUT is a full overwrite, so
     // omitting it would clear the write-up the Mini-Lessons screen shows.
     miniLesson: q.miniLesson?.trim() || null,
+    // Same reason as the write-up above: the picture would be cleared by any
+    // save that did not resend it.
+    miniLessonImageUrl: q.miniLessonImageUrl?.trim() || null,
   };
 
   if (q.type === 'enumeration') {

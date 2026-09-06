@@ -104,6 +104,18 @@ type AdminContentContextType = {
   setCategoryContext: (category: string, text: string) => Promise<ActionResult>;
   resetCategoryImage: (category: string) => Promise<ActionResult>;
 
+  /**
+   * Uploads a mini-lesson picture and hands back its public URL. Unlike the
+   * category image this does not save anything on its own: the URL belongs to a
+   * question, and the question is written by `upsertQuestion` — so the editor
+   * holds it in the draft until the admin saves.
+   */
+  uploadQuestionImage: (
+    category: string,
+    uri: string,
+    mimeType?: string,
+  ) => Promise<ActionResult & { url?: string }>;
+
   // Global Quiz setting — whether the "Mini-Lesson" hint screen shows before
   // each quiz question, app-wide.
   showMiniLesson: boolean;
@@ -324,6 +336,18 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
     [storeCategory],
   );
 
+  const uploadQuestionImage: AdminContentContextType['uploadQuestionImage'] = useCallback(
+    async (category, uri, mimeType) => {
+      try {
+        const url = await mediaApi.upload(uri, 'question-image', { categoryKey: category, mimeType });
+        return { success: true, message: 'Na-upload ang larawan.', url };
+      } catch (err) {
+        return { success: false, message: errorMessage(err, 'Hindi na-upload ang larawan.') };
+      }
+    },
+    [],
+  );
+
   const setShowMiniLesson: AdminContentContextType['setShowMiniLesson'] = useCallback(
     async (value) => {
       const previous = showMiniLesson;
@@ -355,10 +379,11 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       setCategoryImageUri,
       setCategoryContext,
       resetCategoryImage,
+      uploadQuestionImage,
       showMiniLesson,
       setShowMiniLesson,
     }),
-    [ready, error, refresh, getEffectiveQuestion, isOverridden, upsertQuestion, deleteQuestionOverride, getEffectiveCategoryContent, getJigsawPieceCount, setCategoryImageUri, setCategoryContext, resetCategoryImage, showMiniLesson, setShowMiniLesson],
+    [ready, error, refresh, getEffectiveQuestion, isOverridden, upsertQuestion, deleteQuestionOverride, getEffectiveCategoryContent, getJigsawPieceCount, setCategoryImageUri, setCategoryContext, resetCategoryImage, uploadQuestionImage, showMiniLesson, setShowMiniLesson],
   );
 
   return <AdminContentContext.Provider value={value}>{children}</AdminContentContext.Provider>;
