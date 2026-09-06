@@ -32,6 +32,13 @@ export interface QuizQuestion {
    */
   requiredAnswers?: number;
   /**
+   * 'identification' ONLY — extra spellings graded as correct alongside
+   * `correctAnswer`. Kept separate from `answerPool` because these are
+   * alternative ways to write one answer, not several different answers the
+   * player has to supply.
+   */
+  acceptedAnswers?: string[];
+  /**
    * Short 1-paragraph explanation shown AFTER a correct answer.
    * Connected to / expands on `hint`, and defines why the answer is correct.
    */
