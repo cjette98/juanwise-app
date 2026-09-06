@@ -7,10 +7,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 
 /**
- * Only the two types the API can store are offered. `identification` still
- * exists in the app for the bundled fallback content, but
- * `PUT /content/questions/...` accepts multiple-choice and enumeration only, so
- * an identification question authored here could never be published.
+ * The two types this screen can author. The API stores identification as well,
+ * but authoring it needs a repeatable list of accepted spellings that this
+ * screen has no design for yet — so an identification slot opens read-only
+ * below and is edited in the JuanWise Admin console instead.
  */
 const PUBLISHABLE_TYPES: { key: Extract<QuizType, 'multiple-choice' | 'enumeration'>; label: string }[] = [
   { key: 'multiple-choice', label: 'Multiple Choice' },
@@ -33,11 +33,11 @@ export default function QuestionEditorScreen() {
   const existing = getEffectiveQuestion(category, level, activityNum);
 
   const [saving, setSaving] = useState(false);
-  // An existing `identification` slot opens as multiple-choice, since that is
-  // the closest type the server can hold.
-  const [type, setType] = useState<QuizType>(
-    existing.type === 'identification' ? 'multiple-choice' : existing.type,
-  );
+  // Never silently reinterpreted: an identification slot keeps its own type and
+  // renders read-only below. Converting it to multiple-choice here would let a
+  // save discard the accepted spellings without the admin being told.
+  const isIdentification = existing.type === 'identification';
+  const [type, setType] = useState<QuizType>(existing.type);
   const [hint, setHint] = useState(existing.hint);
   const [question, setQuestion] = useState(existing.question);
   const [choices, setChoices] = useState<string[]>(existing.choices ?? ['', '', '', '']);
@@ -161,6 +161,50 @@ export default function QuestionEditorScreen() {
     });
   };
 
+  if (isIdentification) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={[styles.header, { backgroundColor: categoryColor || '#3B7DD8' }]}>
+          <Text style={styles.headerTitle}>{categoryLabel} — Level {level}, Activity {activityNum}</Text>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.form}>
+          <Text style={styles.label}>Uri ng Tanong</Text>
+          <View style={styles.typeRow}>
+            <View style={[styles.typeChip, styles.typeChipActive]}>
+              <Text style={[styles.typeChipText, styles.typeChipTextActive]}>Identification</Text>
+            </View>
+          </View>
+          <Text style={styles.helperNote}>
+            Hindi pa ma-e-edit ang uring ito rito. Buksan ang JuanWise Admin sa web upang baguhin
+            ang tanong at ang mga tinatanggap na sagot.
+          </Text>
+
+          <Text style={styles.label}>Mini-Lesson / Hint</Text>
+          <Text style={styles.readOnlyValue}>{existing.hint || '—'}</Text>
+
+          <Text style={styles.label}>Tanong</Text>
+          <Text style={styles.readOnlyValue}>{existing.question || '—'}</Text>
+
+          <Text style={styles.label}>Tamang Sagot</Text>
+          <Text style={styles.readOnlyValue}>{existing.correctAnswer || '—'}</Text>
+
+          <Text style={styles.label}>Iba pang tinatanggap na sagot</Text>
+          <Text style={styles.readOnlyValue}>
+            {existing.acceptedAnswers?.length ? existing.acceptedAnswers.join('\n') : '—'}
+          </Text>
+
+          <Text style={styles.label}>Paliwanag (pagkatapos ng tamang sagot)</Text>
+          <Text style={styles.readOnlyValue}>{existing.explanation || '—'}</Text>
+
+          <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
+            <Text style={styles.cancelButtonText}>Bumalik</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { backgroundColor: categoryColor || '#3B7DD8' }]}>
@@ -281,6 +325,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#1A1A1A', marginBottom: 8,
   },
   multiline: { minHeight: 70, textAlignVertical: 'top' },
+  readOnlyValue: {
+    backgroundColor: '#F0EADC', borderWidth: 1.5, borderColor: '#E0D5BE', borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#5C3A21', marginBottom: 8,
+  },
   typeRow: { flexDirection: 'row', gap: 8 },
   typeChip: { flex: 1, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, borderColor: '#E0D5BE', alignItems: 'center', backgroundColor: '#FFF' },
   typeChipActive: { backgroundColor: '#3B7DD8', borderColor: '#3B7DD8' },

@@ -9,6 +9,7 @@ import { useUser } from '@/features/auth/context/user-context';
 import { errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
+import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matching';
 
 function shuffleChoices(choices: string[]) {
   const arr = [...choices];
@@ -73,7 +74,17 @@ export default function ActivityPlayScreen() {
   );
   // `getEffectiveQuestion` builds a fresh object each call, so identity is not a
   // usable dependency — key the reset effects on the content itself instead.
-  const questionSignature = `${q.type}|${q.question}|${(q.choices ?? []).join('~')}|${q.requiredAnswers ?? ''}`;
+  // The answers are part of the signature too: an admin can edit only the
+  // accepted spellings of an identification question, and the typed answer must
+  // still be cleared when that lands.
+  const questionSignature = [
+    q.type,
+    q.question,
+    (q.choices ?? []).join('~'),
+    q.requiredAnswers ?? '',
+    q.correctAnswer,
+    (q.acceptedAnswers ?? []).join('~'),
+  ].join('|');
 
   // Number of input "tabs" to show for Enumeration — the Admin's required
   // count (falls back to the pool size, or 1, if somehow unset).
@@ -110,8 +121,12 @@ export default function ActivityPlayScreen() {
     }
   }, [adminReady, showMiniLesson]);
 
+  // Identification accepts the alternative spellings the admin listed; every
+  // other type keeps the single case-insensitive comparison it always had.
   const isCorrect = (given: string) =>
-    given.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase();
+    q.type === 'identification'
+      ? matchesIdentificationAnswer(given, q.correctAnswer, q.acceptedAnswers)
+      : given.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase();
 
   // Enumeration: every tab must be filled, must match a distinct entry in
   // the Admin's answer pool (case-insensitive), and no repeats across tabs.

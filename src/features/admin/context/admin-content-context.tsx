@@ -14,6 +14,7 @@ import {
 import quizContent, { getQuizQuestion, QuizQuestion } from '@/shared/content/quiz-content';
 import categoryContent from '@/shared/content/category-content';
 import { useUser } from '@/features/auth/context/user-context';
+import { toQuizQuestion } from '@/features/admin/lib/question-mapping';
 
 /**
  * Admin-authored content, served by the API so an edit reaches every student
@@ -71,35 +72,7 @@ function rampPieceCount(activityNum: number): ApiJigsawPieceCount {
   return 12;
 }
 
-/** API question → the shape the Quiz screen and the editor already speak. */
-function toQuizQuestion(api: ApiQuestion, fallback: QuizQuestion): QuizQuestion {
-  if (api.type === 'enumeration') {
-    const answerPool = api.answerPool ?? [];
-    return {
-      hint: api.hint ?? fallback.hint,
-      type: 'enumeration',
-      question: api.question,
-      correctAnswer: api.correctAnswer ?? answerPool.join(', '),
-      answerPool,
-      requiredAnswers: api.requiredAnswers ?? Math.min(3, answerPool.length || 1),
-      explanation: api.explanation ?? fallback.explanation,
-    };
-  }
-  return {
-    hint: api.hint ?? fallback.hint,
-    type: 'multiple-choice',
-    question: api.question,
-    choices: api.choices ?? [],
-    correctAnswer: api.correctAnswer ?? '',
-    explanation: api.explanation ?? fallback.explanation,
-  };
-}
-
-/**
- * The API stores multiple-choice and enumeration only. `identification` is a
- * client-side type with no server representation, so it cannot be published —
- * the editor hides it for that reason.
- */
+/** Sends only the answer fields the chosen type owns. */
 function toUpsertRequest(q: QuizQuestion): UpsertQuestionRequest {
   const common = {
     question: q.question.trim(),
@@ -116,18 +89,23 @@ function toUpsertRequest(q: QuizQuestion): UpsertQuestionRequest {
     };
   }
 
-  if (q.type === 'multiple-choice') {
+  if (q.type === 'identification') {
     return {
       ...common,
-      type: 'multiple-choice',
-      choices: (q.choices ?? []).map((c) => c.trim()).filter(Boolean),
+      type: 'identification',
       correctAnswer: q.correctAnswer.trim(),
+      // Blank rows are dropped rather than sent: the server rejects an empty
+      // alternative, and an editor that left one behind would fail the save.
+      acceptedAnswers: (q.acceptedAnswers ?? []).map((a) => a.trim()).filter(Boolean),
     };
   }
 
-  throw new Error(
-    'Ang "Identification" ay hindi pa sinusuportahan ng server. Pumili ng Multiple Choice o Enumeration.',
-  );
+  return {
+    ...common,
+    type: 'multiple-choice',
+    choices: (q.choices ?? []).map((c) => c.trim()).filter(Boolean),
+    correctAnswer: q.correctAnswer.trim(),
+  };
 }
 
 type AdminContentContextType = {
