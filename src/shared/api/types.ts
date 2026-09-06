@@ -218,6 +218,12 @@ export interface ApiQuestion {
   question: string;
   hint: string | null;
   explanation: string | null;
+  /**
+   * Longer write-up shown on the mini-lessons screen after the activity. Null
+   * on any question stored before mini-lessons existed, which reads as "use the
+   * explanation instead".
+   */
+  miniLesson: string | null;
   choices: string[] | null;
   /** multiple-choice and identification — the single primary answer. */
   correctAnswer: string | null;
@@ -241,6 +247,7 @@ export type UpsertQuestionRequest =
       question: string;
       hint?: string | null;
       explanation?: string | null;
+      miniLesson?: string | null;
       choices: string[];
       correctAnswer: string;
     }
@@ -249,6 +256,7 @@ export type UpsertQuestionRequest =
       question: string;
       hint?: string | null;
       explanation?: string | null;
+      miniLesson?: string | null;
       /** At least 10 entries — enforced server-side. */
       answerPool: string[];
       requiredAnswers: number;
@@ -258,6 +266,7 @@ export type UpsertQuestionRequest =
       question: string;
       hint?: string | null;
       explanation?: string | null;
+      miniLesson?: string | null;
       /** The primary answer. Required. */
       correctAnswer: string;
       /**

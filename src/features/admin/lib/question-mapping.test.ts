@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ApiQuestion } from '@/shared/api';
 import type { QuizQuestion } from '@/shared/content/quiz-content';
-import { toQuizQuestion } from './question-mapping';
+import { quizLessonText, toQuizQuestion, toUpsertRequest } from './question-mapping';
 
 const fallback: QuizQuestion = {
   hint: 'bundled hint',
@@ -28,6 +28,7 @@ const identification: ApiQuestion = {
   question: 'Who founded the Katipunan?',
   hint: 'A secret society founded in 1892.',
   explanation: 'Andrés Bonifacio founded it.',
+  miniLesson: null,
   choices: null,
   correctAnswer: 'Andrés Bonifacio',
   answerPool: null,
@@ -72,5 +73,60 @@ describe('toQuizQuestion', () => {
       fallback,
     );
     expect(en).toMatchObject({ type: 'enumeration', answerPool: pool, requiredAnswers: 4 });
+  });
+});
+
+describe('mini-lesson mapping', () => {
+  const lesson = 'Ang Katipunan ay lihim na samahang itinatag noong Hulyo 7, 1892 sa Tondo.';
+
+  it('carries the admin mini-lesson through to the quiz question', () => {
+    expect(toQuizQuestion({ ...identification, miniLesson: lesson }, fallback).miniLesson).toBe(
+      lesson,
+    );
+  });
+
+  it('falls back to the bundled mini-lesson when the API has none', () => {
+    const bundled = { ...fallback, miniLesson: 'bundled mini-lesson' };
+    expect(toQuizQuestion({ ...identification, miniLesson: null }, bundled).miniLesson).toBe(
+      'bundled mini-lesson',
+    );
+  });
+});
+
+describe('quizLessonText', () => {
+  const question: QuizQuestion = { ...fallback, explanation: 'Short confirmation.' };
+
+  it('prefers the mini-lesson when the admin has written one', () => {
+    expect(quizLessonText({ ...question, miniLesson: 'The longer write-up.' })).toBe(
+      'The longer write-up.',
+    );
+  });
+
+  it.each([undefined, '', '   '])(
+    'falls back to the explanation when the mini-lesson is %p',
+    (miniLesson) => {
+      // Every question authored before mini-lessons existed has none, and the
+      // explanation is what the screen showed for those before this field.
+      expect(quizLessonText({ ...question, miniLesson })).toBe('Short confirmation.');
+    },
+  );
+});
+
+describe('toUpsertRequest', () => {
+  const lesson = 'Ang Katipunan ay lihim na samahang itinatag noong 1892.';
+  const question: QuizQuestion = { ...fallback, miniLesson: lesson };
+
+  it.each([
+    ['multiple-choice', question],
+    ['enumeration', { ...question, type: 'enumeration' as const, answerPool: ['a'], requiredAnswers: 1 }],
+    ['identification', { ...question, type: 'identification' as const }],
+  ])('sends the mini-lesson on a %s question', (_label, q) => {
+    // The PUT is a full overwrite server-side, so a request that omits the
+    // mini-lesson clears it — saving from this editor must not wipe it.
+    expect(toUpsertRequest(q)).toMatchObject({ miniLesson: lesson });
+  });
+
+  it('sends null rather than an empty string when there is no mini-lesson', () => {
+    expect(toUpsertRequest({ ...fallback, miniLesson: '  ' })).toMatchObject({ miniLesson: null });
   });
 });

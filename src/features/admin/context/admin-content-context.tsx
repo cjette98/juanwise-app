@@ -9,12 +9,11 @@ import {
   type ApiCategoryKey,
   type ApiJigsawPieceCount,
   type ApiQuestion,
-  type UpsertQuestionRequest,
 } from '@/shared/api';
 import quizContent, { getQuizQuestion, QuizQuestion } from '@/shared/content/quiz-content';
 import categoryContent from '@/shared/content/category-content';
 import { useUser } from '@/features/auth/context/user-context';
-import { toQuizQuestion } from '@/features/admin/lib/question-mapping';
+import { toQuizQuestion, toUpsertRequest } from '@/features/admin/lib/question-mapping';
 
 /**
  * Admin-authored content, served by the API so an edit reaches every student
@@ -70,42 +69,6 @@ function rampPieceCount(activityNum: number): ApiJigsawPieceCount {
   if (activityNum <= 2) return 6;
   if (activityNum <= 4) return 9;
   return 12;
-}
-
-/** Sends only the answer fields the chosen type owns. */
-function toUpsertRequest(q: QuizQuestion): UpsertQuestionRequest {
-  const common = {
-    question: q.question.trim(),
-    hint: q.hint.trim() || null,
-    explanation: q.explanation.trim() || null,
-  };
-
-  if (q.type === 'enumeration') {
-    return {
-      ...common,
-      type: 'enumeration',
-      answerPool: (q.answerPool ?? []).map((a) => a.trim()).filter(Boolean),
-      requiredAnswers: q.requiredAnswers ?? 1,
-    };
-  }
-
-  if (q.type === 'identification') {
-    return {
-      ...common,
-      type: 'identification',
-      correctAnswer: q.correctAnswer.trim(),
-      // Blank rows are dropped rather than sent: the server rejects an empty
-      // alternative, and an editor that left one behind would fail the save.
-      acceptedAnswers: (q.acceptedAnswers ?? []).map((a) => a.trim()).filter(Boolean),
-    };
-  }
-
-  return {
-    ...common,
-    type: 'multiple-choice',
-    choices: (q.choices ?? []).map((c) => c.trim()).filter(Boolean),
-    correctAnswer: q.correctAnswer.trim(),
-  };
 }
 
 type AdminContentContextType = {
