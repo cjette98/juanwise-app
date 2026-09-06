@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import { QuizType, MIN_ENUMERATION_POOL } from '@/shared/content/quiz-content';
@@ -29,7 +30,7 @@ export default function QuestionEditorScreen() {
   const { category, categoryColor, categoryLabel } = params;
   const level = toNum(params.level, 1);
   const activityNum = toNum(params.activityNum, 1);
-  const { getEffectiveQuestion, upsertQuestion } = useAdminContent();
+  const { getEffectiveQuestion, upsertQuestion, uploadQuestionImage } = useAdminContent();
   const existing = getEffectiveQuestion(category, level, activityNum);
 
   const [saving, setSaving] = useState(false);
@@ -52,6 +53,49 @@ export default function QuestionEditorScreen() {
     return padded;
   });
   const [requiredAnswers, setRequiredAnswers] = useState(String(existing.requiredAnswers ?? 3));
+  // The picture that illustrates the mini-lesson. Held in the draft until the
+  // admin saves, because the URL is stored on the question, not uploaded to it.
+  const [miniLessonImageUrl, setMiniLessonImageUrl] = useState<string | null>(
+    existing.miniLessonImageUrl ?? null,
+  );
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  /**
+   * Uploads straight to Cloud Storage with a signed URL, then keeps the public
+   * URL in state — nothing is written to the question until Save, so backing
+   * out of the screen leaves the published activity untouched.
+   */
+  const pickMiniLessonImage = async () => {
+    if (uploadingImage || saving) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        'Kailangan ng Pahintulot',
+        'Payagan ang app na ma-access ang iyong mga larawan para makapili ng larawan sa aralin.',
+      );
+      return;
+    }
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    const asset = picked.assets?.[0];
+    if (picked.canceled || !asset?.uri) return;
+
+    setUploadingImage(true);
+    try {
+      const result = await uploadQuestionImage(category, asset.uri, asset.mimeType ?? undefined);
+      if (!result.success || !result.url) {
+        Alert.alert('Hindi Na-upload', result.message);
+        return;
+      }
+      setMiniLessonImageUrl(result.url);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const updateChoice = (i: number, val: string) => {
     const next = [...choices];
@@ -147,6 +191,11 @@ export default function QuestionEditorScreen() {
         answerPool: uniquePool,
         requiredAnswers: requiredNum,
         explanation: explanation.trim() || hint.trim(),
+        // Both are sent on every save: the PUT is a full overwrite, so a
+        // payload that omitted them would clear the write-up and the picture
+        // the Mini-Lessons screen shows.
+        miniLesson: existing.miniLesson,
+        miniLessonImageUrl,
       });
       return;
     }
@@ -158,6 +207,8 @@ export default function QuestionEditorScreen() {
       choices: type === 'multiple-choice' ? choices.map((c) => c.trim()).filter(Boolean) : undefined,
       correctAnswer: correctAnswer.trim(),
       explanation: explanation.trim() || hint.trim(),
+      miniLesson: existing.miniLesson,
+      miniLessonImageUrl,
     });
   };
 
@@ -196,6 +247,13 @@ export default function QuestionEditorScreen() {
 
           <Text style={styles.label}>Paliwanag (pagkatapos ng tamang sagot)</Text>
           <Text style={styles.readOnlyValue}>{existing.explanation || '—'}</Text>
+
+          <Text style={styles.label}>Larawan ng Aralin</Text>
+          {existing.miniLessonImageUrl ? (
+            <Image source={{ uri: existing.miniLessonImageUrl }} style={styles.imagePreview} />
+          ) : (
+            <Text style={styles.readOnlyValue}>—</Text>
+          )}
 
           <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
             <Text style={styles.cancelButtonText}>Bumalik</Text>
@@ -295,6 +353,41 @@ export default function QuestionEditorScreen() {
         <Text style={styles.label}>Paliwanag (pagkatapos ng tamang sagot)</Text>
         <TextInput style={[styles.input, styles.multiline]} value={explanation} onChangeText={setExplanation} multiline placeholder="Bakit tama ang sagot..." />
 
+        <Text style={styles.label}>Larawan ng Aralin</Text>
+        <Text style={styles.helperNote}>
+          Makikita ito sa Mini-Lessons kapag natapos na ng mag-aaral ang gawain. Hindi ito lumalabas
+          habang sinasagot ang tanong, para hindi maibigay ang sagot.
+        </Text>
+        {miniLessonImageUrl ? (
+          <Image source={{ uri: miniLessonImageUrl }} style={styles.imagePreview} />
+        ) : (
+          <View style={styles.imageEmpty}>
+            <Text style={styles.imageEmptyText}>
+              Walang larawan — gagamitin ang default na larawan ng kategorya.
+            </Text>
+          </View>
+        )}
+        <View style={styles.imageRow}>
+          <TouchableOpacity
+            style={[styles.imageButton, { backgroundColor: categoryColor || '#3B7DD8' }, uploadingImage && styles.imageButtonBusy]}
+            onPress={pickMiniLessonImage}
+            disabled={uploadingImage}
+          >
+            {uploadingImage ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <Text style={styles.imageButtonText}>
+                {miniLessonImageUrl ? 'Palitan ang Larawan' : 'Pumili ng Larawan'}
+              </Text>
+            )}
+          </TouchableOpacity>
+          {!!miniLessonImageUrl && !uploadingImage && (
+            <TouchableOpacity style={styles.imageRemoveButton} onPress={() => setMiniLessonImageUrl(null)}>
+              <Text style={styles.imageRemoveButtonText}>Alisin</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <TouchableOpacity
           style={[styles.saveButton, { backgroundColor: categoryColor || '#3B7DD8' }, saving && styles.saveButtonBusy]}
           onPress={handleSave}
@@ -320,6 +413,15 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
   form: { padding: 18 },
   label: { fontSize: 12, fontWeight: 'bold', color: '#5C3A21', marginTop: 14, marginBottom: 6 },
+  imagePreview: { width: '100%', height: 170, borderRadius: 14, backgroundColor: '#EFE6D4', borderWidth: 2, borderColor: '#E0D5BE' },
+  imageEmpty: { width: '100%', height: 84, borderRadius: 14, borderWidth: 2, borderStyle: 'dashed', borderColor: '#D9C89E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  imageEmptyText: { fontSize: 12.5, color: '#8E8E93', textAlign: 'center', lineHeight: 18 },
+  imageRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  imageButton: { flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: 'center', justifyContent: 'center', minHeight: 46 },
+  imageButtonBusy: { opacity: 0.7 },
+  imageButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 13.5 },
+  imageRemoveButton: { paddingVertical: 13, paddingHorizontal: 20, borderRadius: 14, backgroundColor: '#F2EADB', alignItems: 'center', justifyContent: 'center', minHeight: 46 },
+  imageRemoveButtonText: { color: '#8E2136', fontWeight: 'bold', fontSize: 13.5 },
   input: {
     backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#E0D5BE', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#1A1A1A', marginBottom: 8,

@@ -29,6 +29,7 @@ const identification: ApiQuestion = {
   hint: 'A secret society founded in 1892.',
   explanation: 'Andrés Bonifacio founded it.',
   miniLesson: null,
+  miniLessonImageUrl: null,
   choices: null,
   correctAnswer: 'Andrés Bonifacio',
   answerPool: null,
@@ -45,6 +46,7 @@ describe('toQuizQuestion', () => {
       correctAnswer: 'Andrés Bonifacio',
       acceptedAnswers: ['Andres Bonifacio', 'Bonifacio'],
       explanation: 'Andrés Bonifacio founded it.',
+      miniLessonImageUrl: null,
     });
   });
 
@@ -128,5 +130,65 @@ describe('toUpsertRequest', () => {
 
   it('sends null rather than an empty string when there is no mini-lesson', () => {
     expect(toUpsertRequest({ ...fallback, miniLesson: '  ' })).toMatchObject({ miniLesson: null });
+  });
+});
+
+describe('mini-lesson image mapping', () => {
+  const url = 'https://storage.googleapis.com/juanwise/question-images/history/abc.jpg';
+
+  it('carries the admin mini-lesson image through to the quiz question', () => {
+    const mapped = toQuizQuestion({ ...identification, miniLessonImageUrl: url }, fallback);
+    expect(mapped.miniLessonImageUrl).toBe(url);
+  });
+
+  it('reads a question authored before the field existed as having no image', () => {
+    // The bundled fallback has no picture either, so this must stay null rather
+    // than borrow one — the Mini-Lessons screen is what falls back, to the
+    // category image.
+    expect(toQuizQuestion(identification, fallback).miniLessonImageUrl).toBeNull();
+  });
+
+  it('survives a change of question type, the way the mini-lesson text does', () => {
+    const withImage = { ...identification, miniLessonImageUrl: url };
+    for (const type of ['multiple-choice', 'enumeration'] as const) {
+      const mapped = toQuizQuestion(
+        {
+          ...withImage,
+          type,
+          choices: type === 'multiple-choice' ? ['a', 'b'] : null,
+          correctAnswer: type === 'multiple-choice' ? 'a' : null,
+          answerPool: type === 'enumeration' ? Array.from({ length: 10 }, (_, i) => `x${i}`) : null,
+          requiredAnswers: type === 'enumeration' ? 3 : null,
+        },
+        fallback,
+      );
+      expect(mapped.miniLessonImageUrl).toBe(url);
+    }
+  });
+
+  it('sends the image on every save, so a full overwrite cannot clear it', () => {
+    const sent = toUpsertRequest({
+      hint: 'h',
+      type: 'multiple-choice',
+      question: 'q',
+      choices: ['a', 'b'],
+      correctAnswer: 'a',
+      explanation: 'e',
+      miniLessonImageUrl: url,
+    });
+    expect(sent.miniLessonImageUrl).toBe(url);
+  });
+
+  it('sends null rather than an empty string when there is no image', () => {
+    const sent = toUpsertRequest({
+      hint: 'h',
+      type: 'multiple-choice',
+      question: 'q',
+      choices: ['a', 'b'],
+      correctAnswer: 'a',
+      explanation: 'e',
+      miniLessonImageUrl: '   ',
+    });
+    expect(sent.miniLessonImageUrl).toBeNull();
   });
 });

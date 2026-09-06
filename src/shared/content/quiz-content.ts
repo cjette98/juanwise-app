@@ -49,6 +49,12 @@ export interface QuizQuestion {
    * without one falls back to `explanation` — see `quizLessonText`.
    */
   miniLesson?: string;
+  /**
+   * Picture the admin uploaded to illustrate the mini-lesson. Absent on the
+   * bundled content, which has no per-question pictures — the Mini-Lessons
+   * screen falls back to the category image in that case.
+   */
+  miniLessonImageUrl?: string | null;
 }
 
 // content-driven map: category -> level -> activityNum -> question.
