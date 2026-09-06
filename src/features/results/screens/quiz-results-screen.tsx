@@ -1,17 +1,17 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { useStudentResults, ActivityResult } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 import { useRouter } from 'expo-router';
+import { Screen, ScreenHeader, Card, Button, Icon, Body, BodyStrong, Caption } from '@/shared/components/ui';
+import { tokens, categoryColor } from '@/shared/theme/tokens';
 
-function medalEmoji(medal: ActivityResult['medal']) {
-  if (medal === 'gold') return '🥇';
-  if (medal === 'silver') return '🥈';
-  if (medal === 'bronze') return '🥉';
-  return '—';
+function medalTint(medal: ActivityResult['medal']) {
+  if (medal === 'gold') return tokens.color.medalGold;
+  if (medal === 'silver') return tokens.color.medalSilver;
+  if (medal === 'bronze') return tokens.color.medalBronze;
+  return null;
 }
 
 export default function QuizResultsScreen() {
@@ -32,77 +32,78 @@ export default function QuizResultsScreen() {
   const totalPoints = quizResults.reduce((sum, r) => sum + r.points, 0);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
-          <Ionicons name="chevron-back" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Quiz Results</Text>
-        <Text style={styles.headerSubtitle}>
-          {quizResults.length} tamang sagot · ★ {totalPoints} kabuuang puntos
-        </Text>
-      </View>
+    <Screen>
+      <ScreenHeader
+        title="Quiz Results"
+        subtitle={`${quizResults.length} tamang sagot · ${totalPoints} kabuuang puntos`}
+        color={tokens.color.navQuiz}
+        onBack={() => router.back()}
+      />
 
       <ScrollView contentContainerStyle={styles.list}>
-        {!ready && <Text style={styles.emptyText}>Naglo-load...</Text>}
+        {!ready && <Body style={styles.emptyText}>Naglo-load...</Body>}
         {ready && quizResults.length === 0 && (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyIcon}>📝</Text>
-            <Text style={styles.emptyText}>
+            <Icon name="quiz" size={40} color={tokens.color.inkFaint} />
+            <Body style={styles.emptyText}>
               Wala ka pang natatapos na Quiz. Pumunta sa Categories at subukan ang isang Quiz
               activity para makita dito ang resulta mo.
-            </Text>
-            <TouchableOpacity style={styles.emptyButton} onPress={() => router.navigate('/categories')}>
-              <Text style={styles.emptyButtonText}>Pumunta sa Categories</Text>
-            </TouchableOpacity>
+            </Body>
+            <Button
+              label="Pumunta sa Categories"
+              onPress={() => router.navigate('/categories')}
+              color={tokens.color.navQuiz}
+              style={styles.emptyButton}
+            />
           </View>
         )}
 
         {quizResults.map((r) => {
           const meta = getCategoryMeta(r.category);
+          const tint = medalTint(r.medal);
           return (
-            <View key={r.id} style={[styles.row, { borderColor: meta.color }]}>
+            <Card key={r.id} style={styles.row}>
               <View style={styles.rowLeft}>
-                <Text style={[styles.rowCategory, { color: meta.color }]}>{meta.label}</Text>
-                <Text style={styles.rowMeta}>
+                <BodyStrong style={{ color: categoryColor(r.category).base }} numberOfLines={1}>
+                  {meta.label}
+                </BodyStrong>
+                <Caption>
                   Level {r.level} · Activity {r.activityNum}
-                </Text>
+                </Caption>
               </View>
               <View style={styles.rowStats}>
-                <Text style={styles.statLine}>{medalEmoji(r.medal)} ⏱ {r.timeUsed}s</Text>
-                <Text style={styles.statLinePoints}>★ {r.points} pts</Text>
+                <View style={styles.rowStatLine}>
+                  {tint ? (
+                    <Icon name="medal" size={16} color={tint} filled />
+                  ) : (
+                    <Caption>—</Caption>
+                  )}
+                  <Icon name="clock" size={13} color={tokens.color.inkMuted} />
+                  <Caption>{r.timeUsed}s</Caption>
+                </View>
+                <BodyStrong style={styles.rowPoints}>{r.points} pts</BodyStrong>
               </View>
-            </View>
+            </Card>
           );
         })}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5EFE0' },
-  header: {
-    backgroundColor: '#3B7DD8', paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16,
-    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
-  },
-  headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
-  headerSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.9, marginTop: 2 },
-  list: { padding: 16, gap: 10 },
-  emptyWrap: { alignItems: 'center', marginTop: 30, paddingHorizontal: 10 },
-  emptyIcon: { fontSize: 40, marginBottom: 10 },
-  emptyText: { textAlign: 'center', color: '#8E8E93', fontSize: 13, lineHeight: 19 },
-  emptyButton: { marginTop: 16, backgroundColor: '#3B7DD8', paddingVertical: 10, paddingHorizontal: 22, borderRadius: 18 },
-  emptyButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  list: { padding: tokens.space.lg, gap: tokens.space.sm },
+  emptyWrap: { alignItems: 'center', marginTop: tokens.space.xxl, paddingHorizontal: tokens.space.sm, gap: tokens.space.sm },
+  emptyText: { textAlign: 'center', color: tokens.color.inkMuted },
+  emptyButton: { marginTop: tokens.space.md, minWidth: 220 },
   row: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14,
-    padding: 14, borderWidth: 2, justifyContent: 'space-between',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: tokens.space.md,
   },
-  rowLeft: { flex: 1 },
-  rowCategory: { fontWeight: 'bold', fontSize: 14.5 },
-  rowMeta: { fontSize: 12, color: '#8E8E93', marginTop: 2 },
-  rowStats: { alignItems: 'flex-end' },
-  statLine: { fontSize: 12.5, fontWeight: '700', color: '#5C3A21' },
-  statLinePoints: { fontSize: 13, fontWeight: '900', color: '#E8801A', marginTop: 3 },
+  rowLeft: { flex: 1, gap: 2 },
+  rowStats: { alignItems: 'flex-end', gap: tokens.space.xs },
+  rowStatLine: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
+  rowPoints: { color: tokens.color.points },
 });

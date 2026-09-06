@@ -1,21 +1,13 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { images } from '@/shared/assets/images';
 import { ApiError, errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
+import { Screen, Button, Icon, H1, Label, Caption } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -69,105 +61,133 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Screen>
       <View style={styles.content}>
-        <Text style={styles.title}>{t('loginTitle')}</Text>
+        <H1 style={styles.title}>{t('loginTitle')}</H1>
 
         <Image source={logo} style={styles.logo} resizeMode="contain" />
 
-        <View style={styles.toggleRow}>
+        <View style={styles.toggleTrack}>
           <TouchableOpacity
-            style={[styles.toggleBtn, role === 'student' && styles.toggleBtnActive]}
+            style={[styles.toggleHalf, role === 'student' && styles.toggleHalfActive]}
             onPress={() => setRole('student')}
           >
-            <Text style={[styles.toggleText, role === 'student' && styles.toggleTextActive]}>
-              {t('studentAcc')}
-            </Text>
+            <Label style={[styles.toggleText, role === 'student' && styles.toggleTextActive]}>
+              {t('student')}
+            </Label>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.toggleBtn, role === 'teacher' && styles.toggleBtnActive]}
+            style={[styles.toggleHalf, role === 'teacher' && styles.toggleHalfActive]}
             onPress={() => setRole('teacher')}
           >
-            <Text style={[styles.toggleText, role === 'teacher' && styles.toggleTextActive]}>
-              {t('teacherAcc')}
-            </Text>
+            <Label style={[styles.toggleText, role === 'teacher' && styles.toggleTextActive]}>
+              {t('teacher')}
+            </Label>
           </TouchableOpacity>
         </View>
 
         <View style={styles.fieldWrap}>
-          <Text style={styles.fieldLabel}>{t('username')}</Text>
-          <TextInput style={styles.fieldInput} value={username} onChangeText={setUsername} />
+          <Icon name="user" size={20} color={tokens.color.inkMuted} />
+          <TextInput
+            style={styles.fieldInput}
+            value={username}
+            onChangeText={setUsername}
+            placeholder={t('username')}
+            placeholderTextColor={tokens.color.inkFaint}
+          />
         </View>
 
         <View style={styles.fieldWrap}>
-          <Text style={styles.fieldLabel}>{t('password')}</Text>
-          <View style={styles.pwInputRow}>
-            <TextInput
-              style={[styles.fieldInput, styles.pwInput]}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-            />
-            <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.eyeBtn}>
-              <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={18} color="#8E8E93" />
-            </TouchableOpacity>
-          </View>
+          <Icon name="lock" size={20} color={tokens.color.inkMuted} />
+          <TextInput
+            style={styles.fieldInput}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            placeholder={t('password')}
+            placeholderTextColor={tokens.color.inkFaint}
+          />
+          <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.eyeBtn}>
+            <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={tokens.color.inkMuted} />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity onPress={() => router.navigate({ pathname: '/forgot-password', params: { role } })}>
-          <Text style={styles.forgotText}>{t('forgotPassword')}</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
-          style={[styles.loginButton, busy && styles.loginButtonBusy]}
-          onPress={handleLogin}
-          disabled={busy}
+          style={styles.forgotTarget}
+          onPress={() => router.navigate({ pathname: '/forgot-password', params: { role } })}
         >
-          {busy ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.loginButtonText}>{t('loginBtn')}</Text>
-          )}
+          <Caption style={styles.forgotText}>{t('forgotPassword')}</Caption>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.navigate('/register')}>
-          <Text style={styles.signUpText}>
-            {t('noAccount')} <Text style={styles.signUpLink}>{t('signUp')}</Text>
-          </Text>
-        </TouchableOpacity>
+        <Button label={t('loginBtn')} onPress={handleLogin} busy={busy} style={styles.loginButton} />
+
+        <Button
+          label={`${t('noAccount')} ${t('signUp')}`}
+          onPress={() => router.navigate('/register')}
+          variant="secondary"
+          style={styles.signUpButton}
+        />
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  content: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 26, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 12, letterSpacing: 1 },
-  logo: { width: 80, height: 80, marginBottom: 18 },
-  toggleRow: {
-    flexDirection: 'row', width: '100%', backgroundColor: '#EFEFEF',
-    borderRadius: 25, padding: 4, marginBottom: 24,
+  content: { flex: 1, padding: tokens.space.xl, alignItems: 'center', justifyContent: 'center', gap: tokens.space.md, width: '100%' },
+  title: { letterSpacing: 1 },
+  logo: { width: 80, height: 80, marginBottom: tokens.space.sm },
+
+  toggleTrack: {
+    flexDirection: 'row',
+    width: '100%',
+    backgroundColor: tokens.color.surfaceSunken,
+    borderRadius: tokens.radius.pill,
+    padding: tokens.space.xs,
   },
-  toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 20, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: '#E8801A' },
-  toggleText: { fontWeight: 'bold', color: '#8E8E93', fontSize: 12 },
-  toggleTextActive: { color: '#FFFFFF' },
-  fieldWrap: { width: '100%', marginBottom: 16 },
-  fieldLabel: { fontSize: 12, color: '#8E8E93', marginBottom: 4, fontWeight: '600' },
+  toggleHalf: {
+    flex: 1,
+    minHeight: tokens.hit.min,
+    borderRadius: tokens.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: tokens.space.sm,
+  },
+  toggleHalfActive: {
+    backgroundColor: tokens.color.surface,
+    ...tokens.elevation.card,
+  },
+  // Uses the short role labels (`student`/`teacher` -> ESTUDYANTE / GURO), not
+  // the `studentAcc`/`teacherAcc` pair. "ACCOUNT NG ESTUDYANTE" needs ~189px
+  // against the 147px each half gets on a 390pt screen, so it wrapped to two
+  // lines beside a single-line sibling. The short form fits at Label's normal
+  // tracking, and the screen title already says this is the log-in choice.
+  // textAlign guards a longer translation landing here later.
+  toggleText: { color: tokens.color.inkMuted, textAlign: 'center' },
+  toggleTextActive: { color: tokens.color.primary },
+
+  fieldWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    minHeight: 58,
+    gap: tokens.space.sm,
+    borderWidth: 2,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.space.md,
+    backgroundColor: tokens.color.surface,
+  },
   fieldInput: {
-    borderBottomWidth: 1, borderBottomColor: '#D0D0D0', paddingVertical: 8, fontSize: 15, color: '#1A1A1A',
+    flex: 1,
+    fontFamily: tokens.font.body,
+    fontSize: tokens.type.body.fontSize,
+    color: tokens.color.ink,
   },
-  pwInputRow: { flexDirection: 'row', alignItems: 'center' },
-  pwInput: { flex: 1 },
-  eyeBtn: { padding: 6, marginLeft: 4 },
-  forgotText: { alignSelf: 'flex-end', color: '#555', fontSize: 12, marginBottom: 20 },
-  loginButton: {
-    width: '100%', backgroundColor: '#E8801A', paddingVertical: 16,
-    borderRadius: 25, alignItems: 'center', marginBottom: 14,
-  },
-  loginButtonBusy: { opacity: 0.7 },
-  loginButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16, letterSpacing: 1 },
-  signUpText: { fontSize: 13, color: '#555' },
-  signUpLink: { color: '#E8801A', fontWeight: 'bold' },
+  eyeBtn: { minWidth: tokens.hit.min, minHeight: tokens.hit.min, alignItems: 'center', justifyContent: 'center' },
+
+  forgotTarget: { alignSelf: 'flex-end', minHeight: tokens.hit.min, justifyContent: 'center', paddingHorizontal: tokens.space.xs },
+  forgotText: { color: tokens.color.inkMuted },
+
+  loginButton: { width: '100%' },
+  signUpButton: { width: '100%' },
 });

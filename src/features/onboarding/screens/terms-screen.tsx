@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -14,7 +13,12 @@ import { useLanguage } from '@/shared/i18n/language-context';
 import { images } from '@/shared/assets/images';
 import { termsContent } from '@/shared/content/terms-content';
 import { useRouter } from 'expo-router';
+import { Card, Button, Icon, H2, H3, Body, BodyStrong } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 
+// This screen keeps its own `ImageBackground` + `SafeAreaView` root rather
+// than `<Screen>`: `<Screen>` paints an opaque canvas colour behind its
+// content, which would hide the full-bleed terms artwork entirely.
 export default function TermsScreen() {
   const router = useRouter();
   const { language } = useLanguage();
@@ -65,25 +69,29 @@ export default function TermsScreen() {
       resizeMode="cover"
     >
       <View style={styles.overlay} />
-      <Animated.Text style={[styles.floatingStar, { top: 40, left: 24 }, star1Style]}>★</Animated.Text>
-      <Animated.Text style={[styles.floatingStar, { top: 60, right: 30 }, star2Style]}>★</Animated.Text>
+      <Animated.View style={[styles.floatingStar, { top: 40, left: 24 }, star1Style]}>
+        <Icon name="star" size={22} color={tokens.color.gold} filled />
+      </Animated.View>
+      <Animated.View style={[styles.floatingStar, { top: 60, right: 30 }, star2Style]}>
+        <Icon name="star" size={22} color={tokens.color.gold} filled />
+      </Animated.View>
 
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <ScrollView showsVerticalScrollIndicator={true} style={styles.scroll}>
-            <Text style={styles.sectionTitle}>{content.consentTitle}</Text>
-            <Text style={styles.bodyText}>{content.consentBody}</Text>
+            <H2 style={styles.sectionTitle}>{content.consentTitle}</H2>
+            <Body style={styles.bodyText}>{content.consentBody}</Body>
 
-            <Text style={styles.sectionTitle}>{content.mechanicsTitle}</Text>
-            <Text style={styles.bodyText}>{content.mechanicsBody}</Text>
+            <H2 style={styles.sectionTitle}>{content.mechanicsTitle}</H2>
+            <Body style={styles.bodyText}>{content.mechanicsBody}</Body>
 
-            <Text style={styles.sectionTitle}>{content.conductTitle}</Text>
+            <H2 style={styles.sectionTitle}>{content.conductTitle}</H2>
 
-            <Text style={styles.subTitle}>{content.playerRulesTitle}</Text>
-            <Text style={styles.bodyText}>{content.playerRules}</Text>
+            <H3 style={styles.subTitle}>{content.playerRulesTitle}</H3>
+            <Body style={styles.bodyText}>{content.playerRules}</Body>
 
-            <Text style={styles.subTitle}>{content.adminRulesTitle}</Text>
-            <Text style={styles.bodyText}>{content.adminRules}</Text>
+            <H3 style={styles.subTitle}>{content.adminRulesTitle}</H3>
+            <Body style={styles.bodyText}>{content.adminRules}</Body>
           </ScrollView>
 
           <TouchableOpacity
@@ -92,24 +100,28 @@ export default function TermsScreen() {
             activeOpacity={0.7}
           >
             <View style={[styles.checkbox, accepted && styles.checkboxChecked]}>
-              {accepted && <Text style={styles.checkmark}>✓</Text>}
+              {accepted && <Icon name="check" size={14} color={tokens.color.onDark} strokeWidth={3} />}
             </View>
-            <Text style={styles.checkboxLabel}>{content.checkboxLabel}</Text>
+            <BodyStrong style={styles.checkboxLabel}>{content.checkboxLabel}</BodyStrong>
           </TouchableOpacity>
 
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-              <Text style={styles.cancelButtonText}>{content.cancelBtn}</Text>
-            </TouchableOpacity>
+            <Button
+              label={content.cancelBtn}
+              onPress={handleCancel}
+              variant="secondary"
+              style={styles.cancelButton}
+            />
 
-            <TouchableOpacity
-              style={[styles.continueButton, !accepted && styles.continueButtonDisabled]}
+            <Button
+              label={content.continueBtn}
               onPress={handleContinue}
-            >
-              <Text style={styles.continueButtonText}>{content.continueBtn}</Text>
-            </TouchableOpacity>
+              color={accepted ? tokens.color.primary : tokens.color.locked}
+              shadowColor={accepted ? tokens.color.primaryDark : tokens.color.locked}
+              style={styles.continueButton}
+            />
           </View>
-        </View>
+        </Card>
       </SafeAreaView>
     </ImageBackground>
   );
@@ -117,44 +129,35 @@ export default function TermsScreen() {
 
 const styles = StyleSheet.create({
   background: { flex: 1, width: '100%', height: '100%' },
-  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(60,30,10,0.25)' },
-  floatingStar: { position: 'absolute', fontSize: 22, color: '#FCD116' },
-  safeArea: { flex: 1, padding: 16, justifyContent: 'center' },
-  card: {
-    backgroundColor: '#FFFDF7',
-    borderRadius: 20,
-    padding: 18,
-    maxHeight: '92%',
-    borderWidth: 2,
-    borderColor: '#D9A441',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: tokens.color.ink, opacity: 0.25 },
+  floatingStar: { position: 'absolute' },
+  safeArea: { flex: 1, padding: tokens.space.lg, justifyContent: 'center' },
+  card: { maxHeight: '92%' },
+  scroll: { maxHeight: '68%', marginBottom: tokens.space.sm },
+  sectionTitle: { marginTop: tokens.space.md, marginBottom: tokens.space.xs },
+  subTitle: { color: tokens.color.primary, marginTop: tokens.space.sm, marginBottom: tokens.space.xs },
+  bodyText: {},
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: tokens.hit.min,
+    marginBottom: tokens.space.sm,
+    paddingHorizontal: tokens.space.xs,
   },
-  scroll: { maxHeight: '68%', marginBottom: 12 },
-  sectionTitle: { fontSize: 17, fontWeight: 'bold', color: '#8B2E1F', marginTop: 14, marginBottom: 6 },
-  subTitle: { fontSize: 14, fontWeight: 'bold', color: '#0038A8', marginTop: 10, marginBottom: 4 },
-  bodyText: { fontSize: 13.5, color: '#2B2B2B', lineHeight: 20 },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, paddingHorizontal: 4 },
   checkbox: {
-    width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: '#8B2E1F',
-    marginRight: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFDF7',
+    width: 24,
+    height: 24,
+    borderRadius: tokens.radius.sm,
+    borderWidth: 2,
+    borderColor: tokens.color.primary,
+    marginRight: tokens.space.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.color.surface,
   },
-  checkboxChecked: { backgroundColor: '#8B2E1F' },
-  checkmark: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
-  checkboxLabel: { flex: 1, fontSize: 13, color: '#2B2B2B', fontWeight: '600' },
-  buttonRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  cancelButton: {
-    flex: 1, backgroundColor: '#EFE3D0', paddingVertical: 14, borderRadius: 25,
-    alignItems: 'center', marginRight: 8, borderWidth: 2, borderColor: '#B0A18A',
-  },
-  cancelButtonText: { color: '#5C3A21', fontWeight: 'bold', fontSize: 15 },
-  continueButton: {
-    flex: 1, backgroundColor: '#0038A8', paddingVertical: 14, borderRadius: 25,
-    alignItems: 'center', marginLeft: 8,
-  },
-  continueButtonDisabled: { backgroundColor: '#A9B8D9' },
-  continueButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
+  checkboxChecked: { backgroundColor: tokens.color.primary },
+  checkboxLabel: { flex: 1 },
+  buttonRow: { flexDirection: 'row', justifyContent: 'space-between', gap: tokens.space.sm },
+  cancelButton: { flex: 1 },
+  continueButton: { flex: 1 },
 });

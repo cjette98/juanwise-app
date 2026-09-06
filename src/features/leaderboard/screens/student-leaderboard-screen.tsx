@@ -1,35 +1,54 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import {
+  Screen,
+  ScreenHeader,
+  Card,
+  Pill,
+  Icon,
+  StarRow,
+  H2,
+  H3,
+  Display,
+  Body,
+  BodyStrong,
+  Caption,
+  type IconName,
+} from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 import { useStudentResults, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS, COMBINED_MAX_TIME_SECONDS, LearnerPace } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { useRouter } from 'expo-router';
 
 type SortMode = 'points' | 'speed';
 
+// Pace and trophy tier share the same three-way split (gold/silver/bronze),
+// so the pace badge reuses the medal tokens instead of inventing a fourth
+// palette — same colour family as before (warm gold / cool grey / warm
+// bronze), now as tokens instead of the old bespoke hex triplet.
 const PACE_META: Record<LearnerPace, { label: string; color: string }> = {
-  fast: { label: '🚀 Mabilis Matuto', color: '#D4A017' },
-  steady: { label: '🚶 Sakto sa Bilis', color: '#8E9AAF' },
-  'needs-support': { label: '🐢 Kailangan ng Tulong', color: '#B08D57' },
+  fast: { label: 'Mabilis Matuto', color: tokens.color.medalGold },
+  steady: { label: 'Sakto sa Bilis', color: tokens.color.medalSilver },
+  'needs-support': { label: 'Kailangan ng Tulong', color: tokens.color.medalBronze },
+};
+
+const PACE_ICON: Record<LearnerPace, IconName> = {
+  fast: 'bolt',
+  steady: 'clock',
+  'needs-support': 'lightbulb',
 };
 
 const TROPHY_COLORS: Record<'gold' | 'silver' | 'bronze', string> = {
-  gold: '#FFC700',
-  silver: '#A8AEB8',
-  bronze: '#CD7F32',
+  gold: tokens.color.medalGold,
+  silver: tokens.color.medalSilver,
+  bronze: tokens.color.medalBronze,
 };
 
-function trophyIcon(trophy: Trophy, size = 15) {
+function trophyIcon(trophy: Trophy, size = 16) {
   if (trophy === 'gold' || trophy === 'silver' || trophy === 'bronze') {
-    return <Ionicons name="trophy" size={size} color={TROPHY_COLORS[trophy]} />;
+    return <Icon name="trophy" size={size} color={TROPHY_COLORS[trophy]} filled />;
   }
-  return <Text style={{ color: '#8E8E93' }}>—</Text>;
-}
-
-function starsDisplay(avgStars: number) {
-  const rounded = Math.round(avgStars);
-  return '⭐'.repeat(rounded) + '☆'.repeat(Math.max(0, 3 - rounded));
+  return <Caption style={{ color: tokens.color.inkFaint }}>—</Caption>;
 }
 
 function formatSeconds(total: number) {
@@ -38,6 +57,20 @@ function formatSeconds(total: number) {
   const ss = s % 60;
   return `${mm}m ${ss.toString().padStart(2, '0')}s`;
 }
+
+function PacePill({ pace }: { pace: LearnerPace }) {
+  const meta = PACE_META[pace];
+  return (
+    <Pill
+      label={meta.label}
+      icon={PACE_ICON[pace]}
+      tone="neutral"
+      style={{ backgroundColor: meta.color, borderColor: 'transparent' }}
+    />
+  );
+}
+
+const PODIUM_HEIGHT: Record<1 | 2 | 3, number> = { 1: 108, 2: 84, 3: 66 };
 
 export default function StudentLeaderboardScreen() {
   const router = useRouter();
@@ -68,206 +101,271 @@ export default function StudentLeaderboardScreen() {
     }
   };
 
+  // Podium is purely a visual read of the first three entries of `sorted` —
+  // whatever mode is active. Never padded: fewer than three real entries
+  // means fewer than three columns.
+  const podiumEntries = sorted.slice(0, 3).map((s, i) => ({ ...s, rank: (i + 1) as 1 | 2 | 3 }));
+  const podiumOrder = [podiumEntries[1], podiumEntries[0], podiumEntries[2]].filter(
+    (e): e is (typeof podiumEntries)[number] => !!e
+  );
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
-          <Ionicons name="chevron-back" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerTopRow}>
-          <View>
-            <Text style={styles.headerTitle}>Leaderboard</Text>
-            <Text style={styles.headerSubtitle}>{leaderboard.length} estudyanteng may resulta</Text>
-          </View>
-          <TouchableOpacity style={styles.legendButton} onPress={() => setShowLegend((v) => !v)}>
-            <Ionicons name="trophy" size={14} color="#D63B6E" />
-            <Text style={styles.legendButtonText}>Trophy Guide</Text>
+    <Screen>
+      <ScreenHeader
+        title="Leaderboard"
+        subtitle={`${leaderboard.length} estudyanteng may resulta`}
+        color={tokens.color.navLeaderboard}
+        onBack={() => router.back()}
+        right={
+          <TouchableOpacity style={styles.legendToggle} onPress={() => setShowLegend((v) => !v)}>
+            <Pill label="Trophy Guide" icon="trophy" tone="translucent" />
+          </TouchableOpacity>
+        }
+      >
+        <View style={styles.sortRow}>
+          <TouchableOpacity style={styles.sortChip} onPress={() => setSortMode('points')}>
+            <Pill label="Puntos" icon="star" tone={sortMode === 'points' ? 'gold' : 'translucent'} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sortChip} onPress={() => setSortMode('speed')}>
+            <Pill label="Bilis" icon="clock" tone={sortMode === 'speed' ? 'gold' : 'translucent'} />
           </TouchableOpacity>
         </View>
-      </View>
+      </ScreenHeader>
 
-      {showLegend && (
-        <View style={styles.legendCard}>
-          <Text style={styles.legendTitle}>Paano makakuha ng Trophy (Combined Quiz & Jigsaw)</Text>
-          {TROPHY_TIERS.map((t) => (
-            <View key={t.trophy} style={styles.legendRow}>
-              <Text style={styles.legendRowLabel}>{t.label}</Text>
-              <Text style={styles.legendRowDetail}>{t.minPoints}+ pts · {t.timeLabel}</Text>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {showLegend && (
+          <Card style={styles.legendCard}>
+            <BodyStrong style={styles.legendTitle}>Paano makakuha ng Trophy (Combined Quiz & Jigsaw)</BodyStrong>
+            {TROPHY_TIERS.map((t) => (
+              <View key={t.trophy} style={styles.legendRow}>
+                <Caption style={styles.legendRowDetailStrong}>{t.label}</Caption>
+                <Caption style={styles.legendRowDetail}>{t.minPoints}+ pts · {t.timeLabel}</Caption>
+              </View>
+            ))}
+            <Caption style={styles.legendFoot}>
+              Max posible: {COMBINED_MAX_POINTS} pts sa {COMBINED_MAX_TIME_SECONDS.toLocaleString()} sec (Quiz + Jigsaw, lahat ng level)
+            </Caption>
+
+            <View style={styles.legendDivider} />
+            <View style={styles.legendRow}>
+              <View style={styles.legendRowLabelWrap}>
+                {trophyIcon('gold', 14)}
+                <BodyStrong style={styles.legendRowLabel}>Gold</BodyStrong>
+              </View>
+              <View style={styles.legendPaceRow}>
+                <Caption style={styles.legendRowDetail}>→</Caption>
+                <Icon name={PACE_ICON.fast} size={13} color={tokens.color.inkMuted} />
+                <Caption style={styles.legendRowDetail}>Mabilis Matuto</Caption>
+              </View>
             </View>
-          ))}
-          <Text style={styles.legendFoot}>Max posible: {COMBINED_MAX_POINTS} pts sa {COMBINED_MAX_TIME_SECONDS.toLocaleString()} sec (Quiz + Jigsaw, lahat ng level)</Text>
-
-          <View style={styles.legendDivider} />
-          <View style={styles.legendRow}>
-            <Text style={styles.legendRowLabel}>{trophyIcon('gold')} Gold</Text>
-            <Text style={styles.legendRowDetail}>→ 🚀 Mabilis Matuto</Text>
-          </View>
-          <View style={styles.legendRow}>
-            <Text style={styles.legendRowLabel}>{trophyIcon('silver')} Silver</Text>
-            <Text style={styles.legendRowDetail}>→ 🚶 Sakto sa Bilis</Text>
-          </View>
-          <View style={styles.legendRow}>
-            <Text style={styles.legendRowLabel}>{trophyIcon('bronze')} Bronze / Wala</Text>
-            <Text style={styles.legendRowDetail}>→ 🐢 Kailangan ng Tulong</Text>
-          </View>
-          <Text style={styles.legendFoot}>⭐ Stars = average na bituin kada gawain</Text>
-        </View>
-      )}
-
-      {mySummary && (
-        <TouchableOpacity style={styles.myRankCard} onPress={() => router.navigate({ pathname: '/student-summary', params: { studentName: name } })}>
-          <Text style={styles.myRankLabel}>Ranggo mo · Tap para sa buong record</Text>
-          <Text style={styles.myRankNumber}>#{myRank}</Text>
-          <View style={[styles.paceBadge, { backgroundColor: PACE_META[mySummary.pace].color }]}>
-            <Text style={styles.paceBadgeText}>{PACE_META[mySummary.pace].label}</Text>
-          </View>
-          <View style={styles.myRankStats}>
-            <Text style={styles.myRankStat}>{trophyIcon(mySummary.trophy)} Trophy</Text>
-            <Text style={styles.myRankStat}>★ {mySummary.totalPoints}/900 pts</Text>
-            <Text style={styles.myRankStat}>⏱ {formatSeconds(mySummary.totalTimeUsed)}</Text>
-          </View>
-          <Text style={styles.myRankStars}>{starsDisplay(mySummary.avgStars)} ({mySummary.avgStars.toFixed(1)} avg)</Text>
-          <Text style={styles.myRankQuiz}>✅ {mySummary.quizCorrect}/30 tama · ❌ {mySummary.quizWrongOutOf30}/30 mali (Quiz)</Text>
-        </TouchableOpacity>
-      )}
-
-      <View style={styles.sortRow}>
-        <TouchableOpacity
-          style={[styles.sortChip, sortMode === 'points' && styles.sortChipActive]}
-          onPress={() => setSortMode('points')}
-        >
-          <Text style={[styles.sortChipText, sortMode === 'points' && styles.sortChipTextActive]}>★ Puntos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.sortChip, sortMode === 'speed' && styles.sortChipActive]}
-          onPress={() => setSortMode('speed')}
-        >
-          <Text style={[styles.sortChipText, sortMode === 'speed' && styles.sortChipTextActive]}>⏱ Bilis</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.list}>
-        {!ready && <Text style={styles.emptyText}>Naglo-load...</Text>}
-        {ready && sorted.length === 0 && (
-          <Text style={styles.emptyText}>Wala pang natatapos na gawain. Sagutan ang isang Quiz o Jigsaw Puzzle para lumabas dito.</Text>
+            <View style={styles.legendRow}>
+              <View style={styles.legendRowLabelWrap}>
+                {trophyIcon('silver', 14)}
+                <BodyStrong style={styles.legendRowLabel}>Silver</BodyStrong>
+              </View>
+              <View style={styles.legendPaceRow}>
+                <Caption style={styles.legendRowDetail}>→</Caption>
+                <Icon name={PACE_ICON.steady} size={13} color={tokens.color.inkMuted} />
+                <Caption style={styles.legendRowDetail}>Sakto sa Bilis</Caption>
+              </View>
+            </View>
+            <View style={styles.legendRow}>
+              <View style={styles.legendRowLabelWrap}>
+                {trophyIcon('bronze', 14)}
+                <BodyStrong style={styles.legendRowLabel}>Bronze / Wala</BodyStrong>
+              </View>
+              <View style={styles.legendPaceRow}>
+                <Caption style={styles.legendRowDetail}>→</Caption>
+                <Icon name={PACE_ICON['needs-support']} size={13} color={tokens.color.inkMuted} />
+                <Caption style={styles.legendRowDetail}>Kailangan ng Tulong</Caption>
+              </View>
+            </View>
+            <View style={styles.legendFootRow}>
+              <Icon name="star" size={13} color={tokens.color.gold} filled />
+              <Caption style={styles.legendFootText}>Stars = average na bituin kada gawain</Caption>
+            </View>
+          </Card>
         )}
-        {sorted.map((s, i) => {
-          const isMe = s.studentName === name;
-          return (
-            <TouchableOpacity
-              key={s.studentName}
-              style={[styles.row, isMe && styles.rowMine]}
-              onPress={() => handleRowPress(s.studentName)}
-            >
-              <Text style={styles.rank}>{i + 1}</Text>
-              <View style={styles.rowMain}>
-                <Text style={styles.studentName}>{s.studentName}{isMe ? ' (Ikaw)' : ''}</Text>
-                <Text style={styles.rowSub}>{s.attempts} gawain natapos</Text>
-                <View style={[styles.rowPaceBadge, { backgroundColor: PACE_META[s.pace].color }]}>
-                  <Text style={styles.rowPaceBadgeText}>{PACE_META[s.pace].label}</Text>
+
+        {podiumEntries.length > 0 && (
+          <View style={styles.podiumRow}>
+            {podiumOrder.map((entry) => (
+              <TouchableOpacity
+                key={entry.studentName}
+                style={styles.podiumColumn}
+                onPress={() => handleRowPress(entry.studentName)}
+              >
+                <Icon name="trophy" size={20} color={TROPHY_COLORS[entry.rank === 1 ? 'gold' : entry.rank === 2 ? 'silver' : 'bronze']} filled />
+                <BodyStrong numberOfLines={1} style={styles.podiumName}>
+                  {entry.studentName}{entry.studentName === name ? ' (Ikaw)' : ''}
+                </BodyStrong>
+                <Caption style={styles.podiumPoints}>{entry.totalPoints} pts</Caption>
+                <View
+                  style={[
+                    styles.podiumPlinth,
+                    {
+                      height: PODIUM_HEIGHT[entry.rank],
+                      backgroundColor: TROPHY_COLORS[entry.rank === 1 ? 'gold' : entry.rank === 2 ? 'silver' : 'bronze'],
+                    },
+                  ]}
+                >
+                  <H2 style={styles.podiumRankNumber}>{entry.rank}</H2>
                 </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {mySummary && (
+          <TouchableOpacity
+            style={styles.myRankTouchable}
+            onPress={() => router.navigate({ pathname: '/student-summary', params: { studentName: name } })}
+          >
+            <Card raised style={styles.myRankCard}>
+              <Caption style={styles.myRankLabel}>Ranggo mo · Tap para sa buong record</Caption>
+              <Display style={styles.myRankNumber}>#{myRank}</Display>
+              <View style={styles.myRankRow}>
+                <PacePill pace={mySummary.pace} />
+                <Pill label={`${mySummary.totalPoints}/${COMBINED_MAX_POINTS} pts`} icon="star" tone="gold" />
               </View>
-              <View style={styles.statsBlock}>
-                <Text style={styles.statLine}>{trophyIcon(s.trophy)} ★ {s.totalPoints} pts</Text>
-                <Text style={styles.statLineSmall}>⏱ {formatSeconds(s.totalTimeUsed)}</Text>
-                <Text style={styles.statLineSmall}>{starsDisplay(s.avgStars)}</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+            </Card>
+          </TouchableOpacity>
+        )}
+
+        {!ready && <Body style={styles.emptyText}>Naglo-load...</Body>}
+        {ready && sorted.length === 0 && (
+          <Body style={styles.emptyText}>Wala pang natatapos na gawain. Sagutan ang isang Quiz o Jigsaw Puzzle para lumabas dito.</Body>
+        )}
+
+        <View style={styles.list}>
+          {sorted.map((s, i) => {
+            const isMe = s.studentName === name;
+            return (
+              <TouchableOpacity key={s.studentName} style={styles.rowTouchable} onPress={() => handleRowPress(s.studentName)}>
+                <Card raised={isMe} style={isMe ? [styles.row, styles.rowMine] : styles.row}>
+                  <H3 style={styles.rank}>{i + 1}</H3>
+                  <View style={styles.rowMain}>
+                    <BodyStrong numberOfLines={1}>
+                      {s.studentName}{isMe ? ' (Ikaw)' : ''}
+                    </BodyStrong>
+                    <Caption style={styles.rowSub}>{s.attempts} gawain natapos</Caption>
+                    <View style={styles.rowPaceWrap}>
+                      <PacePill pace={s.pace} />
+                    </View>
+                  </View>
+                  <View style={styles.statsBlock}>
+                    <View style={styles.statLineRow}>
+                      {trophyIcon(s.trophy, 14)}
+                      <BodyStrong style={styles.statLineText}>{s.totalPoints} pts</BodyStrong>
+                    </View>
+                    <View style={styles.statLineRow}>
+                      <Icon name="clock" size={11} color={tokens.color.inkMuted} />
+                      <Caption style={styles.statLineSmall}>{formatSeconds(s.totalTimeUsed)}</Caption>
+                    </View>
+                    <StarRow earned={Math.round(s.avgStars)} of={3} size={12} />
+                  </View>
+                </Card>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </ScrollView>
 
       {/* Quick public peek — points & time are visible to everyone, same as
           the leaderboard row itself. The full per-category/level breakdown
           is only reachable by tapping your OWN row (see handleRowPress). */}
       <Modal visible={!!peekStudent} transparent animationType="fade" onRequestClose={() => setPeekStudent(null)}>
-        <TouchableOpacity style={styles.peekOverlay} activeOpacity={1} onPress={() => setPeekStudent(null)}>
-          <View style={styles.peekCard}>
-            <Text style={styles.peekName}>{peekStudent}</Text>
-            {peekSummary && (
-              <>
-                <View style={[styles.paceBadge, { backgroundColor: PACE_META[peekSummary.pace].color, marginBottom: 8 }]}>
-                  <Text style={styles.paceBadgeText}>{PACE_META[peekSummary.pace].label}</Text>
-                </View>
-                <View style={styles.peekStatsRow}>
-                  <Text style={styles.peekStat}>{trophyIcon(peekSummary.trophy)} Trophy</Text>
-                  <Text style={styles.peekStat}>★ {peekSummary.totalPoints} pts</Text>
-                  <Text style={styles.peekStat}>⏱ {formatSeconds(peekSummary.totalTimeUsed)}</Text>
-                </View>
-                <Text style={styles.peekStars}>{starsDisplay(peekSummary.avgStars)}</Text>
-              </>
-            )}
-            <Text style={styles.peekHint}>Tap kahit saan para isara</Text>
-          </View>
-        </TouchableOpacity>
+        <View style={styles.peekRoot}>
+          <View style={styles.peekBackdrop} />
+          <TouchableOpacity style={styles.peekOverlay} activeOpacity={1} onPress={() => setPeekStudent(null)}>
+            <Card style={styles.peekCard}>
+              <H3 style={styles.peekName}>{peekStudent}</H3>
+              {peekSummary && (
+                <>
+                  <View style={styles.peekPaceWrap}>
+                    <PacePill pace={peekSummary.pace} />
+                  </View>
+                  <View style={styles.peekStatsRow}>
+                    <View style={styles.statLineRow}>
+                      {trophyIcon(peekSummary.trophy, 15)}
+                      <BodyStrong style={styles.peekStat}>Trophy</BodyStrong>
+                    </View>
+                    <BodyStrong style={styles.peekStat}>{peekSummary.totalPoints} pts</BodyStrong>
+                    <View style={styles.statLineRow}>
+                      <Icon name="clock" size={13} color={tokens.color.inkMuted} />
+                      <BodyStrong style={styles.peekStat}>{formatSeconds(peekSummary.totalTimeUsed)}</BodyStrong>
+                    </View>
+                  </View>
+                  <View style={styles.peekStarsWrap}>
+                    <StarRow earned={Math.round(peekSummary.avgStars)} of={3} size={16} />
+                  </View>
+                </>
+              )}
+              <Caption style={styles.peekHint}>Tap kahit saan para isara</Caption>
+            </Card>
+          </TouchableOpacity>
+        </View>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5EFE0' },
-  header: {
-    backgroundColor: '#D63B6E', paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16,
-    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+  legendToggle: { minHeight: tokens.hit.min, justifyContent: 'center' },
+  sortRow: { flexDirection: 'row', gap: tokens.space.sm, marginTop: tokens.space.md },
+  sortChip: { minHeight: tokens.hit.min, justifyContent: 'center', alignItems: 'flex-start' },
+  scroll: { padding: tokens.space.lg, gap: tokens.space.md },
+  legendCard: { gap: tokens.space.xs },
+  legendTitle: { marginBottom: tokens.space.xs },
+  legendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: tokens.space.xs / 2 },
+  legendRowLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
+  legendRowLabel: { color: tokens.color.ink },
+  legendRowDetail: { color: tokens.color.inkMuted, fontFamily: tokens.font.bodyBold },
+  legendRowDetailStrong: { color: tokens.color.ink, fontFamily: tokens.font.bodyBold },
+  legendPaceRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2 },
+  legendFoot: { marginTop: tokens.space.xs, fontStyle: 'italic' },
+  legendFootRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2, marginTop: tokens.space.xs },
+  legendFootText: { fontStyle: 'italic' },
+  legendDivider: { height: 1, backgroundColor: tokens.color.divider, marginVertical: tokens.space.sm },
+  podiumRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: tokens.space.sm },
+  podiumColumn: { flex: 1, alignItems: 'center', gap: tokens.space.xs / 2, minHeight: tokens.hit.min },
+  podiumName: { maxWidth: '100%' },
+  podiumPoints: { color: tokens.color.inkMuted },
+  podiumPlinth: {
+    width: '100%',
+    borderTopLeftRadius: tokens.radius.md,
+    borderTopRightRadius: tokens.radius.md,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: tokens.space.sm,
   },
-  headerBack: { marginBottom: 4 },
-  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
-  headerSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.9, marginTop: 2 },
-  legendButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFF',
-    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 14,
-  },
-  legendButtonText: { fontSize: 11, fontWeight: 'bold', color: '#D63B6E' },
-  legendCard: {
-    margin: 16, marginBottom: 0, backgroundColor: '#FFF', borderRadius: 14, padding: 14,
-    borderWidth: 1.5, borderColor: '#D63B6E',
-  },
-  legendTitle: { fontSize: 12.5, fontWeight: 'bold', color: '#5C3A21', marginBottom: 8 },
-  legendRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  legendRowLabel: { fontSize: 12, fontWeight: '700', color: '#1A1A1A' },
-  legendRowDetail: { fontSize: 11, color: '#5C3A21', fontWeight: '600' },
-  legendFoot: { fontSize: 10, color: '#8E8E93', marginTop: 8, fontStyle: 'italic' },
-  legendDivider: { height: 1, backgroundColor: '#E0D5BE', marginVertical: 10 },
-  myRankCard: {
-    margin: 16, marginBottom: 0, backgroundColor: '#FFF', borderRadius: 16, padding: 16,
-    alignItems: 'center', borderWidth: 2, borderColor: '#D63B6E',
-  },
-  myRankLabel: { fontSize: 12, color: '#8E8E93', fontWeight: '600' },
-  myRankNumber: { fontSize: 32, fontWeight: '900', color: '#D63B6E', marginVertical: 2 },
-  myRankStats: { flexDirection: 'row', gap: 16, marginTop: 4 },
-  myRankStat: { fontSize: 12.5, fontWeight: '700', color: '#5C3A21' },
-  myRankStars: { fontSize: 13, marginTop: 6 },
-  myRankQuiz: { fontSize: 11, color: '#8E8E93', marginTop: 8, fontWeight: '600' },
-  paceBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, marginTop: 8 },
-  paceBadgeText: { color: '#FFF', fontSize: 11, fontWeight: 'bold' },
-  rowPaceBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginTop: 4 },
-  rowPaceBadgeText: { color: '#FFF', fontSize: 9.5, fontWeight: 'bold' },
-  sortRow: { flexDirection: 'row', gap: 8, padding: 14, justifyContent: 'center' },
-  sortChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: '#E5DCC8' },
-  sortChipActive: { backgroundColor: '#D63B6E' },
-  sortChipText: { fontWeight: 'bold', fontSize: 12, color: '#5C3A21' },
-  sortChipTextActive: { color: '#FFF' },
-  list: { padding: 16, paddingTop: 0, gap: 10 },
-  emptyText: { textAlign: 'center', color: '#8E8E93', marginTop: 30, fontSize: 13, paddingHorizontal: 10 },
-  row: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14,
-    padding: 12, borderWidth: 1.5, borderColor: '#E0D5BE', gap: 10,
-  },
-  rowMine: { borderColor: '#D63B6E', backgroundColor: '#FCEAF0' },
-  rank: { fontWeight: '900', fontSize: 18, color: '#5C3A21', width: 24, textAlign: 'center' },
+  podiumRankNumber: { color: tokens.color.ink },
+  myRankTouchable: { minHeight: tokens.hit.min },
+  myRankCard: { backgroundColor: tokens.color.primary, borderColor: tokens.color.primaryDark, alignItems: 'center' },
+  myRankLabel: { color: tokens.color.onDarkMuted },
+  myRankNumber: { color: tokens.color.onDark, marginVertical: tokens.space.xs / 2 },
+  myRankRow: { flexDirection: 'row', gap: tokens.space.sm, marginTop: tokens.space.xs },
+  emptyText: { textAlign: 'center', marginTop: tokens.space.xl, paddingHorizontal: tokens.space.sm },
+  list: { gap: tokens.space.sm },
+  rowTouchable: { minHeight: tokens.hit.min },
+  row: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm, padding: tokens.space.md },
+  rowMine: { borderColor: tokens.color.primary },
+  rank: { color: tokens.color.inkMuted, width: 26, textAlign: 'center' },
   rowMain: { flex: 1 },
-  studentName: { fontWeight: 'bold', fontSize: 14.5, color: '#1A1A1A' },
-  rowSub: { fontSize: 11, color: '#8E8E93', marginTop: 2 },
-  statsBlock: { alignItems: 'flex-end' },
-  statLine: { fontSize: 12.5, fontWeight: '700', color: '#5C3A21' },
-  statLineSmall: { fontSize: 10.5, color: '#8E8E93', marginTop: 2 },
-  peekOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  peekCard: { backgroundColor: '#FFF', borderRadius: 18, padding: 20, width: '100%', alignItems: 'center', borderWidth: 2, borderColor: '#D63B6E' },
-  peekName: { fontSize: 17, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 10 },
-  peekStatsRow: { flexDirection: 'row', gap: 14, flexWrap: 'wrap', justifyContent: 'center' },
-  peekStat: { fontSize: 13, fontWeight: '700', color: '#5C3A21' },
-  peekStars: { fontSize: 15, marginTop: 10 },
-  peekHint: { fontSize: 10.5, color: '#8E8E93', marginTop: 14 },
+  rowSub: { color: tokens.color.inkMuted, marginTop: 2 },
+  rowPaceWrap: { alignSelf: 'flex-start', marginTop: tokens.space.xs },
+  statsBlock: { alignItems: 'flex-end', gap: 2 },
+  statLineRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statLineText: { color: tokens.color.ink },
+  statLineSmall: { color: tokens.color.inkMuted },
+  peekRoot: { flex: 1 },
+  peekBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: tokens.color.ink, opacity: 0.55 },
+  peekOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.space.xl },
+  peekCard: { width: '100%', alignItems: 'center', borderColor: tokens.color.primary },
+  peekName: { marginBottom: tokens.space.sm },
+  peekPaceWrap: { marginBottom: tokens.space.sm },
+  peekStatsRow: { flexDirection: 'row', gap: tokens.space.md, flexWrap: 'wrap', justifyContent: 'center' },
+  peekStat: { color: tokens.color.ink },
+  peekStarsWrap: { marginTop: tokens.space.sm },
+  peekHint: { marginTop: tokens.space.md, color: tokens.color.inkMuted },
 });
