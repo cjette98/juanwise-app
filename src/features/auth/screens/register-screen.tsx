@@ -1,22 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Image,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, Alert, type TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { images } from '@/shared/assets/images';
 import { errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
+import { Screen, Button, Icon, type IconName, H1, Label, Caption } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 
 const LRN_REGEX = /^\d{12}$/;
 const TEACHER_ID_REGEX = /^\d{7}$/;
@@ -201,28 +192,28 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Screen>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>{t('registerTitle')}</Text>
+        <H1 style={styles.title}>{t('registerTitle')}</H1>
 
         <Image source={logo} style={styles.logo} resizeMode="contain" />
 
-        <View style={styles.toggleRow}>
+        <View style={styles.toggleTrack}>
           <TouchableOpacity
-            style={[styles.toggleBtn, role === 'student' && styles.toggleBtnActive]}
+            style={[styles.toggleHalf, role === 'student' && styles.toggleHalfActive]}
             onPress={() => setRole('student')}
           >
-            <Text style={[styles.toggleText, role === 'student' && styles.toggleTextActive]}>
+            <Label style={[styles.toggleText, role === 'student' && styles.toggleTextActive]}>
               {t('student')}
-            </Text>
+            </Label>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.toggleBtn, role === 'teacher' && styles.toggleBtnActive]}
+            style={[styles.toggleHalf, role === 'teacher' && styles.toggleHalfActive]}
             onPress={() => setRole('teacher')}
           >
-            <Text style={[styles.toggleText, role === 'teacher' && styles.toggleTextActive]}>
+            <Label style={[styles.toggleText, role === 'teacher' && styles.toggleTextActive]}>
               {t('teacher')}
-            </Text>
+            </Label>
           </TouchableOpacity>
         </View>
 
@@ -230,6 +221,7 @@ export default function RegisterScreen() {
           <>
             <Field
               label={t('lrn')}
+              icon="book"
               placeholder="123456789012"
               value={lrn}
               onChangeText={setLrn}
@@ -240,15 +232,17 @@ export default function RegisterScreen() {
             />
             <Field
               label={t('fullName')}
+              icon="user"
               placeholder="Juan Dela Cruz"
               value={fullName}
               onChangeText={setFullName}
               onBlur={() => markTouched('fullName')}
               error={fullNameError}
             />
-            <Field label={t('age')} value={age} onChangeText={setAge} keyboardType="number-pad" />
+            <Field label={t('age')} icon="chart" value={age} onChangeText={setAge} keyboardType="number-pad" />
             <Field
               label={t('grade')}
+              icon="book"
               placeholder="6"
               value={grade}
               onChangeText={setGrade}
@@ -256,7 +250,7 @@ export default function RegisterScreen() {
               keyboardType="number-pad"
               error={gradeError}
             />
-            <Field label={t('section')} value={section} onChangeText={setSection} />
+            <Field label={t('section')} icon="book" value={section} onChangeText={setSection} />
             <Field
               label={t('email')}
               placeholder="juan123@gmail.com"
@@ -272,6 +266,7 @@ export default function RegisterScreen() {
           <>
             <Field
               label={t('fullName')}
+              icon="user"
               placeholder="Maria Cruz"
               value={teacherName}
               onChangeText={setTeacherName}
@@ -280,6 +275,7 @@ export default function RegisterScreen() {
             />
             <Field
               label={t('teacherId')}
+              icon="book"
               placeholder="1234567"
               value={teacherId}
               onChangeText={setTeacherId}
@@ -290,6 +286,7 @@ export default function RegisterScreen() {
             />
             <Field
               label={t('handleGrade')}
+              icon="book"
               placeholder="5"
               value={handleGrade}
               onChangeText={setHandleGrade}
@@ -297,7 +294,7 @@ export default function RegisterScreen() {
               keyboardType="number-pad"
               error={handleGradeError}
             />
-            <Field label={t('section')} value={teacherSection} onChangeText={setTeacherSection} />
+            <Field label={t('section')} icon="book" value={teacherSection} onChangeText={setTeacherSection} />
             <Field
               label={t('depedGmail')}
               placeholder="maria.cruz@deped.gov.ph"
@@ -314,6 +311,7 @@ export default function RegisterScreen() {
 
         <Field
           label={t('username')}
+          icon="user"
           placeholder={t('usernameHint')}
           value={username}
           onChangeText={setUsername}
@@ -322,18 +320,20 @@ export default function RegisterScreen() {
           error={usernameError}
         />
 
-        <View style={styles.fieldWrap}>
-          <Text style={styles.fieldLabel}>{t('password')}</Text>
-          <View style={styles.pwInputRow}>
+        <View style={styles.fieldGroup}>
+          <Label style={styles.fieldLabel}>{t('password')}</Label>
+          <View style={styles.fieldWrap}>
+            <Icon name="lock" size={20} color={tokens.color.inkMuted} />
             <TextInput
-              style={[styles.fieldInput, styles.pwInput]}
+              style={styles.fieldInput}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              placeholderTextColor={tokens.color.inkFaint}
             />
             <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.eyeBtn}>
-              <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={18} color="#8E8E93" />
+              <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={tokens.color.inkMuted} />
             </TouchableOpacity>
           </View>
           <View style={styles.pwChecklist}>
@@ -345,96 +345,138 @@ export default function RegisterScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.registerButton, busy && styles.registerButtonBusy]}
-          onPress={handleRegister}
-          disabled={busy}
-        >
-          {busy ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.registerButtonText}>{t('registerBtn')}</Text>
-          )}
-        </TouchableOpacity>
+        <Button label={t('registerBtn')} onPress={handleRegister} busy={busy} style={styles.registerButton} />
 
-        <TouchableOpacity onPress={() => router.navigate('/login')}>
-          <Text style={styles.signInText}>
-            {t('haveAccount')} <Text style={styles.signInLink}>{t('signIn')}</Text>
-          </Text>
-        </TouchableOpacity>
+        <Button
+          label={`${t('haveAccount')} ${t('signIn')}`}
+          onPress={() => router.navigate('/login')}
+          variant="secondary"
+          style={styles.signInButton}
+        />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-function Field({ label, error, hint, ...props }: any) {
+function Field({
+  label,
+  icon,
+  error,
+  hint,
+  ...props
+}: {
+  label: string;
+  icon?: IconName;
+  error?: string;
+  hint?: string;
+} & TextInputProps) {
   return (
-    <View style={styles.fieldWrap}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={[styles.fieldInput, error && styles.fieldInputError]}
-        placeholderTextColor="#C7C7C7"
-        {...props}
-      />
-      {!!error && (
-        <View style={styles.warnRow}>
-          <Ionicons name="warning" size={11} color="#CE1126" />
-          <Text style={styles.warnText}>{error}</Text>
-        </View>
-      )}
-      {!error && !!hint && <Text style={styles.hintText}>{hint}</Text>}
+    <View style={styles.fieldGroup}>
+      <Label style={styles.fieldLabel}>{label}</Label>
+      <View style={[styles.fieldWrap, error && styles.fieldWrapError]}>
+        {icon && <Icon name={icon} size={20} color={tokens.color.inkMuted} />}
+        <TextInput
+          style={styles.fieldInput}
+          placeholderTextColor={tokens.color.inkFaint}
+          {...props}
+        />
+      </View>
+      {!!error && <Caption style={styles.errorText}>{error}</Caption>}
+      {!error && !!hint && <Caption style={styles.hintText}>{hint}</Caption>}
     </View>
   );
 }
 
+// Colour alone must not carry the pass/fail signal for a child with a colour
+// vision deficiency, so a satisfied rule swaps to a different mark shape
+// (a check) rather than just a different tint of the same dot.
 function PwRule({ ok, label }: { ok: boolean; label: string }) {
   return (
     <View style={styles.pwRuleRow}>
-      <Ionicons
-        name={ok ? 'checkmark-circle' : 'ellipse-outline'}
-        size={13}
-        color={ok ? '#3E9E4F' : '#B0B0B0'}
-      />
-      <Text style={[styles.pwRuleText, ok && styles.pwRuleTextOk]}>{label}</Text>
+      {ok ? (
+        <Icon name="check" size={15} color={tokens.color.success} strokeWidth={2.6} />
+      ) : (
+        <View style={styles.pwRuleUnmet} />
+      )}
+      <Caption style={[styles.pwRuleText, ok && styles.pwRuleTextOk]}>{label}</Caption>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { padding: 16, alignItems: 'center', paddingBottom: 28 },
-  title: { fontSize: 21, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 6, letterSpacing: 0.5 },
-  logo: { width: 56, height: 56, marginBottom: 10 },
-  toggleRow: {
-    flexDirection: 'row', width: '100%', backgroundColor: '#EFEFEF',
-    borderRadius: 22, padding: 3, marginBottom: 12,
+  scrollContent: {
+    padding: tokens.space.xl,
+    alignItems: 'center',
+    gap: tokens.space.md,
+    paddingBottom: tokens.space.xxl,
   },
-  toggleBtn: { flex: 1, paddingVertical: 8, borderRadius: 18, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: '#E8801A' },
-  toggleText: { fontWeight: 'bold', color: '#8E8E93', fontSize: 13 },
-  toggleTextActive: { color: '#FFFFFF' },
-  fieldWrap: { width: '100%', marginBottom: 8 },
-  fieldLabel: { fontSize: 11, color: '#8E8E93', marginBottom: 2, fontWeight: '600' },
+  title: { letterSpacing: 1 },
+  logo: { width: 64, height: 64, marginBottom: tokens.space.xs },
+
+  toggleTrack: {
+    flexDirection: 'row',
+    width: '100%',
+    backgroundColor: tokens.color.surfaceSunken,
+    borderRadius: tokens.radius.pill,
+    padding: tokens.space.xs,
+  },
+  toggleHalf: {
+    flex: 1,
+    minHeight: tokens.hit.min,
+    borderRadius: tokens.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: tokens.space.sm,
+  },
+  toggleHalfActive: {
+    backgroundColor: tokens.color.surface,
+    ...tokens.elevation.card,
+  },
+  // See login-screen.tsx: tighter tracking (rather than numberOfLines +
+  // adjustsFontSizeToFit) is what fits "ACCOUNT NG ESTUDYANTE" without
+  // truncating, and textAlign keeps it centred if it still wraps.
+  toggleText: { color: tokens.color.inkMuted, letterSpacing: 0.3, textAlign: 'center' },
+  toggleTextActive: { color: tokens.color.primary },
+
+  fieldGroup: { width: '100%' },
+  fieldLabel: { marginBottom: tokens.space.xs, color: tokens.color.inkMuted },
+  fieldWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    minHeight: 58,
+    gap: tokens.space.sm,
+    borderWidth: 2,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.space.md,
+    backgroundColor: tokens.color.surface,
+  },
+  fieldWrapError: { borderColor: tokens.color.danger },
   fieldInput: {
-    borderBottomWidth: 1, borderBottomColor: '#D0D0D0', paddingVertical: 6, fontSize: 14, color: '#1A1A1A',
+    flex: 1,
+    fontFamily: tokens.font.body,
+    fontSize: tokens.type.body.fontSize,
+    color: tokens.color.ink,
   },
-  fieldInputError: { borderBottomColor: '#CE1126' },
-  pwInputRow: { flexDirection: 'row', alignItems: 'center' },
-  pwInput: { flex: 1 },
-  eyeBtn: { padding: 6, marginLeft: 4 },
-  warnRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  warnText: { fontSize: 10, color: '#CE1126', flexShrink: 1 },
-  hintText: { fontSize: 10, color: '#8E8E93', marginTop: 2 },
-  pwChecklist: { marginTop: 6, gap: 3 },
-  pwRuleRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  pwRuleText: { fontSize: 10.5, color: '#8E8E93' },
-  pwRuleTextOk: { color: '#3E9E4F' },
-  registerButton: {
-    width: '100%', backgroundColor: '#E8801A', paddingVertical: 13,
-    borderRadius: 22, alignItems: 'center', marginTop: 8, marginBottom: 12,
+  eyeBtn: { minWidth: tokens.hit.min, minHeight: tokens.hit.min, alignItems: 'center', justifyContent: 'center' },
+
+  errorText: { color: tokens.color.danger, marginTop: tokens.space.xs },
+  hintText: { color: tokens.color.inkFaint, marginTop: tokens.space.xs },
+
+  pwChecklist: { marginTop: tokens.space.sm, gap: tokens.space.xs },
+  pwRuleRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
+  pwRuleUnmet: {
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: tokens.color.inkDisabled,
+    backgroundColor: 'transparent',
   },
-  registerButtonBusy: { opacity: 0.7 },
-  registerButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 15, letterSpacing: 0.5 },
-  signInText: { fontSize: 12, color: '#555' },
-  signInLink: { color: '#E8801A', fontWeight: 'bold' },
+  pwRuleText: { color: tokens.color.inkMuted },
+  pwRuleTextOk: { color: tokens.color.success },
+
+  registerButton: { width: '100%' },
+  signInButton: { width: '100%' },
 });

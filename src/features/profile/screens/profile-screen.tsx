@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Alert,
   Animated,
   LayoutAnimation,
@@ -15,33 +14,59 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '@/features/auth/context/user-context';
-import { useStudentResults } from '@/features/results/context/student-results-context';
+import { useStudentResults, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
+import { Screen, ScreenHeader, Card, Button, Pill, ProgressBar, Icon, type IconName, H3, BodyStrong, Body, Label, Caption } from '@/shared/components/ui';
+import { tokens, categoryColor } from '@/shared/theme/tokens';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const ACCENTS = ['#0038A8', '#E8801A', '#3E9E4F', '#CE1126', '#6C4AB6'];
+const AVATAR_SIZE = 96;
+const AVATAR_OPTION_SIZE = 66;
+
+// Token-sourced replacement for the old hex accent list — same five-colour
+// rotation, cycled by field index exactly as before.
+const ACCENTS = [
+  tokens.color.primary,
+  tokens.color.points,
+  tokens.color.success,
+  tokens.color.red,
+  tokens.color.navJigsaw,
+];
+
+// The six content categories, matched to `categoryColor` and to
+// `src/shared/content/category-meta.ts`. Points per category are derived
+// entirely from `results`, which the screen already reads via `useStudentResults`.
+const CATEGORY_KEYS = ['history', 'culture', 'geography', 'festival', 'national', 'heroes'] as const;
+const CATEGORY_LABEL_KEY = {
+  history: 'catHistory',
+  culture: 'catCulture',
+  geography: 'catGeography',
+  festival: 'catFestival',
+  national: 'catNational',
+  heroes: 'catHeroes',
+} as const;
+
 const STUDENT_AVATAR_OPTIONS = [
   { key: 'boy', emoji: '👦' },
   { key: 'girl', emoji: '👧' },
 ];
 const TEACHER_AVATAR_OPTIONS = [
-  { key: 'boy', emoji: '👨\u200d🏫' },
-  { key: 'girl', emoji: '👩\u200d🏫' },
+  { key: 'boy', emoji: '👨‍🏫' },
+  { key: 'girl', emoji: '👩‍🏫' },
 ];
 
 type FieldDef = {
   key: string;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IconName;
   value: string;
   draft: string;
   onChangeText: (v: string) => void;
@@ -105,6 +130,18 @@ export default function ProfileScreen() {
     () => [...myResults].sort((a, b) => b.timestamp - a.timestamp)[0] || null,
     [myResults]
   );
+
+  // Per-category totals for the progress card, built from the same
+  // `myResults` the stat cards already use — no new context call.
+  const categoryTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const key of CATEGORY_KEYS) {
+      map.set(key, myResults.filter((r) => r.category === key).reduce((sum, r) => sum + r.points, 0));
+    }
+    return map;
+  }, [myResults]);
+
+  const classLabel = `${isTeacher ? t('handleGrade') : t('grade')} ${grade || '—'} · ${section || '—'}`;
 
   const expand = () => LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
@@ -247,88 +284,122 @@ export default function ProfileScreen() {
 
   const fields: FieldDef[] = isTeacher
     ? [
-        { key: 'fullName', label: t('fullName'), icon: 'person-outline', value: name, draft: draftName, onChangeText: setDraftName },
-        { key: 'teacherId', label: t('teacherId'), icon: 'id-card-outline', value: teacherId, draft: teacherId, onChangeText: noop, readOnly: true },
+        { key: 'fullName', label: t('fullName'), icon: 'user', value: name, draft: draftName, onChangeText: setDraftName },
+        { key: 'teacherId', label: t('teacherId'), icon: 'bookmark', value: teacherId, draft: teacherId, onChangeText: noop, readOnly: true },
         {
           key: 'gradeSection',
           label: t('gradeSectionLabel'),
-          icon: 'school-outline',
+          icon: 'book',
           value: grade || section ? `${t('handleGrade')} ${grade || '—'} · ${section || '—'}` : '—',
           draft: draftGrade,
           onChangeText: setDraftGrade,
         },
         // `email` is the same column server-side — falling back to it keeps the
         // row populated for any staff role, not just `teacher`.
-        { key: 'depedGmail', label: t('depedGmail'), icon: 'mail-outline', value: depedGmail || email, draft: depedGmail || email, onChangeText: noop, keyboardType: 'email-address', readOnly: true },
-        { key: 'username', label: t('username'), icon: 'person-circle-outline', value: username, draft: username, onChangeText: noop, readOnly: true },
+        { key: 'depedGmail', label: t('depedGmail'), icon: 'flag', value: depedGmail || email, draft: depedGmail || email, onChangeText: noop, keyboardType: 'email-address', readOnly: true },
+        { key: 'username', label: t('username'), icon: 'user', value: username, draft: username, onChangeText: noop, readOnly: true },
       ]
     : [
-        { key: 'fullName', label: t('fullName'), icon: 'person-outline', value: name, draft: draftName, onChangeText: setDraftName },
-        { key: 'lrn', label: t('lrn'), icon: 'card-outline', value: lrn, draft: lrn, onChangeText: noop, keyboardType: 'numeric', readOnly: true },
-        { key: 'age', label: t('age'), icon: 'calendar-outline', value: age, draft: draftAge, onChangeText: setDraftAge, keyboardType: 'numeric' },
+        { key: 'fullName', label: t('fullName'), icon: 'user', value: name, draft: draftName, onChangeText: setDraftName },
+        { key: 'lrn', label: t('lrn'), icon: 'bookmark', value: lrn, draft: lrn, onChangeText: noop, keyboardType: 'numeric', readOnly: true },
+        { key: 'age', label: t('age'), icon: 'clock', value: age, draft: draftAge, onChangeText: setDraftAge, keyboardType: 'numeric' },
         {
           key: 'gradeSection',
           label: t('gradeSectionLabel'),
-          icon: 'school-outline',
+          icon: 'book',
           value: grade || section ? `${t('grade')} ${grade || '—'}, ${section || '—'}` : '—',
           draft: draftGrade,
           onChangeText: setDraftGrade,
         },
-        { key: 'email', label: t('email'), icon: 'mail-outline', value: email, draft: email, onChangeText: noop, keyboardType: 'email-address', readOnly: true },
-        { key: 'username', label: t('username'), icon: 'person-circle-outline', value: username, draft: username, onChangeText: noop, readOnly: true },
+        { key: 'email', label: t('email'), icon: 'flag', value: email, draft: email, onChangeText: noop, keyboardType: 'email-address', readOnly: true },
+        { key: 'username', label: t('username'), icon: 'user', value: username, draft: username, onChangeText: noop, readOnly: true },
       ];
 
+  const settingsItems: { key: string; label: string; icon: IconName; color: string; onPress: () => void }[] = [
+    { key: 'update', label: t('updateProfileInfoBtn'), icon: 'user', color: tokens.color.points, onPress: startEditing },
+    { key: 'password', label: t('changePasswordBtn'), icon: 'key', color: tokens.color.success, onPress: handleChangePassword },
+    { key: 'settings', label: t('settingsBtn'), icon: 'grid', color: tokens.color.navJigsaw, onPress: () => router.navigate('/settings') },
+    { key: 'logout', label: t('logOutBtn'), icon: 'logout', color: tokens.color.red, onPress: handleLogout },
+  ];
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
-          <Ionicons name="chevron-back" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('profileSettings') || 'Profile'}</Text>
-      </View>
-
-      <Animated.ScrollView
-        style={{ opacity: fadeAnim }}
-        contentContainerStyle={styles.body}
-      >
-        <View style={styles.avatarWrap}>
-          <TouchableOpacity activeOpacity={0.8} onPress={handleAvatarPress} style={styles.avatarCircle}>
-            {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
-            ) : (
-              <Text style={styles.avatarEmoji}>{avatar}</Text>
-            )}
-          </TouchableOpacity>
-          <View style={[styles.roleBadge, isTeacher ? styles.roleBadgeTeacher : styles.roleBadgeStudent]}>
-            <Text style={styles.roleBadgeEmoji}>{isTeacher ? '🧑‍🏫' : '🎓'}</Text>
+    <Screen>
+      <ScreenHeader
+        title={name}
+        subtitle={isTeacher ? t('adminProfileTitle') : t('studentProfileTitle')}
+        color={tokens.color.primary}
+        onBack={() => router.back()}
+        right={
+          <View style={styles.avatarWrap}>
+            <TouchableOpacity activeOpacity={0.8} onPress={handleAvatarPress} style={styles.avatarCircle}>
+              {photoUri ? (
+                <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarEmoji}>{avatar}</Text>
+              )}
+            </TouchableOpacity>
+            <View style={[styles.roleBadge, { borderColor: isTeacher ? tokens.color.points : tokens.color.primary }]}>
+              <Icon name={isTeacher ? 'book' : 'user'} size={14} color={isTeacher ? tokens.color.points : tokens.color.primary} />
+            </View>
+            <TouchableOpacity style={styles.cameraBadge} onPress={handleAvatarPress}>
+              <Ionicons name="camera" size={16} color={tokens.color.onDark} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.cameraBadge} onPress={handleAvatarPress}>
-            <Ionicons name="camera" size={14} color="#FFF" />
-          </TouchableOpacity>
+        }
+      >
+        <View style={styles.headerPills}>
+          <Pill label={classLabel} icon="book" tone="translucent" />
         </View>
+      </ScreenHeader>
 
-        <Text style={styles.profileTitle}>
-          {isTeacher ? t('adminProfileTitle') : t('studentProfileTitle')}
-        </Text>
-
+      <Animated.ScrollView style={{ opacity: fadeAnim }} contentContainerStyle={styles.body}>
         {!isTeacher && (
-          <View style={styles.statsCard}>
-            <Text style={styles.statsTitle}>{t('totalPointsLabel')}</Text>
-            <Text style={styles.statsPoints}>★ {totalPoints}</Text>
-            <View style={styles.statsDivider} />
-            <Text style={styles.statsTitle}>{t('lastPointsLabel')}</Text>
-            {lastResult ? (
-              <Text style={styles.statsLast}>
-                ★ {lastResult.points} {t('ptsSuffix')} · ⏱ {lastResult.timeUsed}{t('timeUsedSuffix')} ·{' '}
-                {lastResult.medal ? lastResult.medal.toUpperCase() : t('timeUpTitle')}
-              </Text>
-            ) : (
-              <Text style={styles.statsLastEmpty}>{t('noActivityYet')}</Text>
-            )}
+          <View style={styles.statsRow}>
+            <Card style={styles.statCard}>
+              <Icon name="star" size={20} color={tokens.color.points} filled />
+              <H3 style={styles.statValue}>{totalPoints}</H3>
+              <Label style={styles.statLabel} numberOfLines={1}>{t('totalPointsLabel')}</Label>
+            </Card>
+            <Card style={styles.statCard}>
+              <Icon name="check" size={20} color={tokens.color.success} />
+              <H3 style={styles.statValue}>{myResults.length}</H3>
+              <Label style={styles.statLabel} numberOfLines={1}>{t('completed')}</Label>
+            </Card>
+            <Card style={styles.statCard}>
+              <Icon name="medal" size={20} color={tokens.color.primary} />
+              {lastResult ? (
+                <>
+                  <H3 style={styles.statValue}>{lastResult.points}</H3>
+                  <Label style={styles.statLabel} numberOfLines={1}>{t('lastPointsLabel')}</Label>
+                </>
+              ) : (
+                <Caption style={styles.statEmpty}>{t('noActivityYet')}</Caption>
+              )}
+            </Card>
           </View>
         )}
 
-        <View style={styles.cardList}>
+        {!isTeacher && (
+          <Card style={styles.progressCard}>
+            <Label style={styles.progressTitle}>{t('performanceProgression')}</Label>
+            <View style={styles.progressList}>
+              {CATEGORY_KEYS.map((key) => (
+                <View key={key} style={styles.progressRow}>
+                  <View style={styles.progressRowHead}>
+                    <Body numberOfLines={1} style={styles.progressLabel}>{t(CATEGORY_LABEL_KEY[key])}</Body>
+                    <Caption>{categoryTotals.get(key) || 0} {t('ptsSuffix')}</Caption>
+                  </View>
+                  <ProgressBar
+                    value={(categoryTotals.get(key) || 0) / COMBINED_MAX_POINTS}
+                    color={categoryColor(key).base}
+                  />
+                </View>
+              ))}
+            </View>
+          </Card>
+        )}
+
+        <Card style={styles.fieldsCard}>
           {fields.map((f, i) => {
             const accent = ACCENTS[i % ACCENTS.length];
             const isGradeSection = f.key === 'gradeSection';
@@ -336,19 +407,20 @@ export default function ProfileScreen() {
             return (
               <View key={f.key} style={styles.cardRow}>
                 <View style={[styles.cardIconWrap, { backgroundColor: accent }]}>
-                  <Ionicons name={f.icon} size={18} color="#FFF" />
+                  <Icon name={f.icon} size={18} color={tokens.color.onDark} />
                 </View>
 
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardLabel}>{f.label}</Text>
+                  <Label style={styles.cardLabel}>{f.label}</Label>
 
                   {!editing || f.readOnly ? (
                     <>
-                      <Text style={styles.cardValue} numberOfLines={1}>
-                        {f.value || '—'}
-                      </Text>
+                      <BodyStrong numberOfLines={1}>{f.value || '—'}</BodyStrong>
                       {editing && f.readOnly && (
-                        <Text style={styles.lockedHint}>🔒 {t('fieldLockedHint')}</Text>
+                        <View style={styles.lockedHint}>
+                          <Icon name="lock" size={11} color={tokens.color.inkFaint} />
+                          <Caption style={styles.lockedHintText}>{t('fieldLockedHint')}</Caption>
+                        </View>
                       )}
                     </>
                   ) : isGradeSection ? (
@@ -358,14 +430,14 @@ export default function ProfileScreen() {
                         value={draftGrade}
                         onChangeText={setDraftGrade}
                         placeholder={t('grade')}
-                        placeholderTextColor="#B0B0B0"
+                        placeholderTextColor={tokens.color.inkFaint}
                       />
                       <TextInput
                         style={[styles.cardInput, styles.inlineInput]}
                         value={draftSection}
                         onChangeText={setDraftSection}
                         placeholder={t('section')}
-                        placeholderTextColor="#B0B0B0"
+                        placeholderTextColor={tokens.color.inkFaint}
                       />
                     </View>
                   ) : (
@@ -375,78 +447,67 @@ export default function ProfileScreen() {
                       onChangeText={f.onChangeText}
                       keyboardType={f.keyboardType || 'default'}
                       placeholder={f.label}
-                      placeholderTextColor="#B0B0B0"
+                      placeholderTextColor={tokens.color.inkFaint}
                     />
                   )}
                 </View>
-
-                {!editing && !f.readOnly && (
-                  <TouchableOpacity style={styles.pencilBtn} onPress={startEditing}>
-                    <Ionicons name="pencil" size={16} color="#8E8E93" />
-                  </TouchableOpacity>
-                )}
               </View>
             );
           })}
-        </View>
+        </Card>
 
         {editing && (
           <View style={styles.editActionsRow}>
-            <TouchableOpacity style={styles.cancelButton} onPress={cancelEditing} disabled={saving}>
-              <Text style={styles.cancelButtonText}>{t('cancelBtn')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={saveProfile} disabled={saving}>
-              {saving ? (
-                <ActivityIndicator color="#FFF" size="small" />
-              ) : (
-                <Text style={styles.saveButtonText}>{t('saveBtn')}</Text>
-              )}
-            </TouchableOpacity>
+            <Button label={t('cancelBtn')} variant="secondary" onPress={cancelEditing} disabled={saving} style={styles.editBtn} />
+            <Button
+              label={t('saveBtn')}
+              onPress={saveProfile}
+              busy={saving}
+              color={tokens.color.success}
+              shadowColor={tokens.color.successDark}
+              style={styles.editBtn}
+            />
           </View>
         )}
 
         {!editing && (
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.updateBtn} onPress={startEditing}>
-              <Ionicons name="create-outline" size={16} color="#FFF" />
-              <Text style={styles.actionBtnText}>{t('updateProfileInfoBtn')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.passwordBtn} onPress={handleChangePassword}>
-              <Ionicons name="key-outline" size={16} color="#FFF" />
-              <Text style={styles.actionBtnText}>{t('changePasswordBtn')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.settingsBtn} onPress={() => router.navigate('/settings')}>
-              <Ionicons name="settings-outline" size={16} color="#FFF" />
-              <Text style={styles.actionBtnText}>{t('settingsBtn')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={16} color="#FFF" />
-              <Text style={styles.actionBtnText}>{t('logOutBtn')}</Text>
-            </TouchableOpacity>
-          </View>
+          <Card style={styles.settingsCard}>
+            {settingsItems.map((item, i) => (
+              <TouchableOpacity
+                key={item.key}
+                style={[styles.settingsRow, i !== settingsItems.length - 1 && styles.settingsRowDivider]}
+                onPress={item.onPress}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.iconChip, { backgroundColor: item.color }]}>
+                  <Icon name={item.icon} size={18} color={tokens.color.onDark} />
+                </View>
+                <BodyStrong style={styles.settingsLabel} numberOfLines={1}>{item.label}</BodyStrong>
+                <Icon name="chevronRight" size={18} color={tokens.color.inkFaint} />
+              </TouchableOpacity>
+            ))}
+          </Card>
         )}
       </Animated.ScrollView>
 
       <Modal visible={avatarModalVisible} transparent animationType="fade" onRequestClose={() => setAvatarModalVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setAvatarModalVisible(false)}>
+          <View style={styles.modalBackdrop} />
           <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>{t('profilePhotoTitle')}</Text>
+            <H3 style={styles.modalTitle}>{t('profilePhotoTitle')}</H3>
 
             <TouchableOpacity style={styles.uploadRow} onPress={pickPhotoFromLibrary} disabled={uploading}>
-              <View style={[styles.uploadIconWrap, { backgroundColor: '#0038A8' }]}>
+              <View style={[styles.uploadIconWrap, { backgroundColor: tokens.color.primary }]}>
                 {uploading ? (
-                  <ActivityIndicator color="#FFF" size="small" />
+                  <ActivityIndicator color={tokens.color.onDark} size="small" />
                 ) : (
-                  <Ionicons name="image-outline" size={18} color="#FFF" />
+                  <Ionicons name="image-outline" size={18} color={tokens.color.onDark} />
                 )}
               </View>
-              <Text style={styles.uploadRowText}>{t('uploadFromGalleryBtn')}</Text>
+              <BodyStrong>{t('uploadFromGalleryBtn')}</BodyStrong>
             </TouchableOpacity>
 
-            <Text style={styles.orLabel}>{t('orChooseAvatarLabel')}</Text>
+            <Label style={styles.orLabel}>{t('orChooseAvatarLabel')}</Label>
 
             <View style={styles.avatarOptionsRow}>
               {AVATAR_OPTIONS.map((opt) => (
@@ -462,140 +523,158 @@ export default function ProfileScreen() {
 
             {!!photoUri && (
               <TouchableOpacity style={styles.removePhotoRow} onPress={removePhoto}>
-                <Ionicons name="trash-outline" size={16} color="#CE1126" />
-                <Text style={styles.removePhotoText}>{t('removePhotoBtn')}</Text>
+                <Ionicons name="trash-outline" size={16} color={tokens.color.red} />
+                <BodyStrong style={styles.removePhotoText}>{t('removePhotoBtn')}</BodyStrong>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAvatarModalVisible(false)}>
-              <Text style={styles.modalCancelText}>{t('cancelBtn')}</Text>
+              <BodyStrong style={styles.modalCancelText}>{t('cancelBtn')}</BodyStrong>
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5EFE0' },
-  header: {
-    backgroundColor: '#0038A8', paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16,
-    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
-  },
-  headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FCD116', fontWeight: 'bold', fontSize: 19 },
-  body: { alignItems: 'center', padding: 20, paddingBottom: 48 },
+  body: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl, gap: tokens.space.lg },
 
-  avatarWrap: { marginTop: 10, position: 'relative' },
+  headerPills: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm, marginTop: tokens.space.md },
+
+  avatarWrap: { width: AVATAR_SIZE, height: AVATAR_SIZE, position: 'relative' },
   avatarCircle: {
-    width: 90, height: 90, borderRadius: 45, backgroundColor: '#FFF', borderWidth: 3,
-    borderColor: '#0038A8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: tokens.color.surface,
+    borderWidth: 3,
+    borderColor: tokens.color.onDarkBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   avatarImage: { width: '100%', height: '100%' },
-  avatarEmoji: { fontSize: 44 },
+  avatarEmoji: { fontSize: Math.round(AVATAR_SIZE * 0.48) },
   roleBadge: {
-    position: 'absolute', bottom: -2, right: -2, width: 30, height: 30, borderRadius: 15,
-    backgroundColor: '#FFF', borderWidth: 2, alignItems: 'center', justifyContent: 'center',
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 30,
+    height: 30,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: tokens.color.surface,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  roleBadgeStudent: { borderColor: '#0038A8' },
-  roleBadgeTeacher: { borderColor: '#E8801A' },
-  roleBadgeEmoji: { fontSize: 14 },
   cameraBadge: {
-    position: 'absolute', bottom: -2, left: -2, width: 28, height: 28, borderRadius: 14,
-    backgroundColor: '#6C4AB6', borderWidth: 2, borderColor: '#FFF', alignItems: 'center', justifyContent: 'center',
+    position: 'absolute',
+    bottom: -4,
+    left: -4,
+    width: tokens.hit.min,
+    height: tokens.hit.min,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: tokens.color.primaryDark,
+    borderWidth: 2,
+    borderColor: tokens.color.onDark,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  profileTitle: { fontSize: 18, fontWeight: 'bold', color: '#1A1A1A', marginTop: 14, marginBottom: 4 },
+  statsRow: { flexDirection: 'row', gap: tokens.space.sm },
+  statCard: { flex: 1, alignItems: 'center', gap: tokens.space.xs, padding: tokens.space.md },
+  statValue: { marginTop: tokens.space.xs },
+  statLabel: { textAlign: 'center' },
+  statEmpty: { textAlign: 'center' },
 
-  statsCard: {
-    width: '100%', backgroundColor: '#FFF', borderRadius: 16, padding: 18, marginTop: 10,
-    borderWidth: 2, borderColor: '#E0D5BE', alignItems: 'center',
-  },
-  statsTitle: { fontSize: 12, color: '#8E8E93', fontWeight: '600' },
-  statsPoints: { fontSize: 28, fontWeight: '900', color: '#E8801A', marginTop: 4, marginBottom: 12 },
-  statsDivider: { width: '100%', height: 1, backgroundColor: '#E0D5BE', marginBottom: 12 },
-  statsLast: { fontSize: 13, fontWeight: '700', color: '#5C3A21', marginTop: 4, textAlign: 'center' },
-  statsLastEmpty: { fontSize: 12, color: '#8E8E93', marginTop: 4 },
+  progressCard: { gap: tokens.space.md },
+  progressTitle: { marginBottom: tokens.space.xs },
+  progressList: { gap: tokens.space.md },
+  progressRow: { gap: tokens.space.xs },
+  progressRowHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: tokens.space.sm },
+  progressLabel: { flex: 1 },
 
-  cardList: { width: '100%', marginTop: 18, gap: 10 },
-  cardRow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14,
-    padding: 12, borderWidth: 1, borderColor: '#E0D5BE',
-  },
-  cardIconWrap: {
-    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12,
-  },
+  fieldsCard: { gap: tokens.space.md },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.md },
+  cardIconWrap: { width: 36, height: 36, borderRadius: tokens.radius.md, alignItems: 'center', justifyContent: 'center' },
   cardBody: { flex: 1 },
-  cardLabel: { fontSize: 11, color: '#8E8E93', fontWeight: '600', marginBottom: 2 },
-  cardValue: { fontSize: 15, color: '#1A1A1A', fontWeight: '600' },
-  lockedHint: { fontSize: 10.5, color: '#8E8E93', marginTop: 2, fontStyle: 'italic' },
+  cardLabel: { marginBottom: 2 },
+  lockedHint: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  lockedHintText: { fontStyle: 'italic' },
   cardInput: {
-    fontSize: 15, color: '#1A1A1A', fontWeight: '600', borderBottomWidth: 1,
-    borderBottomColor: '#D0D0D0', paddingVertical: 2,
+    fontFamily: tokens.font.bodyBold,
+    fontSize: tokens.type.body.fontSize,
+    color: tokens.color.ink,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.color.border,
+    paddingVertical: tokens.space.xs,
   },
-  inlineRow: { flexDirection: 'row', gap: 10 },
+  inlineRow: { flexDirection: 'row', gap: tokens.space.sm },
   inlineInput: { flex: 1 },
-  pencilBtn: { padding: 6, marginLeft: 4 },
 
-  editActionsRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
-  cancelButton: { paddingVertical: 12, paddingHorizontal: 22, borderRadius: 22, backgroundColor: '#B0B0B0' },
-  cancelButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
-  saveButton: { paddingVertical: 12, paddingHorizontal: 26, borderRadius: 22, backgroundColor: '#3E9E4F' },
-  saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
+  editActionsRow: { flexDirection: 'row', gap: tokens.space.md },
+  editBtn: { flex: 1 },
 
-  passwordCard: {
-    width: '100%', backgroundColor: '#FFF', borderRadius: 16, padding: 18, marginTop: 18,
-    borderWidth: 2, borderColor: '#E0D5BE',
+  settingsCard: { padding: 0, overflow: 'hidden' },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.md,
+    minHeight: tokens.hit.min,
+    paddingHorizontal: tokens.space.lg,
+    paddingVertical: tokens.space.sm,
   },
-  passwordCardTitle: { fontSize: 14, fontWeight: 'bold', color: '#3E9E4F', marginBottom: 10 },
-  fieldWrap: { width: '100%', marginBottom: 14 },
-  fieldLabel: { fontSize: 12, color: '#8E8E93', marginBottom: 4, fontWeight: '600' },
-  fieldInput: {
-    borderBottomWidth: 1, borderBottomColor: '#D0D0D0', paddingVertical: 8, fontSize: 15, color: '#1A1A1A',
-  },
+  settingsRowDivider: { borderBottomWidth: 1, borderBottomColor: tokens.color.divider },
+  iconChip: { width: 36, height: 36, borderRadius: tokens.radius.md, alignItems: 'center', justifyContent: 'center' },
+  settingsLabel: { flex: 1 },
 
-  actionButtons: { width: '100%', marginTop: 26, gap: 12 },
-  updateBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#E8801A', paddingVertical: 14, borderRadius: 24,
-  },
-  passwordBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#3E9E4F', paddingVertical: 14, borderRadius: 24,
-  },
-  settingsBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#6C4AB6', paddingVertical: 14, borderRadius: 24,
-  },
-  logoutBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#CE1126', paddingVertical: 14, borderRadius: 24,
-  },
-  actionBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 13, letterSpacing: 0.5 },
-
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  modalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: tokens.space.xl },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: tokens.color.ink, opacity: 0.5 },
   modalCard: {
-    width: '100%', maxWidth: 340, backgroundColor: '#FFF', borderRadius: 20, padding: 20,
-    borderWidth: 2, borderColor: '#E0D5BE',
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: tokens.color.surface,
+    borderRadius: tokens.radius.lg,
+    padding: tokens.space.xl,
+    borderWidth: 2,
+    borderColor: tokens.color.border,
   },
-  modalTitle: { fontSize: 16, fontWeight: 'bold', color: '#1A1A1A', textAlign: 'center', marginBottom: 16 },
+  modalTitle: { textAlign: 'center', marginBottom: tokens.space.lg },
   uploadRow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5EFE0', borderRadius: 14,
-    padding: 12, gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: tokens.hit.min,
+    backgroundColor: tokens.color.surfaceSunken,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.space.md,
+    gap: tokens.space.md,
   },
-  uploadIconWrap: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  uploadRowText: { fontSize: 14, fontWeight: '600', color: '#1A1A1A' },
-  orLabel: { fontSize: 12, color: '#8E8E93', textAlign: 'center', marginTop: 18, marginBottom: 10, fontWeight: '600' },
-  avatarOptionsRow: { flexDirection: 'row', justifyContent: 'center', gap: 18 },
+  uploadIconWrap: { width: 34, height: 34, borderRadius: tokens.radius.sm, alignItems: 'center', justifyContent: 'center' },
+  orLabel: { textAlign: 'center', marginTop: tokens.space.lg, marginBottom: tokens.space.sm },
+  avatarOptionsRow: { flexDirection: 'row', justifyContent: 'center', gap: tokens.space.lg },
   avatarOption: {
-    width: 66, height: 66, borderRadius: 33, backgroundColor: '#F5EFE0', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#E0D5BE',
+    width: AVATAR_OPTION_SIZE,
+    height: AVATAR_OPTION_SIZE,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: tokens.color.surfaceSunken,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: tokens.color.border,
   },
-  avatarOptionSelected: { borderColor: '#3E9E4F', backgroundColor: '#EAF6EC' },
-  avatarOptionEmoji: { fontSize: 32 },
-  removePhotoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 18 },
-  removePhotoText: { color: '#CE1126', fontWeight: '600', fontSize: 13 },
-  modalCancelBtn: { marginTop: 18, paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F0E9D8' },
-  modalCancelText: { color: '#8E8E93', fontWeight: '600', fontSize: 13 },
+  avatarOptionSelected: { borderColor: tokens.color.success, backgroundColor: tokens.color.successSoft },
+  avatarOptionEmoji: { fontSize: Math.round(AVATAR_OPTION_SIZE * 0.48) },
+  removePhotoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: tokens.space.xs, minHeight: tokens.hit.min, marginTop: tokens.space.md },
+  removePhotoText: { color: tokens.color.red },
+  modalCancelBtn: {
+    marginTop: tokens.space.md,
+    minHeight: tokens.hit.min,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: tokens.color.divider,
+  },
+  modalCancelText: { color: tokens.color.inkMuted },
 });

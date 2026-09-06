@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
@@ -10,6 +9,8 @@ import { errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matching';
+import { Screen, ScreenHeader, Card, Button, Icon, StarRow, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
+import { tokens, categoryColor } from '@/shared/theme/tokens';
 
 function shuffleChoices(choices: string[]) {
   const arr = [...choices];
@@ -18,19 +19,6 @@ function shuffleChoices(choices: string[]) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
-}
-
-// Points and the medal behind the star rating are awarded by the API
-// (`POST /results` → juanwise-be `results/scoring.ts`) from what this screen
-// reports: how many required answers were correct, the time used, and whether
-// the clock ran out. The client no longer decides what an attempt is worth, so
-// a tampered payload cannot mint points and the leaderboard can never disagree
-// with the score the student just saw.
-function starsLabel(stars: number) {
-  if (stars >= 3) return '⭐⭐⭐ 3 Stars';
-  if (stars === 2) return '⭐⭐ 2 Stars';
-  if (stars === 1) return '⭐ 1 Star';
-  return '— No Star';
 }
 
 function formatTime(seconds?: number | null) {
@@ -44,6 +32,8 @@ function formatQuestionType(type: string) {
   if (type === 'enumeration') return 'Enumeration';
   return type;
 }
+
+const CHOICE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 type Phase = 'hint' | 'question' | 'success' | 'incorrect';
 
@@ -67,6 +57,9 @@ export default function ActivityPlayScreen() {
   // Content and the app-wide "Mini-Lesson" toggle both come from the content
   // module now, so an admin's edit reaches every student's device.
   const { showMiniLesson, ready: adminReady, getEffectiveQuestion } = useAdminContent();
+
+  const headerColor = color || tokens.color.primary;
+  const cat = categoryColor(category);
 
   const q = useMemo(
     () => getEffectiveQuestion(category, level, activityNum),
@@ -241,7 +234,7 @@ export default function ActivityPlayScreen() {
   };
 
   // Leaving the question unanswered (Back button) also counts as "left
-  // unanswered" per spec — same 🚩 red-flag outcome as a wrong answer.
+  // unanswered" per spec — same red-flag outcome as a wrong answer.
   const handleBackPress = () => {
     if (phase === 'question') {
       if (submitting) return;
@@ -260,11 +253,15 @@ export default function ActivityPlayScreen() {
     router.back();
   };
 
+  const filledCount = enumAnswers.filter((a) => a.trim()).length;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: color }]}>
-        <Text style={styles.headerTitle}>{label} — Level {level}</Text>
-        <View style={styles.statsRow}>
+    <Screen>
+      <ScreenHeader
+        title={`${label} — Level ${level}`}
+        subtitle={`${formatQuestionType(q.type)} · ${difficulty} · Activity ${activityNum}`}
+        color={headerColor}
+        right={
           <ActivityTimer
             key={attemptKey}
             ref={timerRef}
@@ -273,43 +270,55 @@ export default function ActivityPlayScreen() {
             isPaused={phase === 'hint' || phase === 'success' || phase === 'incorrect'}
             onExpire={handleExpire}
           />
-          <Text style={styles.statText}>★ Activity {activityNum}</Text>
-        </View>
-        <Text style={styles.headerSubtitle}>📝 Quiz · {difficulty} · {formatQuestionType(q.type)}</Text>
-      </View>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.body}>
         {!adminReady && (
-          <View style={styles.hintCard}>
-            <ActivityIndicator color={color} />
-            <Text style={styles.loadingText}>Kinukuha ang pinakabagong tanong...</Text>
-          </View>
+          <Card style={styles.hintCard}>
+            <ActivityIndicator color={headerColor} />
+            <Body style={styles.loadingText}>Kinukuha ang pinakabagong tanong...</Body>
+          </Card>
         )}
 
         {adminReady && phase === 'hint' && (
-          <View style={styles.hintCard}>
-            <Text style={styles.hintLabel}>💡 Mini-Lesson</Text>
-            <Text style={styles.hintText}>{q.hint}</Text>
-            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: color }]} onPress={handleStartQuestion}>
-              <Text style={styles.primaryButtonText}>Simulan ang Tanong</Text>
-            </TouchableOpacity>
-          </View>
+          <Card style={styles.hintCard}>
+            <View style={[styles.hintChip, { backgroundColor: tokens.color.goldSoft }]}>
+              <Icon name="lightbulb" size={26} color={tokens.color.goldDark} />
+            </View>
+            <Label style={styles.hintLabel}>Mini-Lesson</Label>
+            {/* The picture an admin uploaded for this exact mini-lesson. Only a
+                quiz question can carry one, and only when somebody illustrated
+                it — an unillustrated question keeps the text-only card it had. */}
+            {!!q.miniLessonImageUrl && (
+              <Image
+                source={{ uri: q.miniLessonImageUrl }}
+                style={styles.hintImage}
+                resizeMode="cover"
+              />
+            )}
+            <Body style={styles.hintText}>{q.hint}</Body>
+            <Button label="Simulan ang Tanong" onPress={handleStartQuestion} color={cat.base} shadowColor={cat.dark} style={styles.fullWidthButton} />
+          </Card>
         )}
 
         {adminReady && phase === 'question' && (
-          <View style={styles.questionCard}>
-            <Text style={styles.questionText}>{q.question}</Text>
+          <Card style={styles.questionCard}>
+            <H1 style={styles.questionText}>{q.question}</H1>
 
             {q.type === 'multiple-choice' && (
               <View style={styles.choicesWrap}>
-                {choices.map((choice) => (
+                {choices.map((choice, i) => (
                   <TouchableOpacity
                     key={choice}
-                    style={[styles.choiceButton, { borderColor: color }]}
+                    style={[styles.choiceRow, { borderColor: headerColor }]}
                     onPress={() => handleAnswer(choice)}
                     activeOpacity={0.75}
                   >
-                    <Text style={[styles.choiceText, { color }]}>{choice}</Text>
+                    <View style={[styles.choiceChip, { backgroundColor: headerColor }]}>
+                      <BodyStrong style={styles.choiceChipText}>{CHOICE_LETTERS[i] ?? i + 1}</BodyStrong>
+                    </View>
+                    <Body style={[styles.choiceText, { color: headerColor }]}>{choice}</Body>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -322,147 +331,248 @@ export default function ActivityPlayScreen() {
                   value={textAnswer}
                   onChangeText={setTextAnswer}
                   placeholder="I-type ang iyong sagot..."
-                  placeholderTextColor="#A0A0A0"
+                  placeholderTextColor={tokens.color.inkFaint}
                 />
-                <TouchableOpacity
-                  style={[styles.primaryButton, { backgroundColor: color }]}
+                <Button
+                  label="Isumite"
                   onPress={() => handleAnswer(textAnswer)}
-                >
-                  <Text style={styles.primaryButtonText}>Isumite</Text>
-                </TouchableOpacity>
+                  color={cat.base}
+                  shadowColor={cat.dark}
+                  style={styles.fullWidthButton}
+                />
               </View>
             )}
 
             {q.type === 'enumeration' && (
               <View style={styles.identificationWrap}>
-                <Text style={styles.enumHelper}>
-                  Punuan ang {requiredAnswers} kahon sa ibaba ({enumAnswers.filter((a) => a.trim()).length}/{requiredAnswers} napunuan)
-                </Text>
+                <Caption style={styles.enumHelper}>
+                  Punuan ang {requiredAnswers} kahon sa ibaba ({filledCount}/{requiredAnswers} napunuan)
+                </Caption>
                 {enumAnswers.map((val, i) => (
                   <View key={i} style={styles.enumRow}>
-                    <View style={[styles.enumIndexBadge, { backgroundColor: color }]}>
-                      <Text style={styles.enumIndexText}>{i + 1}</Text>
+                    <View style={[styles.enumIndexBadge, { backgroundColor: headerColor }]}>
+                      <Label style={styles.enumIndexText}>{i + 1}</Label>
                     </View>
                     <TextInput
                       style={[styles.textInput, styles.enumInput]}
                       value={val}
                       onChangeText={(text) => updateEnumAnswer(i, text)}
                       placeholder={`Sagot ${i + 1}...`}
-                      placeholderTextColor="#A0A0A0"
+                      placeholderTextColor={tokens.color.inkFaint}
                     />
                   </View>
                 ))}
-                <TouchableOpacity
-                  style={[styles.primaryButton, { backgroundColor: color }]}
+                <Button
+                  label="Isumite ang Kumpletong Sagot"
                   onPress={handleSubmitEnumeration}
-                >
-                  <Text style={styles.primaryButtonText}>Isumite ang Kumpletong Sagot</Text>
-                </TouchableOpacity>
+                  color={cat.base}
+                  shadowColor={cat.dark}
+                  style={styles.fullWidthButton}
+                />
               </View>
             )}
-          </View>
+          </Card>
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-        <Text style={styles.backButtonText}>← Back</Text>
+      <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.85}>
+        <Icon name="chevronLeft" size={16} color={tokens.color.onDark} strokeWidth={3} />
+        <BodyStrong style={styles.backButtonText}>Back</BodyStrong>
       </TouchableOpacity>
 
       {/* Option A: PASSED */}
       <Modal visible={phase === 'success'} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.successTitle}>✅ Activity Complete!</Text>
-            <View style={styles.detailBlock}>
-              <Text style={styles.detailLine}>Student: {studentName}</Text>
-              <Text style={styles.detailLine}>⏱ Time: {formatTime(result?.timeUsed)}</Text>
-              <Text style={styles.detailLine}>⭐ Stars Earned: {starsLabel(result?.stars ?? 0)}</Text>
-              <Text style={styles.detailLine}>💯 Points: {result?.points ?? 0} pts</Text>
-              {q.type === 'enumeration' && (
-                <Text style={styles.detailLine}>📋 Answers: {enumCorrectCount}/{requiredAnswers} correct</Text>
-              )}
-              <Text style={styles.detailLine}>📂 Category: {label}</Text>
-              <Text style={styles.detailLine}>🎮 Activity Type: Quiz ({formatQuestionType(q.type)})</Text>
-              <Text style={styles.detailLine}>🔢 Activity #: {activityNum} of 6 · Level {level}/5</Text>
-              {queued && <Text style={styles.queuedLine}>📶 Offline — ipapadala ang resultang ito pagbalik ng internet.</Text>}
+        <View style={styles.modalRoot}>
+          <View style={styles.modalBackdrop} />
+          <Card style={styles.sheetCard}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetTitleRow}>
+              <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.successSoft }]}>
+                <Icon name="check" size={22} color={tokens.color.success} strokeWidth={3} />
+              </View>
+              <H2 style={styles.successTitle}>Activity Complete!</H2>
             </View>
-            <TouchableOpacity style={[styles.continueButton, { backgroundColor: color }]} onPress={handleContinue}>
-              <Text style={styles.continueButtonText}>Proceed to Next Activity</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.detailBlock}>
+              <Body style={styles.detailLine}>Student: {studentName}</Body>
+              <View style={styles.detailRow}>
+                <Icon name="clock" size={15} color={tokens.color.inkMuted} />
+                <Body style={styles.detailLine}>Time: {formatTime(result?.timeUsed)}</Body>
+              </View>
+              <View style={styles.detailRow}>
+                <Body style={styles.detailLine}>Stars Earned:</Body>
+                <StarRow earned={result?.stars ?? 0} />
+              </View>
+              <Body style={styles.detailLine}>Points: {result?.points ?? 0} pts</Body>
+              {q.type === 'enumeration' && (
+                <Body style={styles.detailLine}>Answers: {enumCorrectCount}/{requiredAnswers} correct</Body>
+              )}
+              <Body style={styles.detailLine}>Category: {label}</Body>
+              <Body style={styles.detailLine}>Activity Type: Quiz ({formatQuestionType(q.type)})</Body>
+              <Body style={styles.detailLine}>Activity #: {activityNum} of 6 · Level {level}/5</Body>
+              {queued && <Caption style={styles.queuedLine}>Offline — ipapadala ang resultang ito pagbalik ng internet.</Caption>}
+            </View>
+            <Button label="Proceed to Next Activity" onPress={handleContinue} color={cat.base} shadowColor={cat.dark} style={styles.fullWidthButton} />
+          </Card>
         </View>
       </Modal>
 
       {/* Option B: FAILED / RED FLAG */}
       <Modal visible={phase === 'incorrect'} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.timeUpTitle}>❌ Activity Complete (Incorrect)</Text>
-            <View style={styles.detailBlock}>
-              <Text style={styles.detailLine}>Student: {studentName}</Text>
-              <Text style={styles.detailLine}>⏱ Time: {formatTime(result?.timeUsed)}</Text>
-              <Text style={[styles.detailLine, styles.flagLine]}>🚩 Status: Failed / Incorrect (Needs Retry)</Text>
-              <Text style={styles.detailLine}>💯 Points: 0 pts</Text>
-              {q.type === 'enumeration' && (
-                <Text style={styles.detailLine}>📋 Answers: {enumCorrectCount}/{requiredAnswers} correct</Text>
-              )}
-              <Text style={styles.detailLine}>📂 Category: {label}</Text>
-              <Text style={styles.detailLine}>🎮 Activity Type: Quiz ({formatQuestionType(q.type)})</Text>
-              <Text style={styles.detailLine}>🔢 Activity #: {activityNum} of 6 · Level {level}/5</Text>
-              {queued && <Text style={styles.queuedLine}>📶 Offline — ipapadala ang resultang ito pagbalik ng internet.</Text>}
+        <View style={styles.modalRoot}>
+          <View style={styles.modalBackdrop} />
+          <Card style={styles.sheetCard}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetTitleRow}>
+              <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.dangerSoft }]}>
+                <Icon name="close" size={22} color={tokens.color.danger} strokeWidth={3} />
+              </View>
+              <H2 style={styles.timeUpTitle}>Activity Complete (Incorrect)</H2>
             </View>
-            <TouchableOpacity style={[styles.continueButton, { backgroundColor: color }]} onPress={handleContinue}>
-              <Text style={styles.continueButtonText}>Proceed to other Activity — maybe you can answer it, try it</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.detailBlock}>
+              <Body style={styles.detailLine}>Student: {studentName}</Body>
+              <View style={styles.detailRow}>
+                <Icon name="clock" size={15} color={tokens.color.inkMuted} />
+                <Body style={styles.detailLine}>Time: {formatTime(result?.timeUsed)}</Body>
+              </View>
+              <View style={styles.detailRow}>
+                <Icon name="flag" size={15} color={tokens.color.danger} />
+                <BodyStrong style={styles.flagLine}>Status: Failed / Incorrect (Needs Retry)</BodyStrong>
+              </View>
+              <Body style={styles.detailLine}>Points: 0 pts</Body>
+              {q.type === 'enumeration' && (
+                <Body style={styles.detailLine}>Answers: {enumCorrectCount}/{requiredAnswers} correct</Body>
+              )}
+              <Body style={styles.detailLine}>Category: {label}</Body>
+              <Body style={styles.detailLine}>Activity Type: Quiz ({formatQuestionType(q.type)})</Body>
+              <Body style={styles.detailLine}>Activity #: {activityNum} of 6 · Level {level}/5</Body>
+              {queued && <Caption style={styles.queuedLine}>Offline — ipapadala ang resultang ito pagbalik ng internet.</Caption>}
+            </View>
+            <Button
+              label="Proceed to other Activity — maybe you can answer it, try it"
+              onPress={handleContinue}
+              color={cat.base}
+              shadowColor={cat.dark}
+              style={styles.fullWidthButton}
+            />
+          </Card>
         </View>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5EFE0' },
-  header: { alignItems: 'center', paddingVertical: 14, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  statsRow: { flexDirection: 'row', gap: 20, marginTop: 8 },
-  statText: { color: '#FCD116', fontWeight: 'bold', fontSize: 14 },
-  headerSubtitle: { color: '#FFF', fontSize: 12, marginTop: 8, opacity: 0.9 },
-  body: { padding: 20, alignItems: 'center' },
-  hintCard: {
-    width: '100%', backgroundColor: '#FFF', borderRadius: 16, padding: 18,
-    borderWidth: 2, borderColor: '#E0D5BE', alignItems: 'center',
+  body: { padding: tokens.space.xl, alignItems: 'center' },
+  hintCard: { width: '100%', alignItems: 'center' },
+  hintChip: {
+    width: 48,
+    height: 48,
+    borderRadius: tokens.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: tokens.space.sm,
   },
-  hintLabel: { fontSize: 13, fontWeight: 'bold', color: '#8E8E93', marginBottom: 8 },
-  hintText: { fontSize: 14.5, color: '#2B2B2B', lineHeight: 21, marginBottom: 18, textAlign: 'left' },
-  questionCard: { width: '100%', backgroundColor: '#FFF', borderRadius: 16, padding: 18, borderWidth: 2, borderColor: '#E0D5BE' },
-  questionText: { fontSize: 17, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 14, textAlign: 'center' },
-  choicesWrap: { gap: 10 },
-  choiceButton: { borderWidth: 2, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16 },
-  choiceText: { fontWeight: 'bold', fontSize: 15, textAlign: 'center' },
-  identificationWrap: { gap: 14 },
+  hintLabel: { marginBottom: tokens.space.sm },
+  hintImage: {
+    width: '100%',
+    height: 160,
+    borderRadius: tokens.radius.md,
+    marginBottom: tokens.space.md,
+    backgroundColor: tokens.color.surfaceSunken,
+  },
+  hintText: { marginBottom: tokens.space.lg, textAlign: 'left', alignSelf: 'stretch' },
+  questionCard: { width: '100%' },
+  questionText: { marginBottom: tokens.space.lg, textAlign: 'center' },
+  choicesWrap: { gap: tokens.space.sm },
+  choiceRow: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.md,
+    borderWidth: 2,
+    borderRadius: tokens.radius.lg,
+    paddingHorizontal: tokens.space.lg,
+    backgroundColor: tokens.color.surface,
+  },
+  choiceChip: {
+    width: 32,
+    height: 32,
+    borderRadius: tokens.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  choiceChipText: { color: tokens.color.onDark },
+  choiceText: { flex: 1, fontFamily: tokens.font.bodyBold },
+  identificationWrap: { gap: tokens.space.lg, width: '100%' },
   textInput: {
-    borderWidth: 2, borderColor: '#D0D0D0', borderRadius: 14, paddingVertical: 12,
-    paddingHorizontal: 14, fontSize: 15, color: '#1A1A1A',
+    minHeight: 56,
+    borderWidth: 2,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.lg,
+    paddingHorizontal: tokens.space.lg,
+    backgroundColor: tokens.color.surface,
+    color: tokens.color.ink,
+    ...tokens.type.body,
   },
-  enumHelper: { fontSize: 12.5, color: '#8E8E93', marginBottom: 2 },
-  enumRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  enumIndexBadge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  enumIndexText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
-  enumInput: { flex: 1, marginBottom: 0 },
-  primaryButton: { paddingVertical: 14, borderRadius: 25, alignItems: 'center' },
-  primaryButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
-  backButton: { alignSelf: 'center', backgroundColor: '#5C3A21', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 20, marginBottom: 20 },
-  backButtonText: { color: '#FFF', fontWeight: 'bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalCard: { backgroundColor: '#FFFDF7', borderRadius: 20, padding: 20, width: '100%', alignItems: 'center' },
-  successTitle: { fontSize: 18, fontWeight: 'bold', color: '#3E9E4F', marginBottom: 14, textAlign: 'center' },
-  timeUpTitle: { fontSize: 18, fontWeight: 'bold', color: '#C4304A', marginBottom: 14, textAlign: 'center' },
-  detailBlock: { width: '100%', marginBottom: 18, gap: 5 },
-  detailLine: { fontSize: 13.5, color: '#2B2B2B', lineHeight: 19 },
-  flagLine: { color: '#C4304A', fontWeight: 'bold' },
-  queuedLine: { fontSize: 12.5, color: '#8A5A2B', fontStyle: 'italic', marginTop: 4 },
-  loadingText: { fontSize: 13, color: '#8E8E93', marginTop: 10 },
-  continueButton: { width: '100%', paddingVertical: 14, borderRadius: 25, alignItems: 'center' },
-  continueButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, textAlign: 'center' },
+  enumHelper: { marginBottom: -tokens.space.xs },
+  enumRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm },
+  enumIndexBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: tokens.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  enumIndexText: { color: tokens.color.onDark },
+  enumInput: { flex: 1 },
+  fullWidthButton: { width: '100%' },
+  backButton: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    minHeight: tokens.hit.min,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.space.xs,
+    backgroundColor: tokens.color.ink,
+    paddingVertical: tokens.space.sm,
+    paddingHorizontal: tokens.space.xl,
+    borderRadius: tokens.radius.pill,
+    marginBottom: tokens.space.lg,
+  },
+  backButtonText: { color: tokens.color.onDark },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: tokens.color.ink, opacity: 0.6 },
+  sheetCard: {
+    width: '100%',
+    borderTopLeftRadius: tokens.radius.sheet,
+    borderTopRightRadius: tokens.radius.sheet,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+    alignItems: 'center',
+    paddingBottom: tokens.space.xxl,
+  },
+  sheetHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: tokens.color.border,
+    marginBottom: tokens.space.lg,
+  },
+  sheetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm, marginBottom: tokens.space.lg },
+  sheetTitleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: tokens.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successTitle: { color: tokens.color.successInk, textAlign: 'center' },
+  timeUpTitle: { color: tokens.color.dangerInk, textAlign: 'center' },
+  detailBlock: { width: '100%', marginBottom: tokens.space.lg, gap: tokens.space.xs },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
+  detailLine: { color: tokens.color.inkBody },
+  flagLine: { color: tokens.color.dangerInk },
+  queuedLine: { color: tokens.color.inkMuted, fontStyle: 'italic', marginTop: tokens.space.xs },
+  loadingText: { marginTop: tokens.space.sm, color: tokens.color.inkMuted },
 });

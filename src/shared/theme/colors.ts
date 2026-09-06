@@ -11,3 +11,9 @@ export const colors = {
 };
 
 export default colors;
+
+/**
+ * Superseded by `tokens.ts`, which carries spacing, type, radius and elevation
+ * as well. Kept because screens not yet converted still import it; delete once
+ * the last one does.
+ */

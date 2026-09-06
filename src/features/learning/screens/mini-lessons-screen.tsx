@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, ScrollView, Image } from 'react-native';
+import { Screen, ScreenHeader, Card, Button, Pill, Icon, H2, Body, BodyStrong, Caption } from '@/shared/components/ui';
+import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
@@ -72,81 +72,90 @@ export default function MiniLessonsScreen() {
     return Array.from(byKey.values()).sort((a, b) => b.timestamp - a.timestamp);
   }, [results, uid, getEffectiveQuestion, getEffectiveCategoryContent]);
 
+  const [featured, ...rest] = lessons;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
-          <Ionicons name="chevron-back" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mini-Lessons</Text>
-        <Text style={styles.headerSubtitle}>
-          {lessons.length} aralin ang na-unlock mula sa tamang sagot mo sa Quiz at Jigsaw Puzzle
-        </Text>
-      </View>
+    <Screen>
+      <ScreenHeader
+        title="Mini-Lessons"
+        subtitle={`${lessons.length} aralin ang na-unlock mula sa tamang sagot mo sa Quiz at Jigsaw Puzzle`}
+        color={tokens.color.navLessons}
+        onBack={() => router.back()}
+      />
 
       <ScrollView contentContainerStyle={styles.list}>
-        {!ready && <Text style={styles.emptyText}>Naglo-load...</Text>}
+        {!ready && <Body style={styles.emptyText}>Naglo-load...</Body>}
+
         {ready && lessons.length === 0 && (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyIcon}>📖</Text>
-            <Text style={styles.emptyText}>
+            <Icon name="book" size={40} color={tokens.color.inkFaint} />
+            <Body style={styles.emptyText}>
               Wala ka pang na-unlock na mini-lesson. Sagutan nang tama ang isang Quiz o Jigsaw
               Puzzle sa Categories para makapag-unlock ng aralin dito.
-            </Text>
-            <TouchableOpacity
-              style={styles.emptyButton}
-              onPress={() => router.navigate('/categories')}
-            >
-              <Text style={styles.emptyButtonText}>Pumunta sa Categories</Text>
-            </TouchableOpacity>
+            </Body>
+            <Button label="Pumunta sa Categories" onPress={() => router.navigate('/categories')} color={tokens.color.navLessons} shadowColor={tokens.color.successDark} />
           </View>
         )}
 
-        {lessons.map((lesson) => {
-          const meta = getCategoryMeta(lesson.category);
-          return (
-            <View key={lesson.key} style={[styles.card, { borderColor: meta.color }]}>
-              <View style={styles.cardTop}>
-                <Image source={lesson.image} style={styles.cardImage} />
-                <View style={styles.cardTopText}>
-                  <Text style={[styles.cardCategory, { color: meta.color }]}>{meta.label}</Text>
-                  <Text style={styles.cardMeta}>
-                    Level {lesson.level} · Activity {lesson.activityNum} ·{' '}
-                    {lesson.source === 'quiz' ? '📝 Quiz' : '🧩 Jigsaw'}
-                  </Text>
-                </View>
+        {featured && (
+          <Card style={styles.bannerCard}>
+            <Image source={featured.image} style={styles.bannerImage} />
+            <View style={styles.bannerBody}>
+              <Pill
+                label={getCategoryMeta(featured.category).label}
+                tone="translucent"
+                style={{ backgroundColor: categoryColor(featured.category).base, borderColor: 'transparent' }}
+              />
+              <H2 style={styles.bannerTitle}>
+                Level {featured.level} · Activity {featured.activityNum}
+              </H2>
+              <View style={styles.sourceRow}>
+                <Icon name={featured.source === 'quiz' ? 'quiz' : 'puzzle'} size={14} color={tokens.color.inkMuted} />
+                <Caption style={styles.sourceLabel}>{featured.source === 'quiz' ? 'Quiz' : 'Jigsaw'}</Caption>
               </View>
-              <Text style={styles.cardText}>{lesson.text}</Text>
+              <Body style={styles.bannerText}>{featured.text}</Body>
             </View>
-          );
-        })}
+          </Card>
+        )}
+
+        {rest.map((lesson) => (
+          <Card key={lesson.key} style={styles.rowCard}>
+            <Image source={lesson.image} style={styles.rowImage} />
+            <View style={styles.rowBody}>
+              <Pill
+                label={getCategoryMeta(lesson.category).label}
+                tone="translucent"
+                style={{ backgroundColor: categoryColor(lesson.category).base, borderColor: 'transparent' }}
+              />
+              <BodyStrong numberOfLines={1}>
+                Level {lesson.level} · Activity {lesson.activityNum}
+              </BodyStrong>
+              <View style={styles.sourceRow}>
+                <Icon name={lesson.source === 'quiz' ? 'quiz' : 'puzzle'} size={12} color={tokens.color.inkMuted} />
+                <Caption style={styles.sourceLabel}>{lesson.source === 'quiz' ? 'Quiz' : 'Jigsaw'}</Caption>
+              </View>
+              <Body numberOfLines={2} style={styles.rowText}>{lesson.text}</Body>
+            </View>
+          </Card>
+        ))}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5EFE0' },
-  header: {
-    backgroundColor: '#2E9E5B', paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16,
-    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
-  },
-  headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
-  headerSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.9, marginTop: 2 },
-  list: { padding: 16, gap: 12 },
-  emptyWrap: { alignItems: 'center', marginTop: 30, paddingHorizontal: 10 },
-  emptyIcon: { fontSize: 40, marginBottom: 10 },
-  emptyText: { textAlign: 'center', color: '#8E8E93', fontSize: 13, lineHeight: 19 },
-  emptyButton: { marginTop: 16, backgroundColor: '#2E9E5B', paddingVertical: 10, paddingHorizontal: 22, borderRadius: 18 },
-  emptyButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
-  card: {
-    backgroundColor: '#FFF', borderRadius: 16, padding: 14, borderWidth: 2,
-  },
-  cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 10 },
-  cardImage: { width: 44, height: 44, borderRadius: 10 },
-  cardTopText: { flex: 1 },
-  cardCategory: { fontWeight: 'bold', fontSize: 14 },
-  cardMeta: { fontSize: 11, color: '#8E8E93', marginTop: 2 },
-  cardText: { fontSize: 13.5, color: '#2B2B2B', lineHeight: 20 },
+  list: { padding: tokens.space.lg, gap: tokens.space.md },
+  emptyWrap: { alignItems: 'center', marginTop: tokens.space.xxl, paddingHorizontal: tokens.space.sm, gap: tokens.space.md },
+  emptyText: { textAlign: 'center' },
+  bannerCard: { padding: 0, overflow: 'hidden' },
+  bannerImage: { width: '100%', height: 132 },
+  bannerBody: { padding: tokens.space.lg, gap: tokens.space.xs },
+  bannerTitle: { marginTop: tokens.space.xs },
+  bannerText: { marginTop: tokens.space.xs },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2 },
+  sourceLabel: { color: tokens.color.inkMuted },
+  rowCard: { flexDirection: 'row', gap: tokens.space.sm, padding: tokens.space.md },
+  rowImage: { width: 68, height: 68, borderRadius: tokens.radius.md },
+  rowBody: { flex: 1, gap: tokens.space.xs / 2, alignItems: 'flex-start' },
+  rowText: { color: tokens.color.inkBody },
 });

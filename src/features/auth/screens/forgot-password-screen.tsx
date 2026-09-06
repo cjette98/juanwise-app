@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { authApi, errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Screen, ScreenHeader, Button, Icon, H2, Body, Caption } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 
 /**
  * Password recovery is Firebase's, via `POST /auth/forgot-password`: the server
@@ -25,7 +27,8 @@ export default function ForgotPasswordScreen() {
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
 
-  const themeColor = isTeacher ? '#1E8449' : '#0038A8';
+  const themeColor = isTeacher ? tokens.color.success : tokens.color.primary;
+  const themeShadow = isTeacher ? tokens.color.successDark : tokens.color.primaryDark;
   const emailLabel = isTeacher ? t('teacherGmailLabel') : t('studentGmailLabel');
 
   const handleSendResetLink = async () => {
@@ -46,79 +49,112 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: themeColor }]}>
-        <Text style={styles.headerText}>
-          {isTeacher ? t('forgotTeacherTitle') : t('forgotStudentTitle')}
-        </Text>
-      </View>
+    <Screen>
+      <ScreenHeader
+        title={isTeacher ? t('forgotTeacherTitle') : t('forgotStudentTitle')}
+        color={themeColor}
+      />
 
       <View style={styles.content}>
         {!sent ? (
           <>
-            <Text style={styles.stepTitle}>{t('step1Title')}</Text>
-            <Text style={styles.stepDesc}>{t('step1Desc', { email: emailLabel })}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={emailLabel}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!busy}
-            />
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: themeColor }, busy && styles.buttonBusy]}
+            <H2 style={styles.stepTitle}>{t('step1Title')}</H2>
+            <Body style={styles.stepDesc}>{t('step1Desc', { email: emailLabel })}</Body>
+
+            <View style={styles.fieldWrap}>
+              {/* Registry has no mail/envelope icon; Ionicons fills that one gap. */}
+              <Ionicons name="mail-outline" size={20} color={tokens.color.inkMuted} />
+              <TextInput
+                style={styles.fieldInput}
+                placeholder={emailLabel}
+                placeholderTextColor={tokens.color.inkFaint}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!busy}
+              />
+            </View>
+
+            <Button
+              label={t('sendOtpBtn')}
               onPress={handleSendResetLink}
-              disabled={busy}
-            >
-              {busy ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.buttonText}>{t('sendOtpBtn')}</Text>
-              )}
-            </TouchableOpacity>
+              busy={busy}
+              color={themeColor}
+              shadowColor={themeShadow}
+              style={styles.button}
+            />
           </>
         ) : (
           <View style={styles.successBox}>
-            <Text style={styles.successIcon}>✓</Text>
-            <Text style={styles.stepTitle}>{t('step5Title')}</Text>
-            <Text style={styles.stepDesc}>{t('resetSuccessMsg')}</Text>
-            <Text style={styles.noteText}>{t('resetEmailNote')}</Text>
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: themeColor, marginTop: 20 }]}
+            <View style={[styles.successIconWrap, { borderColor: themeColor }]}>
+              <Icon name="check" size={36} color={themeColor} strokeWidth={3} />
+            </View>
+            <H2 style={styles.stepTitle}>{t('step5Title')}</H2>
+            <Body style={styles.stepDesc}>{t('resetSuccessMsg')}</Body>
+            <Caption style={styles.noteText}>{t('resetEmailNote')}</Caption>
+
+            <Button
+              label={t('backToLogin')}
               onPress={() => router.replace('/login')}
-            >
-              <Text style={styles.buttonText}>{t('backToLogin')}</Text>
-            </TouchableOpacity>
+              color={themeColor}
+              shadowColor={themeShadow}
+              style={styles.backToLoginButton}
+            />
           </View>
         )}
 
         {!sent && (
           <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
-            <Text style={styles.backLinkText}>{t('backLink')}</Text>
+            <Caption style={styles.backLinkText}>{t('backLink')}</Caption>
           </TouchableOpacity>
         )}
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: { paddingVertical: 16, alignItems: 'center' },
-  headerText: { color: '#FFF', fontWeight: 'bold', fontSize: 14, letterSpacing: 0.5 },
-  content: { flex: 1, padding: 24, justifyContent: 'center' },
-  stepTitle: { fontSize: 18, fontWeight: 'bold', color: '#1A1A1A', marginBottom: 6, textAlign: 'center' },
-  stepDesc: { fontSize: 13, color: '#666', marginBottom: 20, textAlign: 'center', lineHeight: 19 },
-  noteText: { fontSize: 12, color: '#8E8E93', textAlign: 'center', fontStyle: 'italic' },
-  input: { borderWidth: 1, borderColor: '#D0D0D0', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 16 },
-  button: { paddingVertical: 15, borderRadius: 25, alignItems: 'center', marginTop: 6 },
-  buttonBusy: { opacity: 0.7 },
-  buttonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
+  content: { flex: 1, padding: tokens.space.xl, justifyContent: 'center' },
+  stepTitle: { marginBottom: tokens.space.xs, textAlign: 'center' },
+  stepDesc: { marginBottom: tokens.space.lg, textAlign: 'center' },
+  noteText: { textAlign: 'center', fontStyle: 'italic' },
+
+  fieldWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    minHeight: 58,
+    gap: tokens.space.sm,
+    borderWidth: 2,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.space.md,
+    backgroundColor: tokens.color.surface,
+    marginBottom: tokens.space.lg,
+  },
+  fieldInput: {
+    flex: 1,
+    fontFamily: tokens.font.body,
+    fontSize: tokens.type.body.fontSize,
+    color: tokens.color.ink,
+  },
+
+  button: { width: '100%' },
+
   successBox: { alignItems: 'center' },
-  successIcon: { fontSize: 50, color: '#34C759', fontWeight: 'bold', marginBottom: 10, borderWidth: 3, borderColor: '#34C759', borderRadius: 50, width: 80, height: 80, textAlign: 'center', lineHeight: 76 },
-  backLink: { marginTop: 24, alignItems: 'center' },
-  backLinkText: { color: '#8E8E93', fontSize: 13 },
+  successIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: tokens.space.md,
+  },
+  backToLoginButton: { width: '100%', marginTop: tokens.space.md },
+
+  backLink: { marginTop: tokens.space.xl, minHeight: tokens.hit.min, alignItems: 'center', justifyContent: 'center' },
+  backLinkText: { color: tokens.color.inkMuted },
 });

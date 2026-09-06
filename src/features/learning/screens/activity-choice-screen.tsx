@@ -1,10 +1,13 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLanguage } from '@/shared/i18n/language-context';
+import { Screen, ScreenHeader, Card, H2, Icon } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 
 export default function ActivityChoiceScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { category, label, color } = useLocalSearchParams<{
     category: string;
     label: string;
@@ -16,37 +19,40 @@ export default function ActivityChoiceScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>{label}</Text>
-      <Text style={styles.subtitle}>Choose one Interactive Activity</Text>
+    <Screen>
+      <ScreenHeader
+        title={label}
+        subtitle={t('chooseActivity')}
+        color={color || tokens.color.primary}
+        onBack={() => router.back()}
+      />
 
-      <TouchableOpacity style={[styles.choiceButton, { backgroundColor: '#3B7DD8' }]} onPress={() => choose('quiz')}>
-        <Text style={styles.choiceIcon}>📝</Text>
-        <Text style={styles.choiceLabel}>QUIZ</Text>
-      </TouchableOpacity>
+      <View style={styles.content}>
+        <TouchableOpacity activeOpacity={0.85} onPress={() => choose('quiz')}>
+          <Card style={[styles.choiceCard, { backgroundColor: tokens.color.navQuiz }]}>
+            <View style={styles.watermark}>
+              <Icon name="quiz" size={72} color={tokens.color.onDark} />
+            </View>
+            <H2 style={styles.choiceLabel}>{t('quiz')}</H2>
+          </Card>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.choiceButton, { backgroundColor: '#9B4FD6' }]} onPress={() => choose('jigsaw')}>
-        <Text style={styles.choiceIcon}>🧩</Text>
-        <Text style={styles.choiceLabel}>JIGSAW PUZZLE</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
-        <Text style={styles.backLinkText}>← Back to Categories</Text>
-      </TouchableOpacity>
-    </SafeAreaView>
+        <TouchableOpacity activeOpacity={0.85} onPress={() => choose('jigsaw')}>
+          <Card style={[styles.choiceCard, { backgroundColor: tokens.color.navJigsaw }]}>
+            <View style={styles.watermark}>
+              <Icon name="puzzle" size={72} color={tokens.color.onDark} />
+            </View>
+            <H2 style={styles.choiceLabel}>{t('jigsawPuzzle')}</H2>
+          </Card>
+        </TouchableOpacity>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#F5EFE0' },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#5C3A21', marginBottom: 6 },
-  subtitle: { fontSize: 14, color: '#8E8E93', marginBottom: 30 },
-  choiceButton: {
-    width: '85%', paddingVertical: 22, borderRadius: 20, alignItems: 'center', marginBottom: 18,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)',
-  },
-  choiceIcon: { fontSize: 34, marginBottom: 6 },
-  choiceLabel: { color: '#FFF', fontWeight: 'bold', fontSize: 18, letterSpacing: 1 },
-  backLink: { marginTop: 20 },
-  backLinkText: { color: '#8E8E93', fontSize: 13 },
+  content: { flex: 1, justifyContent: 'center', padding: tokens.space.lg, gap: tokens.space.lg },
+  choiceCard: { minHeight: 140, justifyContent: 'flex-end', overflow: 'hidden' },
+  watermark: { position: 'absolute', top: tokens.space.lg, right: tokens.space.lg, opacity: 0.25 },
+  choiceLabel: { color: tokens.color.onDark },
 });

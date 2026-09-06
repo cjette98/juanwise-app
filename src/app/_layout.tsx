@@ -1,6 +1,10 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts, Baloo2_700Bold, Baloo2_800ExtraBold } from '@expo-google-fonts/baloo-2';
+import { Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
 
 import { LanguageProvider } from '@/shared/i18n/language-context';
 import { UserProvider } from '@/features/auth/context/user-context';
@@ -9,7 +13,27 @@ import { GameProgressProvider } from '@/features/learning/context/game-progress-
 import { ClassProvider } from '@/features/teacher/context/class-context';
 import { AdminContentProvider } from '@/features/admin/context/admin-content-context';
 
+// Hold the native splash until the fonts are registered, so no screen ever
+// paints a frame in the system font and then reflows into Baloo/Nunito.
+void SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Baloo2_700Bold,
+    Baloo2_800ExtraBold,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+  });
+
+  useEffect(() => {
+    // A font that fails to load must not leave the splash up forever — the app
+    // is perfectly usable in the fallback face.
+    if (fontsLoaded || fontError) void SplashScreen.hideAsync();
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <SafeAreaProvider>
       <LanguageProvider>

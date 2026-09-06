@@ -1,10 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ImageBackground } from 'react-native';
+import { View, StyleSheet, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { images } from '@/shared/assets/images';
 import { useRouter } from 'expo-router';
+import { Button, H1, H3, Label } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 
+// This screen keeps its own `ImageBackground` + `SafeAreaView` root rather
+// than `<Screen>`: `<Screen>` paints an opaque canvas colour behind its
+// content, which would hide the full-bleed welcome artwork entirely.
 export default function LanguageSelectScreen() {
   const router = useRouter();
   const { setLanguage, t } = useLanguage();
@@ -24,28 +29,26 @@ export default function LanguageSelectScreen() {
 
       <SafeAreaView style={styles.container}>
         <View style={styles.logoArea}>
-          <Text style={styles.title}>JuanWise</Text>
-          <Text style={styles.subtitle}>Gamified Philippine Knowledge</Text>
+          <H1 style={styles.title}>JuanWise</H1>
+          <Label style={styles.subtitle}>Gamified Philippine Knowledge</Label>
         </View>
 
         <View style={styles.buttonArea}>
-          <Text style={styles.prompt}>{t('chooseLanguage')}</Text>
+          <H3 style={styles.prompt}>{t('chooseLanguage')}</H3>
 
-          <TouchableOpacity
-            style={styles.langButton}
+          <Button
+            label="TAGALOG"
             onPress={() => selectLanguage('tl')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.langButtonText}>TAGALOG</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
+            variant="gold"
             style={styles.langButton}
+          />
+
+          <Button
+            label="ENGLISH"
             onPress={() => selectLanguage('en')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.langButtonText}>ENGLISH</Text>
-          </TouchableOpacity>
+            variant="gold"
+            style={styles.langButton}
+          />
         </View>
       </SafeAreaView>
     </ImageBackground>
@@ -54,13 +57,12 @@ export default function LanguageSelectScreen() {
 
 const styles = StyleSheet.create({
   background: { flex: 1, width: '100%', height: '100%' },
-  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(120,60,20,0.18)' },
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  logoArea: { alignItems: 'center', marginBottom: 70 },
-  title: { fontSize: 46, fontWeight: 'bold', color: '#8B2E1F', textShadowColor: '#FFE8B8', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 },
-  subtitle: { fontSize: 14, color: '#5C3A21', marginTop: 6, fontWeight: '700' },
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: tokens.color.ink, opacity: 0.18 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: tokens.space.xl },
+  logoArea: { alignItems: 'center', marginBottom: tokens.space.xxl * 2 },
+  title: { color: tokens.color.ink, textAlign: 'center' },
+  subtitle: { color: tokens.color.inkBody, marginTop: tokens.space.xs, textAlign: 'center' },
   buttonArea: { width: '100%', alignItems: 'center' },
-  prompt: { fontSize: 16, color: '#5C3A21', marginBottom: 22, fontWeight: 'bold', letterSpacing: 1 },
-  langButton: { width: '82%', paddingVertical: 18, borderRadius: 30, alignItems: 'center', marginBottom: 18, backgroundColor: '#F5E1B8', borderWidth: 2, borderColor: '#D9A441', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 4, elevation: 5 },
-  langButtonText: { color: '#8B2E1F', fontSize: 19, fontWeight: 'bold', letterSpacing: 1 },
+  prompt: { color: tokens.color.inkBody, marginBottom: tokens.space.xl, textAlign: 'center' },
+  langButton: { width: '82%', marginBottom: tokens.space.lg },
 });

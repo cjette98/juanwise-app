@@ -1,29 +1,46 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useStudentResults, ActivityResult, getCanonicalAttempts, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS, COMBINED_MAX_TIME_SECONDS } from '@/features/results/context/student-results-context';
-import CATEGORY_META from '@/shared/content/category-meta';
+import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import {
+  Screen,
+  ScreenHeader,
+  Card,
+  Icon,
+  Pill,
+  StarRow,
+  ProgressBar,
+  Body,
+  BodyStrong,
+  Caption,
+  type IconName,
+} from '@/shared/components/ui';
+import { tokens, categoryColor } from '@/shared/theme/tokens';
+import { useStudentResults, ActivityResult, getCanonicalAttempts, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
+import { CATEGORY_META } from '@/shared/content/category-meta';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 const LEVELS = [1, 2, 3, 4, 5];
-const ACTIVITY_TYPES: { key: 'quiz' | 'jigsaw'; label: string }[] = [
-  { key: 'quiz', label: 'Quiz' },
-  { key: 'jigsaw', label: 'Jigsaw Puzzle' },
+const ACTIVITY_TYPES: { key: 'quiz' | 'jigsaw'; label: string; icon: IconName }[] = [
+  { key: 'quiz', label: 'Quiz', icon: 'quiz' },
+  { key: 'jigsaw', label: 'Jigsaw Puzzle', icon: 'puzzle' },
 ];
 
-function medalForPoints(points: number): 'gold' | 'silver' | 'bronze' | null {
+type Medal = 'gold' | 'silver' | 'bronze' | null;
+
+function medalForPoints(points: number): Medal {
   if (points >= 75) return 'gold';
   if (points >= 50) return 'silver';
   if (points >= 25) return 'bronze';
   return null;
 }
 
-function medalEmoji(medal: 'gold' | 'silver' | 'bronze' | null) {
-  if (medal === 'gold') return '🥇';
-  if (medal === 'silver') return '🥈';
-  if (medal === 'bronze') return '🥉';
-  return '—';
+const MEDAL_COLORS: Record<'gold' | 'silver' | 'bronze', string> = {
+  gold: tokens.color.medalGold,
+  silver: tokens.color.medalSilver,
+  bronze: tokens.color.medalBronze,
+};
+
+function medalTint(medal: Medal) {
+  return medal ? MEDAL_COLORS[medal] : tokens.color.inkDisabled;
 }
 
 function formatTime(seconds: number) {
@@ -39,23 +56,13 @@ function formatDate(timestamp: number) {
     ' · ' + d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
 }
 
-function trophyEmoji(trophy: Trophy) {
-  if (trophy === 'gold') return '🥇';
-  if (trophy === 'silver') return '🥈';
-  if (trophy === 'bronze') return '🥉';
-  return '—';
-}
-
-const PACE_META: Record<'fast' | 'steady' | 'needs-support', { label: string; color: string }> = {
-  fast: { label: '🚀 Mabilis Matuto', color: '#D4A017' },
-  steady: { label: '🚶 Sakto sa Bilis', color: '#8E9AAF' },
-  'needs-support': { label: '🐢 Kailangan ng Tulong', color: '#B08D57' },
+// Same three-way split the leaderboard's PACE_META uses — medal tokens
+// instead of a bespoke hex triplet, gold/silver/bronze in the same order.
+const PACE_META: Record<'fast' | 'steady' | 'needs-support', { label: string; color: string; icon: IconName }> = {
+  fast: { label: 'Mabilis Matuto', color: tokens.color.medalGold, icon: 'bolt' },
+  steady: { label: 'Sakto sa Bilis', color: tokens.color.medalSilver, icon: 'clock' },
+  'needs-support': { label: 'Kailangan ng Tulong', color: tokens.color.medalBronze, icon: 'lightbulb' },
 };
-
-function starsDisplay(avgStars: number) {
-  const rounded = Math.round(avgStars);
-  return '⭐'.repeat(rounded) + '☆'.repeat(Math.max(0, 3 - rounded));
-}
 
 function computeTrophy(totalPoints: number, totalTimeUsed: number): Trophy {
   for (const tier of TROPHY_TIERS) {
@@ -152,229 +159,262 @@ export default function StudentSummaryScreen() {
     } });
   };
 
+  const trophyTint = overallTotals.trophy ? MEDAL_COLORS[overallTotals.trophy] : tokens.color.inkFaint;
+  const paceMeta = PACE_META[overallTotals.pace];
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
-          <Ionicons name="chevron-back" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{studentName}</Text>
-        <Text style={styles.headerSubtitle}>Kompletong Record — Buod at Kasaysayan ng Bawat Gawain</Text>
-      </View>
-
-      <View style={styles.overallCard}>
-        <View style={styles.overallStat}>
-          <Text style={styles.overallValue}>{trophyEmoji(overallTotals.trophy)}</Text>
-          <Text style={styles.overallLabel}>Trophy</Text>
-        </View>
-        <View style={styles.overallStat}>
-          <Text style={styles.overallValue}>★ {overallTotals.totalPoints}/{COMBINED_MAX_POINTS}</Text>
-          <Text style={styles.overallLabel}>Kabuuang Puntos</Text>
-        </View>
-        <View style={styles.overallStat}>
-          <Text style={styles.overallValue}>{overallTotals.attempts}</Text>
-          <Text style={styles.overallLabel}>Gawaing Natapos</Text>
-        </View>
-        <View style={styles.overallStat}>
-          <Text style={styles.overallValue}>⏱ {formatTime(overallTotals.totalTimeUsed)}</Text>
-          <Text style={styles.overallLabel}>Kabuuang Oras</Text>
-        </View>
-      </View>
-
-      <View style={styles.paceRow}>
-        <View style={[styles.paceBadge, { backgroundColor: PACE_META[overallTotals.pace].color }]}>
-          <Text style={styles.paceBadgeText}>{PACE_META[overallTotals.pace].label}</Text>
-        </View>
-        <Text style={styles.paceStars}>{starsDisplay(overallTotals.avgStars)} ({overallTotals.avgStars.toFixed(1)} avg)</Text>
-      </View>
-
-      <View style={styles.viewToggleRow}>
-        <TouchableOpacity
-          style={[styles.viewToggleChip, viewMode === 'summary' && styles.viewToggleChipActive]}
-          onPress={() => setViewMode('summary')}
-        >
-          <Text style={[styles.viewToggleText, viewMode === 'summary' && styles.viewToggleTextActive]}>
-            📊 Buod (Category/Level)
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.viewToggleChip, viewMode === 'history' && styles.viewToggleChipActive]}
-          onPress={() => setViewMode('history')}
-        >
-          <Text style={[styles.viewToggleText, viewMode === 'history' && styles.viewToggleTextActive]}>
-            🕒 Kasaysayan (Lahat ng Gawain)
-          </Text>
-        </TouchableOpacity>
-      </View>
+    <Screen>
+      <ScreenHeader
+        title={studentName}
+        subtitle="Kompletong Record — Buod at Kasaysayan ng Bawat Gawain"
+        color={tokens.color.navLeaderboard}
+        onBack={() => router.back()}
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {!ready && <Text style={styles.emptyText}>Naglo-load...</Text>}
+        <View style={styles.statsRow}>
+          <Card style={styles.statCard}>
+            <Icon name="trophy" size={20} color={trophyTint} filled={!!overallTotals.trophy} />
+            <BodyStrong>{overallTotals.trophy ? overallTotals.trophy : '—'}</BodyStrong>
+            <Caption>Trophy</Caption>
+          </Card>
+          <Card style={styles.statCard}>
+            <Icon name="star" size={20} color={tokens.color.gold} filled />
+            <BodyStrong>{overallTotals.totalPoints}/{COMBINED_MAX_POINTS}</BodyStrong>
+            <Caption>Kabuuang Puntos</Caption>
+          </Card>
+          <Card style={styles.statCard}>
+            <Icon name="check" size={20} color={tokens.color.success} strokeWidth={3} />
+            <BodyStrong>{overallTotals.attempts}</BodyStrong>
+            <Caption>Gawaing Natapos</Caption>
+          </Card>
+          <Card style={styles.statCard}>
+            <Icon name="clock" size={20} color={tokens.color.inkMuted} />
+            <BodyStrong>{formatTime(overallTotals.totalTimeUsed)}</BodyStrong>
+            <Caption>Kabuuang Oras</Caption>
+          </Card>
+        </View>
+
+        <View style={styles.paceRow}>
+          <Pill
+            label={paceMeta.label}
+            icon={paceMeta.icon}
+            tone="neutral"
+            style={{ backgroundColor: paceMeta.color, borderColor: 'transparent' }}
+          />
+          <View style={styles.paceStarsWrap}>
+            <StarRow earned={Math.round(overallTotals.avgStars)} of={3} size={15} />
+            <Caption>({overallTotals.avgStars.toFixed(1)} avg)</Caption>
+          </View>
+        </View>
+
+        <View style={styles.viewToggleRow}>
+          <TouchableOpacity
+            style={[styles.viewToggleChip, viewMode === 'summary' && styles.viewToggleChipActive]}
+            onPress={() => setViewMode('summary')}
+          >
+            <Icon name="chart" size={15} color={viewMode === 'summary' ? tokens.color.onDark : tokens.color.ink} />
+            <Caption style={viewMode === 'summary' ? styles.viewToggleTextActive : styles.viewToggleText}>
+              Buod (Category/Level)
+            </Caption>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewToggleChip, viewMode === 'history' && styles.viewToggleChipActive]}
+            onPress={() => setViewMode('history')}
+          >
+            <Icon name="clock" size={15} color={viewMode === 'history' ? tokens.color.onDark : tokens.color.ink} />
+            <Caption style={viewMode === 'history' ? styles.viewToggleTextActive : styles.viewToggleText}>
+              Kasaysayan (Lahat ng Gawain)
+            </Caption>
+          </TouchableOpacity>
+        </View>
+
+        {!ready && <Body style={styles.emptyText}>Naglo-load...</Body>}
         {ready && allAttempts.length === 0 && (
-          <Text style={styles.emptyText}>Wala pang natatapos na gawain ang estudyanteng ito.</Text>
+          <Body style={styles.emptyText}>Wala pang natatapos na gawain ang estudyanteng ito.</Body>
         )}
 
         {ready && allAttempts.length > 0 && viewMode === 'history' && (
-          <>
+          <View style={styles.list}>
             {historyFeed.map((r) => {
               const meta = CATEGORY_META.find((c) => c.key === r.category) || CATEGORY_META[0];
-              const typeIcon = r.activityType === 'jigsaw' ? '🧩' : '📝';
+              const catColor = categoryColor(meta.key).base;
               return (
-                <View key={r.id} style={[styles.historyRow, { borderColor: meta.color }]}>
+                <Card key={r.id} style={[styles.historyRow, { borderColor: catColor }]}>
                   <View style={styles.historyRowLeft}>
-                    <Text style={[styles.historyCategory, { color: meta.color }]}>
-                      {typeIcon} {meta.label}
-                    </Text>
-                    <Text style={styles.historyMeta}>
+                    <View style={styles.historyCategoryRow}>
+                      <Icon name={r.activityType === 'jigsaw' ? 'puzzle' : 'quiz'} size={14} color={catColor} />
+                      <BodyStrong style={{ color: catColor }} numberOfLines={1}>
+                        {meta.label}
+                      </BodyStrong>
+                    </View>
+                    <Caption numberOfLines={1}>
                       Level {r.level} · Activity {r.activityNum} · {formatDate(r.timestamp)}
-                    </Text>
+                    </Caption>
                   </View>
                   <View style={styles.historyRowRight}>
-                    <Text style={styles.historyStatLine}>
-                      {medalEmoji(r.medal)} {r.timedOut ? '⏰ Timeout' : `⏱ ${r.timeUsed}s`}
-                    </Text>
-                    <Text style={styles.historyStatPoints}>★ {r.points} pts</Text>
+                    <View style={styles.historyStatLine}>
+                      <Icon name="medal" size={14} color={medalTint(r.medal)} filled={!!r.medal} />
+                      <Caption style={styles.historyStatText}>
+                        {r.timedOut ? 'Timeout' : `${r.timeUsed}s`}
+                      </Caption>
+                    </View>
+                    <View style={styles.historyStatLine}>
+                      <Icon name="star" size={13} color={tokens.color.gold} filled />
+                      <BodyStrong style={styles.historyStatPoints}>{r.points} pts</BodyStrong>
+                    </View>
                   </View>
-                </View>
+                </Card>
               );
             })}
-          </>
+          </View>
         )}
 
-        {ready &&
-          allAttempts.length > 0 &&
-          viewMode === 'summary' &&
-          CATEGORY_META.map((c) => {
-            const isExpanded = expandedCategory === c.key;
-            const totals = categoryTotals.get(c.key)!;
-            const currentType = activeType[c.key] || 'quiz';
-            const typedAttempts = allAttempts.filter((a) => a.category === c.key && a.activityType === currentType);
+        {ready && allAttempts.length > 0 && viewMode === 'summary' && (
+          <View style={styles.list}>
+            {CATEGORY_META.map((c) => {
+              const isExpanded = expandedCategory === c.key;
+              const totals = categoryTotals.get(c.key)!;
+              const currentType = activeType[c.key] || 'quiz';
+              const typedAttempts = allAttempts.filter((a) => a.category === c.key && a.activityType === currentType);
+              const catColor = categoryColor(c.key).base;
 
-            return (
-              <View key={c.key} style={[styles.categoryCard, { borderColor: c.color }]}>
-                <TouchableOpacity style={styles.categoryHeader} onPress={() => toggleCategory(c.key)}>
-                  <View style={[styles.categoryDot, { backgroundColor: c.color }]} />
-                  <View style={styles.categoryHeaderMain}>
-                    <Text style={styles.categoryLabel}>{c.label}</Text>
-                    <Text style={styles.categorySub}>
-                      {totals.attempts > 0 ? `★ ${totals.totalPoints} pts · ${totals.attempts} gawain` : 'Wala pang gawain'}
-                    </Text>
-                  </View>
-                  <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={c.color} />
-                </TouchableOpacity>
+              return (
+                <Card key={c.key} style={[styles.categoryCard, { borderColor: catColor }]}>
+                  <TouchableOpacity style={styles.categoryHeader} onPress={() => toggleCategory(c.key)}>
+                    <View style={[styles.categoryDot, { backgroundColor: catColor }]} />
+                    <View style={styles.categoryHeaderMain}>
+                      <BodyStrong style={{ color: catColor }}>{c.label}</BodyStrong>
+                      <Caption>
+                        {totals.attempts > 0 ? `${totals.totalPoints} pts · ${totals.attempts} gawain` : 'Wala pang gawain'}
+                      </Caption>
+                    </View>
+                    <View style={isExpanded ? styles.chevronExpanded : undefined}>
+                      <Icon name="chevronRight" size={18} color={catColor} strokeWidth={2.4} />
+                    </View>
+                  </TouchableOpacity>
 
-                {isExpanded && (
-                  <View style={styles.categoryBody}>
-                    <View style={styles.typeRow}>
-                      {ACTIVITY_TYPES.map((t) => {
-                        const active = currentType === t.key;
+                  {isExpanded && (
+                    <View style={styles.categoryBody}>
+                      <View style={styles.typeRow}>
+                        {ACTIVITY_TYPES.map((t) => {
+                          const active = currentType === t.key;
+                          return (
+                            <TouchableOpacity
+                              key={t.key}
+                              style={[
+                                styles.typeChip,
+                                { borderColor: catColor },
+                                active && { backgroundColor: catColor },
+                              ]}
+                              onPress={() => setActiveType((cur) => ({ ...cur, [c.key]: t.key }))}
+                            >
+                              <Icon name={t.icon} size={14} color={active ? tokens.color.onDark : catColor} />
+                              <Caption style={{ color: active ? tokens.color.onDark : catColor, fontFamily: tokens.font.bodyBold }}>
+                                {t.label}
+                              </Caption>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      {LEVELS.map((lvl) => {
+                        const stats = levelStats(typedAttempts, lvl);
                         return (
                           <TouchableOpacity
-                            key={t.key}
-                            style={[styles.typeChip, { borderColor: c.color }, active && { backgroundColor: c.color }]}
-                            onPress={() => setActiveType((cur) => ({ ...cur, [c.key]: t.key }))}
+                            key={lvl}
+                            style={styles.levelRow}
+                            onPress={() => openLevel(c.key, c.label, catColor, currentType, lvl)}
+                            disabled={!stats.attempted}
                           >
-                            <Text style={[styles.typeChipText, { color: active ? '#FFF' : c.color }]}>{t.label}</Text>
+                            <View style={styles.levelRowLeft}>
+                              <Caption style={styles.levelRowLabel}>Level {lvl}</Caption>
+                              {stats.attempted && (
+                                <View style={styles.levelRowProgress}>
+                                  <ProgressBar value={stats.passedCount / 6} color={catColor} height={6} />
+                                </View>
+                              )}
+                            </View>
+                            {stats.attempted ? (
+                              <View style={styles.levelRowStats}>
+                                <Icon name="medal" size={15} color={medalTint(stats.medal)} filled={!!stats.medal} />
+                                <Caption style={styles.levelRowStat}>{stats.passedCount}/6</Caption>
+                                <BodyStrong style={styles.levelRowPoints}>{stats.totalPoints} pts</BodyStrong>
+                                <Caption style={styles.levelRowStatSmall}>{formatTime(stats.totalTime)}</Caption>
+                                <Icon name="chevronRight" size={16} color={tokens.color.inkFaint} />
+                              </View>
+                            ) : (
+                              <Caption style={styles.levelRowEmpty}>Wala pang gawain</Caption>
+                            )}
                           </TouchableOpacity>
                         );
                       })}
                     </View>
-
-                    {LEVELS.map((lvl) => {
-                      const stats = levelStats(typedAttempts, lvl);
-                      return (
-                        <TouchableOpacity
-                          key={lvl}
-                          style={styles.levelRow}
-                          onPress={() => openLevel(c.key, c.label, c.color, currentType, lvl)}
-                          disabled={!stats.attempted}
-                        >
-                          <Text style={styles.levelRowLabel}>Level {lvl}</Text>
-                          {stats.attempted ? (
-                            <View style={styles.levelRowStats}>
-                              <Text style={styles.levelRowStat}>{medalEmoji(stats.medal)} {stats.passedCount}/6</Text>
-                              <Text style={styles.levelRowStat}>★ {stats.totalPoints} pts</Text>
-                              <Text style={styles.levelRowStatSmall}>⏱ {formatTime(stats.totalTime)}</Text>
-                              <Ionicons name="chevron-forward" size={16} color="#8E8E93" />
-                            </View>
-                          ) : (
-                            <Text style={styles.levelRowEmpty}>Wala pang gawain</Text>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-            );
-          })}
+                  )}
+                </Card>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5EFE0' },
-  header: {
-    backgroundColor: '#5C3A21', paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16,
-    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
-  },
-  headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
-  headerSubtitle: { color: '#FFF', fontSize: 11.5, opacity: 0.9, marginTop: 2 },
+  scrollContent: { padding: tokens.space.lg, paddingTop: tokens.space.sm, paddingBottom: tokens.space.xxl, gap: tokens.space.md },
 
-  overallCard: {
-    flexDirection: 'row', backgroundColor: '#FFF', margin: 16, marginBottom: 8, borderRadius: 16,
-    padding: 14, borderWidth: 2, borderColor: '#5C3A21', justifyContent: 'space-around',
-  },
-  paceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 4, marginBottom: 4 },
-  paceBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14 },
-  paceBadgeText: { color: '#FFF', fontSize: 11.5, fontWeight: 'bold' },
-  paceStars: { fontSize: 13, fontWeight: '600', color: '#5C3A21' },
-  overallStat: { alignItems: 'center' },
-  overallValue: { fontSize: 16, fontWeight: '900', color: '#5C3A21' },
-  overallLabel: { fontSize: 10, color: '#8E8E93', marginTop: 2, fontWeight: '600' },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm },
+  statCard: { flexBasis: '47%', flexGrow: 1, alignItems: 'center', gap: tokens.space.xs / 2, paddingVertical: tokens.space.md },
 
-  viewToggleRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginTop: 12, marginBottom: 4 },
+  paceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: tokens.space.sm, flexWrap: 'wrap' },
+  paceStarsWrap: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2 },
+
+  viewToggleRow: { flexDirection: 'row', gap: tokens.space.sm },
   viewToggleChip: {
-    flex: 1, paddingVertical: 9, borderRadius: 14, backgroundColor: '#E5DCC8', alignItems: 'center',
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: tokens.space.xs / 2,
+    minHeight: tokens.hit.min, borderRadius: tokens.radius.md, backgroundColor: tokens.color.surfaceSunken,
   },
-  viewToggleChipActive: { backgroundColor: '#5C3A21' },
-  viewToggleText: { fontWeight: 'bold', fontSize: 11.5, color: '#5C3A21' },
-  viewToggleTextActive: { color: '#FFF' },
+  viewToggleChipActive: { backgroundColor: tokens.color.navLeaderboard },
+  viewToggleText: { color: tokens.color.ink, fontFamily: tokens.font.bodyBold },
+  viewToggleTextActive: { color: tokens.color.onDark, fontFamily: tokens.font.bodyBold },
 
-  historyRow: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14,
-    padding: 14, borderWidth: 2, justifyContent: 'space-between',
-  },
-  historyRowLeft: { flex: 1, paddingRight: 8 },
-  historyCategory: { fontWeight: 'bold', fontSize: 13.5 },
-  historyMeta: { fontSize: 11, color: '#8E8E93', marginTop: 2 },
-  historyRowRight: { alignItems: 'flex-end' },
-  historyStatLine: { fontSize: 12, fontWeight: '700', color: '#5C3A21' },
-  historyStatPoints: { fontSize: 13, fontWeight: '900', color: '#E8801A', marginTop: 3 },
+  emptyText: { textAlign: 'center', marginTop: tokens.space.xl, paddingHorizontal: tokens.space.sm },
 
-  scrollContent: { padding: 16, paddingTop: 8, paddingBottom: 30, gap: 12 },
-  emptyText: { textAlign: 'center', color: '#8E8E93', marginTop: 30, fontSize: 13, paddingHorizontal: 10 },
+  list: { gap: tokens.space.sm },
 
-  categoryCard: { backgroundColor: '#FFF', borderRadius: 16, borderWidth: 2, overflow: 'hidden' },
-  categoryHeader: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10 },
+  historyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 2 },
+  historyRowLeft: { flex: 1, paddingRight: tokens.space.sm, gap: 2 },
+  historyCategoryRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2 },
+  historyRowRight: { alignItems: 'flex-end', gap: 4 },
+  historyStatLine: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  historyStatText: { color: tokens.color.ink },
+  historyStatPoints: { color: tokens.color.points },
+
+  categoryCard: { borderWidth: 2, padding: 0, overflow: 'hidden' },
+  categoryHeader: { flexDirection: 'row', alignItems: 'center', padding: tokens.space.md, gap: tokens.space.sm, minHeight: tokens.hit.min },
   categoryDot: { width: 12, height: 12, borderRadius: 6 },
-  categoryHeaderMain: { flex: 1 },
-  categoryLabel: { fontWeight: 'bold', fontSize: 14.5, color: '#1A1A1A' },
-  categorySub: { fontSize: 11.5, color: '#8E8E93', marginTop: 2 },
+  categoryHeaderMain: { flex: 1, gap: 2 },
+  chevronExpanded: { transform: [{ rotate: '90deg' }] },
 
-  categoryBody: { paddingHorizontal: 14, paddingBottom: 14, gap: 8 },
-  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
-  typeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1.5 },
-  typeChipText: { fontWeight: 'bold', fontSize: 11.5 },
+  categoryBody: { paddingHorizontal: tokens.space.md, paddingBottom: tokens.space.md, gap: tokens.space.sm },
+  typeRow: { flexDirection: 'row', gap: tokens.space.sm },
+  typeChip: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: tokens.space.xs / 2,
+    paddingHorizontal: tokens.space.md, borderRadius: tokens.radius.pill, borderWidth: 1.5, minHeight: tokens.hit.min, flex: 1,
+  },
 
   levelRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#F5EFE0', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12,
+    backgroundColor: tokens.color.surfaceSunken, borderRadius: tokens.radius.sm,
+    paddingVertical: tokens.space.sm, paddingHorizontal: tokens.space.md, minHeight: tokens.hit.min,
   },
-  levelRowLabel: { fontWeight: '700', fontSize: 12.5, color: '#5C3A21' },
-  levelRowStats: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  levelRowStat: { fontSize: 11.5, fontWeight: '700', color: '#5C3A21' },
-  levelRowStatSmall: { fontSize: 10.5, color: '#8E8E93' },
-  levelRowEmpty: { fontSize: 11, color: '#8E8E93', fontStyle: 'italic' },
+  levelRowLeft: { flex: 1, gap: 4, paddingRight: tokens.space.sm },
+  levelRowLabel: { color: tokens.color.ink, fontFamily: tokens.font.bodyBold },
+  levelRowProgress: { maxWidth: 120 },
+  levelRowStats: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
+  levelRowStat: { color: tokens.color.ink, fontFamily: tokens.font.bodyBold },
+  levelRowPoints: { color: tokens.color.points },
+  levelRowStatSmall: { color: tokens.color.inkMuted },
+  levelRowEmpty: { fontStyle: 'italic' },
 });

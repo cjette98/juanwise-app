@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, Image, Animated, PanResponder, Dimensions, TouchableOpacity, Modal, ScrollView, Alert,
+  View, StyleSheet, Image, Animated, PanResponder, Dimensions, TouchableOpacity, Modal, ScrollView, Alert,
 } from 'react-native';
 import Svg, { Path, Image as SvgImage, ClipPath, Defs, G } from 'react-native-svg';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
@@ -14,6 +13,10 @@ import { errorMessage } from '@/shared/api';
 import { generateEdgeMap, getPieceEdges, piecePathD } from '@/features/jigsaw/lib/jigsaw-shapes';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
+import {
+  Screen, ScreenHeader, Card, Button, Icon, Pill, ProgressBar, StarRow, H2, Body, BodyStrong, Caption,
+} from '@/shared/components/ui';
+import { tokens, categoryColor } from '@/shared/theme/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BOARD_SIZE = SCREEN_WIDTH * 0.82;
@@ -41,12 +44,6 @@ function shuffle<T>(arr: T[]): T[] {
 // this screen reports against. Scoring lives in one place now, so the jigsaw
 // results, the leaderboard and the class analytics can never disagree.
 // Max per level is still 15 * 6 activities = 90 pts, the same cap as Quiz.
-function starsLabel(stars: number) {
-  if (stars >= 3) return '⭐⭐⭐ 3 Stars';
-  if (stars === 2) return '⭐⭐ 2 Stars';
-  if (stars === 1) return '⭐ 1 Star';
-  return '— No Star';
-}
 
 function formatTime(seconds?: number | null) {
   const s = Math.max(0, Math.round(seconds ?? 0));
@@ -77,6 +74,7 @@ export default function JigsawPuzzleScreen() {
   const { name: studentName } = useUser();
   const { getEffectiveCategoryContent } = useAdminContent();
   const { t } = useLanguage();
+  const cat = categoryColor(category);
 
   const { rows, cols } = getGrid(pieceCount);
   const pieceWidth = BOARD_SIZE / cols;
@@ -343,7 +341,13 @@ export default function JigsawPuzzleScreen() {
           preserveAspectRatio="xMidYMid slice"
         />
       </G>
-      <Path d={pathById[pieceId]} fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={opts?.strokeWidth ?? 1.4} />
+      <Path
+        d={pathById[pieceId]}
+        fill="none"
+        stroke={tokens.color.onDark}
+        strokeOpacity={0.85}
+        strokeWidth={opts?.strokeWidth ?? 1.4}
+      />
     </Svg>
   );
 
@@ -351,10 +355,11 @@ export default function JigsawPuzzleScreen() {
   const canShuffle = phase === 'playing' && dragPieceId === null && remainingTray.length > 1;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: color }]}>
-        <Text style={styles.headerTitle}>{label} — {t('level')} {level}</Text>
-        <View style={styles.statsRow}>
+    <Screen>
+      <ScreenHeader
+        title={`${label} — ${t('level')} ${level}`}
+        color={color}
+        right={
           <ActivityTimer
             ref={timerRef}
             durationSeconds={ACTIVITY_DURATION}
@@ -362,12 +367,23 @@ export default function JigsawPuzzleScreen() {
             isPaused={phase !== 'playing'}
             onExpire={handleExpire}
           />
-          <Text style={styles.statText}>★ {t('activity')} {activityNum}</Text>
+        }
+      >
+        <View style={styles.headerStatsRow}>
+          <Icon name="star" size={14} color={tokens.color.gold} filled />
+          <Caption style={styles.headerStatsText}>{t('activity')} {activityNum}</Caption>
         </View>
-      </View>
+      </ScreenHeader>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.hintText}>Drag the pieces below into the board to complete the picture</Text>
+        <Caption style={styles.hintText}>Drag the pieces below into the board to complete the picture</Caption>
+
+        <View style={styles.progressRow}>
+          <View style={styles.progressBarWrap}>
+            <ProgressBar value={placedIds.size / pieceCount} color={cat.base} />
+          </View>
+          <Caption style={styles.progressCount}>{placedIds.size}/{pieceCount}</Caption>
+        </View>
 
         <View style={styles.boardWrap}>
           <View
@@ -399,7 +415,7 @@ export default function JigsawPuzzleScreen() {
                     height: pieceHeight,
                     borderWidth: 1,
                     borderStyle: 'dashed',
-                    borderColor: 'rgba(140,110,70,0.35)',
+                    borderColor: tokens.color.borderStrong,
                   }}
                 />
               );
@@ -443,34 +459,36 @@ export default function JigsawPuzzleScreen() {
             onPress={reshuffleTray}
             disabled={!canShuffle}
           >
-            <Text style={styles.shuffleButtonText}>🔀 {t('shufflePieces')}</Text>
+            <Pill label={t('shufflePieces')} icon="refresh" tone="gold" />
           </TouchableOpacity>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            scrollEnabled={dragPieceId === null}
-            contentContainerStyle={styles.trayContent}
-          >
-            {remainingTray.map((pieceId) => {
-              const correctRow = Math.floor(pieceId / cols);
-              const correctCol = pieceId % cols;
-              const isDragging = dragPieceId === pieceId;
-              const panResponder = makePanResponder(pieceId, correctRow, correctCol);
-              return (
-                <View
-                  key={pieceId}
-                  ref={(el) => {
-                    pieceRefs.current[pieceId] = el;
-                  }}
-                  {...panResponder.panHandlers}
-                  style={[{ width: canvasW, height: canvasH }, isDragging && { opacity: 0 }]}
-                >
-                  {renderPieceSvg(pieceId, correctRow, correctCol)}
-                </View>
-              );
-            })}
-          </ScrollView>
+          <View style={styles.trayFrame}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              scrollEnabled={dragPieceId === null}
+              contentContainerStyle={styles.trayContent}
+            >
+              {remainingTray.map((pieceId) => {
+                const correctRow = Math.floor(pieceId / cols);
+                const correctCol = pieceId % cols;
+                const isDragging = dragPieceId === pieceId;
+                const panResponder = makePanResponder(pieceId, correctRow, correctCol);
+                return (
+                  <View
+                    key={pieceId}
+                    ref={(el) => {
+                      pieceRefs.current[pieceId] = el;
+                    }}
+                    {...panResponder.panHandlers}
+                    style={[{ width: canvasW, height: canvasH }, isDragging && { opacity: 0 }]}
+                  >
+                    {renderPieceSvg(pieceId, correctRow, correctCol)}
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
         </View>
       </ScrollView>
 
@@ -495,44 +513,55 @@ export default function JigsawPuzzleScreen() {
         )}
       </View>
 
-      <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-        <Text style={styles.backButtonText}>{t('backBtn')}</Text>
+      <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.85}>
+        <Icon name="chevronLeft" size={16} color={tokens.color.onDark} strokeWidth={3} />
+        <BodyStrong style={styles.backButtonText}>{t('backBtn')}</BodyStrong>
       </TouchableOpacity>
 
       {/* Picture reveal — a zoomed pop-up of the completed picture, shown
           right after the puzzle is solved and before the results modal. */}
       <Modal visible={phase === 'success' && !revealSeen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <Animated.View style={[styles.revealCard, { transform: [{ scale: revealScale }] }]}>
-            <Text style={styles.revealTitle}>🧩 Picture Complete!</Text>
-            <Image source={puzzleImage} style={styles.revealImage} resizeMode="cover" />
-            <Text style={styles.revealCaption}>{content.title ?? label}</Text>
-            {/* What the admin wrote about this picture in the JuanWise Admin
-                console: the one-line definition, then the mini-lesson behind it.
-                Solving the puzzle is what earns the lesson, so this is the
-                moment to teach rather than before the timer starts.
+          <View style={styles.modalBackdrop} />
+          <Animated.View style={{ transform: [{ scale: revealScale }], width: '100%' }}>
+            <Card style={styles.revealCard}>
+              <View style={styles.sheetTitleRow}>
+                <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.successSoft }]}>
+                  <Icon name="puzzle" size={22} color={tokens.color.success} strokeWidth={3} />
+                </View>
+                <H2 style={styles.successTitle}>Picture Complete!</H2>
+              </View>
+              <Image source={puzzleImage} style={styles.revealImage} resizeMode="cover" />
+              <BodyStrong style={styles.revealCaption}>{content.title ?? label}</BodyStrong>
+              {/* What the admin wrote about this picture in the JuanWise Admin
+                  console: the one-line definition, then the mini-lesson behind it.
+                  Solving the puzzle is what earns the lesson, so this is the
+                  moment to teach rather than before the timer starts.
 
-                Scrollable because a mini-lesson can run to a few paragraphs and
-                the card must not push its own Continue button off-screen. */}
-            {!!content.definition && (
-              <Text style={styles.revealDefinition}>{content.definition}</Text>
-            )}
-            {!!content.context && (
-              <ScrollView
-                style={styles.revealLessonScroll}
-                contentContainerStyle={styles.revealLessonContent}
-                showsVerticalScrollIndicator
-              >
-                <Text style={styles.revealLessonHeading}>📖 Alamin</Text>
-                <Text style={styles.revealLesson}>{content.context}</Text>
-              </ScrollView>
-            )}
-            <TouchableOpacity
-              style={[styles.continueButton, { backgroundColor: color, marginTop: 16 }]}
-              onPress={() => setRevealSeen(true)}
-            >
-              <Text style={styles.continueButtonText}>Continue</Text>
-            </TouchableOpacity>
+                  Scrollable because a mini-lesson can run to a few paragraphs and
+                  the card must not push its own Continue button off-screen. */}
+              {!!content.definition && <Body style={styles.revealDefinition}>{content.definition}</Body>}
+              {!!content.context && (
+                <ScrollView
+                  style={styles.revealLessonScroll}
+                  contentContainerStyle={styles.revealLessonContent}
+                  showsVerticalScrollIndicator
+                >
+                  <View style={styles.revealLessonHeadingRow}>
+                    <Icon name="book" size={14} color={tokens.color.goldDark} />
+                    <Caption style={styles.revealLessonHeading}>Alamin</Caption>
+                  </View>
+                  <Body style={styles.revealLesson}>{content.context}</Body>
+                </ScrollView>
+              )}
+              <Button
+                label="Continue"
+                onPress={() => setRevealSeen(true)}
+                color={cat.base}
+                shadowColor={cat.dark}
+                style={styles.fullWidthButton}
+              />
+            </Card>
           </Animated.View>
         </View>
       </Modal>
@@ -540,97 +569,158 @@ export default function JigsawPuzzleScreen() {
       {/* Option A: PASSED — puzzle solved before time ran out */}
       <Modal visible={phase === 'success' && revealSeen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.successTitle}>✅ Activity Complete!</Text>
-            <View style={styles.detailBlock}>
-              <Text style={styles.detailLine}>Student: {studentName}</Text>
-              <Text style={styles.detailLine}>⏱ Time: {formatTime(result?.timeUsed)}</Text>
-              <Text style={styles.detailLine}>⭐ Stars Earned: {starsLabel(result?.stars ?? 0)}</Text>
-              <Text style={styles.detailLine}>💯 Points: {result?.points ?? 0} pts</Text>
-              <Text style={styles.detailLine}>📂 Category: {label}</Text>
-              <Text style={styles.detailLine}>🎮 Activity Type: Jigsaw Puzzle ({pieceCount} pieces)</Text>
-              <Text style={styles.detailLine}>🔢 Activity #: {activityNum} of 6 · Level {level}/5</Text>
-              {queued && <Text style={styles.queuedLine}>📶 Offline — ipapadala ang resultang ito pagbalik ng internet.</Text>}
+          <View style={styles.modalBackdrop} />
+          <Card style={styles.modalCard}>
+            <View style={styles.sheetTitleRow}>
+              <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.successSoft }]}>
+                <Icon name="check" size={22} color={tokens.color.success} strokeWidth={3} />
+              </View>
+              <H2 style={styles.successTitle}>Activity Complete!</H2>
             </View>
-            <TouchableOpacity style={[styles.continueButton, { backgroundColor: color }]} onPress={handleContinue}>
-              <Text style={styles.continueButtonText}>Proceed to Next Activity</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.detailBlock}>
+              <Body style={styles.detailLine}>Student: {studentName}</Body>
+              <View style={styles.detailRow}>
+                <Icon name="clock" size={15} color={tokens.color.inkMuted} />
+                <Body style={styles.detailLine}>Time: {formatTime(result?.timeUsed)}</Body>
+              </View>
+              <View style={styles.detailRow}>
+                <Body style={styles.detailLine}>Stars Earned:</Body>
+                <StarRow earned={result?.stars ?? 0} />
+              </View>
+              <Body style={styles.detailLine}>Points: {result?.points ?? 0} pts</Body>
+              <Body style={styles.detailLine}>Category: {label}</Body>
+              <Body style={styles.detailLine}>Activity Type: Jigsaw Puzzle ({pieceCount} pieces)</Body>
+              <Body style={styles.detailLine}>Activity #: {activityNum} of 6 · Level {level}/5</Body>
+              {queued && <Caption style={styles.queuedLine}>Offline — ipapadala ang resultang ito pagbalik ng internet.</Caption>}
+            </View>
+            <Button
+              label="Proceed to Next Activity"
+              onPress={handleContinue}
+              color={cat.base}
+              shadowColor={cat.dark}
+              style={styles.fullWidthButton}
+            />
+          </Card>
         </View>
       </Modal>
 
       {/* Option B: FAILED / RED FLAG — timer ran out, not solved (or left early) */}
       <Modal visible={phase === 'failed'} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.timeUpTitle}>❌ Activity Complete (Incorrect)</Text>
-            <View style={styles.detailBlock}>
-              <Text style={styles.detailLine}>Student: {studentName}</Text>
-              <Text style={styles.detailLine}>⏱ Time: {formatTime(result?.timeUsed)}</Text>
-              <Text style={[styles.detailLine, styles.flagLine]}>🚩 Status: Failed / Incomplete (Needs Retry)</Text>
-              <Text style={styles.detailLine}>💯 Points: 0 pts</Text>
-              <Text style={styles.detailLine}>📂 Category: {label}</Text>
-              <Text style={styles.detailLine}>🎮 Activity Type: Jigsaw Puzzle ({pieceCount} pieces)</Text>
-              <Text style={styles.detailLine}>🔢 Activity #: {activityNum} of 6 · Level {level}/5</Text>
-              {queued && <Text style={styles.queuedLine}>📶 Offline — ipapadala ang resultang ito pagbalik ng internet.</Text>}
+          <View style={styles.modalBackdrop} />
+          <Card style={styles.modalCard}>
+            <View style={styles.sheetTitleRow}>
+              <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.dangerSoft }]}>
+                <Icon name="close" size={22} color={tokens.color.danger} strokeWidth={3} />
+              </View>
+              <H2 style={styles.timeUpTitle}>Activity Complete (Incorrect)</H2>
             </View>
-            <TouchableOpacity style={[styles.continueButton, { backgroundColor: color }]} onPress={handleContinue}>
-              <Text style={styles.continueButtonText}>Proceed to other Activity — maybe you can form it, try it</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.detailBlock}>
+              <Body style={styles.detailLine}>Student: {studentName}</Body>
+              <View style={styles.detailRow}>
+                <Icon name="clock" size={15} color={tokens.color.inkMuted} />
+                <Body style={styles.detailLine}>Time: {formatTime(result?.timeUsed)}</Body>
+              </View>
+              <View style={styles.detailRow}>
+                <Icon name="flag" size={15} color={tokens.color.danger} />
+                <BodyStrong style={styles.flagLine}>Status: Failed / Incomplete (Needs Retry)</BodyStrong>
+              </View>
+              <Body style={styles.detailLine}>Points: 0 pts</Body>
+              <Body style={styles.detailLine}>Category: {label}</Body>
+              <Body style={styles.detailLine}>Activity Type: Jigsaw Puzzle ({pieceCount} pieces)</Body>
+              <Body style={styles.detailLine}>Activity #: {activityNum} of 6 · Level {level}/5</Body>
+              {queued && <Caption style={styles.queuedLine}>Offline — ipapadala ang resultang ito pagbalik ng internet.</Caption>}
+            </View>
+            <Button
+              label="Proceed to other Activity — maybe you can form it, try it"
+              onPress={handleContinue}
+              color={cat.base}
+              shadowColor={cat.dark}
+              style={styles.fullWidthButton}
+            />
+          </Card>
         </View>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5EFE0' },
-  header: { alignItems: 'center', paddingVertical: 14, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  statsRow: { flexDirection: 'row', gap: 20, marginTop: 8 },
-  statText: { color: '#FCD116', fontWeight: 'bold', fontSize: 14 },
-  scrollContent: { alignItems: 'center', paddingBottom: 10 },
-  hintText: { fontSize: 12.5, color: '#7A6142', textAlign: 'center', marginTop: 12, marginBottom: 4, paddingHorizontal: 24 },
-  boardWrap: { alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  board: { position: 'relative', backgroundColor: '#DDD', borderWidth: 2, borderColor: '#999', overflow: 'hidden' },
+  headerStatsRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs, marginTop: tokens.space.sm },
+  headerStatsText: { color: tokens.color.gold, fontFamily: tokens.font.bodyBold },
+  scrollContent: { alignItems: 'center', paddingBottom: tokens.space.sm },
+  hintText: { textAlign: 'center', marginTop: tokens.space.md, marginBottom: tokens.space.xs, paddingHorizontal: tokens.space.xl },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm, width: '100%', paddingHorizontal: tokens.space.xl, marginBottom: tokens.space.sm },
+  progressBarWrap: { flex: 1 },
+  progressCount: { fontFamily: tokens.font.bodyBold, color: tokens.color.inkMuted },
+  boardWrap: { alignItems: 'center', justifyContent: 'center', marginTop: tokens.space.xs },
+  // Border width is left at 2px (not the spec's 3px): piece drop math snaps
+  // against `pieceWidth`/`pieceHeight`, computed from BOARD_SIZE against this
+  // frame's inner (padding) box, and a wider border shrinks that box. See
+  // task-10-report.md for detail.
+  board: {
+    position: 'relative',
+    backgroundColor: tokens.color.surfaceSunken,
+    borderWidth: 2,
+    borderColor: tokens.color.borderStrong,
+    borderRadius: tokens.radius.md,
+    overflow: 'hidden',
+  },
   ghostImage: { position: 'absolute', top: 0, left: 0 },
-  trayWrap: { width: '100%', marginTop: 18, minHeight: 10 },
+  trayWrap: { width: '100%', marginTop: tokens.space.lg, minHeight: 10 },
   shuffleButton: {
     alignSelf: 'center',
-    backgroundColor: '#FCD116',
-    paddingVertical: 7,
-    paddingHorizontal: 18,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#C9A200',
-    marginBottom: 10,
+    marginBottom: tokens.space.sm,
+    minHeight: tokens.hit.min,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   shuffleButtonDisabled: { opacity: 0.4 },
-  shuffleButtonText: { color: '#5C3A21', fontWeight: 'bold', fontSize: 13 },
-  trayContent: { paddingHorizontal: 16, gap: 10, alignItems: 'center' },
+  trayFrame: {
+    backgroundColor: tokens.color.surfaceSunken,
+    borderRadius: tokens.radius.lg,
+    borderWidth: 2,
+    borderColor: tokens.color.border,
+    paddingVertical: tokens.space.sm,
+  },
+  trayContent: { paddingHorizontal: tokens.space.md, gap: tokens.space.sm, alignItems: 'center' },
   dragOverlay: { ...StyleSheet.absoluteFill, zIndex: 999, elevation: 30 },
   dragOverlayPiece: { position: 'absolute' },
-  backButton: { alignSelf: 'center', backgroundColor: '#5C3A21', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 20, marginVertical: 14 },
-  backButtonText: { color: '#FFF', fontWeight: 'bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalCard: { backgroundColor: '#FFFDF7', borderRadius: 20, padding: 20, width: '100%', alignItems: 'center' },
-  revealCard: { backgroundColor: '#FFFDF7', borderRadius: 24, padding: 20, width: '100%', alignItems: 'center' },
-  revealTitle: { fontSize: 19, fontWeight: 'bold', color: '#3E9E4F', marginBottom: 14, textAlign: 'center' },
-  revealImage: { width: BOARD_SIZE * 0.85, height: BOARD_SIZE * 0.85, borderRadius: 16, borderWidth: 3, borderColor: '#FCD116' },
-  revealCaption: { fontSize: 14, color: '#7A6142', marginTop: 10, fontWeight: '600' },
-  revealDefinition: { fontSize: 13, color: '#5A4A38', marginTop: 6, textAlign: 'center', lineHeight: 18 },
+  backButton: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.space.xs,
+    backgroundColor: tokens.color.ink,
+    paddingVertical: tokens.space.sm,
+    paddingHorizontal: tokens.space.xl,
+    borderRadius: tokens.radius.pill,
+    marginVertical: tokens.space.lg,
+    minHeight: tokens.hit.min,
+  },
+  backButtonText: { color: tokens.color.onDark },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: tokens.space.xl },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: tokens.color.ink, opacity: 0.6 },
+  modalCard: { width: '100%', alignItems: 'center' },
+  revealCard: { width: '100%', alignItems: 'center' },
+  revealImage: { width: BOARD_SIZE * 0.85, height: BOARD_SIZE * 0.85, borderRadius: tokens.radius.md, borderWidth: 3, borderColor: tokens.color.gold },
+  revealCaption: { color: tokens.color.inkMuted, marginTop: tokens.space.sm },
+  revealDefinition: { marginTop: tokens.space.xs, textAlign: 'center' },
   // Capped so a long lesson scrolls inside the card instead of growing it.
-  revealLessonScroll: { maxHeight: 150, width: '100%', marginTop: 12 },
-  revealLessonContent: { backgroundColor: '#FFF7DB', borderRadius: 12, padding: 12 },
-  revealLessonHeading: { fontSize: 12.5, fontWeight: 'bold', color: '#8A6D00', marginBottom: 4 },
-  revealLesson: { fontSize: 13, color: '#4A3F2E', lineHeight: 19 },
-  successTitle: { fontSize: 18, fontWeight: 'bold', color: '#3E9E4F', marginBottom: 14, textAlign: 'center' },
-  timeUpTitle: { fontSize: 18, fontWeight: 'bold', color: '#C4304A', marginBottom: 14, textAlign: 'center' },
-  detailBlock: { width: '100%', marginBottom: 18, gap: 6 },
-  detailLine: { fontSize: 13.5, color: '#2B2B2B', lineHeight: 19 },
-  flagLine: { color: '#C4304A', fontWeight: 'bold' },
-  queuedLine: { fontSize: 12.5, color: '#8A5A2B', fontStyle: 'italic', marginTop: 4 },
-  continueButton: { width: '100%', paddingVertical: 14, borderRadius: 25, alignItems: 'center' },
-  continueButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, textAlign: 'center' },
+  revealLessonScroll: { maxHeight: 150, width: '100%', marginTop: tokens.space.md },
+  revealLessonContent: { backgroundColor: tokens.color.goldSoft, borderRadius: tokens.radius.sm, padding: tokens.space.md },
+  revealLessonHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs, marginBottom: tokens.space.xs },
+  revealLessonHeading: { color: tokens.color.goldDark, fontFamily: tokens.font.bodyBold },
+  revealLesson: { color: tokens.color.inkBody },
+  sheetTitleRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm, marginBottom: tokens.space.lg },
+  sheetTitleIcon: { width: 40, height: 40, borderRadius: tokens.radius.pill, alignItems: 'center', justifyContent: 'center' },
+  successTitle: { color: tokens.color.successInk, textAlign: 'center' },
+  timeUpTitle: { color: tokens.color.dangerInk, textAlign: 'center' },
+  detailBlock: { width: '100%', marginBottom: tokens.space.lg, gap: tokens.space.xs },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
+  detailLine: { color: tokens.color.inkBody },
+  flagLine: { color: tokens.color.dangerInk },
+  queuedLine: { color: tokens.color.inkMuted, fontStyle: 'italic', marginTop: tokens.space.xs },
+  fullWidthButton: { width: '100%' },
 });
