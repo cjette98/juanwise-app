@@ -1,7 +1,7 @@
 {
   "name": "juanwise-app-v2",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "dependencies": {
     "@expo-google-fonts/baloo-2": "^0.4.2",
     "@expo-google-fonts/nunito": "^0.4.2",
@@ -12,6 +12,7 @@
     "expo-constants": "~57.0.10",
     "expo-dev-client": "~57.0.11",
     "expo-device": "~57.0.1",
+    "expo-file-system": "~57.0.2",
     "expo-font": "~57.0.1",
     "expo-glass-effect": "~57.0.1",
     "expo-image": "~57.0.2",
@@ -49,6 +50,9 @@
     "ios:prod": "expo run:ios --configuration Release",
     "prebuild": "expo prebuild",
     "prebuild:clean": "expo prebuild --clean",
+    "build:apk": "node scripts/build-apk.mjs",
+    "build:apk:minor": "node scripts/build-apk.mjs --minor",
+    "build:apk:major": "node scripts/build-apk.mjs --major",
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "vitest run"
