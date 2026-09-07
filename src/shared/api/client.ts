@@ -1,3 +1,5 @@
+import { File } from 'expo-file-system';
+import { Platform } from 'react-native';
 import { API_BASE_URL, REQUEST_TIMEOUT_MS, TOKEN_REFRESH_SKEW_MS } from './config';
 import {
   clearSession,
@@ -73,6 +75,14 @@ export interface RequestOptions {
   /** Set false for the handful of endpoints that take no token. */
   auth?: boolean;
   signal?: AbortSignal;
+  /**
+   * Whether running this call twice is harmless, which lets it be replayed when
+   * the first attempt never reached a live server. GETs default to true; a
+   * write has to opt in, and one that creates or records something (register, a
+   * submitted result) must not — the connection can drop *after* the server
+   * applied it.
+   */
+  idempotent?: boolean;
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
@@ -185,7 +195,7 @@ async function validSession(): Promise<StoredSession | null> {
 /* ------------------------------------------------------------------ request */
 
 async function send<T>(path: string, options: RequestOptions, retryOn401: boolean): Promise<T> {
-  const { method = 'GET', body, query, auth = true, signal } = options;
+  const { method = 'GET', body, query, auth = true, signal, idempotent = method === 'GET' } = options;
 
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -198,11 +208,23 @@ async function send<T>(path: string, options: RequestOptions, retryOn401: boolea
     headers.Authorization = `Bearer ${session.idToken}`;
   }
 
-  const response = await fetchWithTimeout(
-    buildUrl(path, query),
-    { method, headers, body: body === undefined ? undefined : JSON.stringify(body) },
-    signal,
-  );
+  const url = buildUrl(path, query);
+  const init = { method, headers, body: body === undefined ? undefined : JSON.stringify(body) };
+
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(url, init, signal);
+  } catch (err) {
+    // The whole API is one Vercel function capped at `maxDuration: 30`, and a
+    // cold container spends longer than that booting, so the first call after
+    // an idle spell is killed before it can answer — measured at 33s with no
+    // status, and the next call through in 5s. Nothing reached a live server,
+    // so replaying a call that is safe to repeat costs only the extra wait,
+    // and it lands on the container the failed attempt just warmed up.
+    const transient = err instanceof ApiError && err.status === 0;
+    if (!idempotent || !transient || signal?.aborted) throw err;
+    response = await fetchWithTimeout(url, init, signal);
+  }
 
   const payload = await parseBody(response);
 
@@ -248,13 +270,31 @@ export async function uploadToSignedUrl(
    */
   requiredHeaders: Record<string, string> = {},
 ): Promise<void> {
-  const file = await fetch(fileUri);
-  const blob = await file.blob();
+  const headers = { 'Content-Type': contentType, ...requiredHeaders };
+
+  /**
+   * The picker hands back a `file://` URI on a device, and React Native's
+   * `fetch` cannot read one on Android: the request goes out through OkHttp,
+   * which accepts only http(s), so `fetch(fileUri)` rejected with "Network
+   * request failed" before a single byte reached Cloud Storage. iOS resolves
+   * file URLs via RCTFileRequestHandler, which is why the same code looked
+   * fine there. expo-file-system reads the file through the native filesystem
+   * instead, so both platforms take one path.
+   *
+   * Only the *read* moves — the PUT still goes through `fetchWithTimeout` so
+   * the upload keeps the same timeout and error envelope as every other call,
+   * and so the two signed headers reach Cloud Storage exactly as signed.
+   */
+  const body =
+    Platform.OS === 'web'
+      ? // A browser picker gives a `blob:`/`data:` URL, which fetch reads natively.
+        await (await fetch(fileUri)).blob()
+      : await new File(fileUri).arrayBuffer();
 
   const response = await fetchWithTimeout(uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': contentType, ...requiredHeaders },
-    body: blob,
+    headers,
+    body,
   });
 
   if (!response.ok) {

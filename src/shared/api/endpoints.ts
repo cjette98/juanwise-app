@@ -47,19 +47,32 @@ export const authApi = {
     return session;
   },
 
+  /** Idempotent too — it only exchanges credentials, and it shares the cold start. */
   async login(input: LoginRequest): Promise<ApiSession> {
     const session = await request<ApiSession>('/auth/login', {
       method: 'POST',
       body: input,
       auth: false,
+      idempotent: true,
     });
     await setSession(session);
     return session;
   },
 
-  /** Always resolves, whether or not the address is registered. */
+  /**
+   * Always resolves, whether or not the address is registered.
+   *
+   * Marked idempotent: this is usually the first call a freshly opened app
+   * makes, so it is the one that pays the API's cold start, and asking for the
+   * same reset link twice is harmless.
+   */
   forgotPassword(email: string): Promise<{ message: string }> {
-    return request('/auth/forgot-password', { method: 'POST', body: { email }, auth: false });
+    return request('/auth/forgot-password', {
+      method: 'POST',
+      body: { email },
+      auth: false,
+      idempotent: true,
+    });
   },
 
   me(): Promise<ApiCurrentUser> {
