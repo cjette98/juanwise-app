@@ -9,3 +9,7 @@ export { ProgressBar } from './progress-bar';
 export { StarRow } from './star-row';
 export { ScreenHeader } from './screen-header';
 export { BottomNav } from './bottom-nav';
+export { Avatar } from './avatar';
+export { avatarPalette, initialsOf } from './avatar-identity';
+export { MedalBadge, type MedalTier } from './medal-badge';
+export { Segmented, type SegmentedOption } from './segmented';
