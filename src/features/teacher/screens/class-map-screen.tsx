@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useClass, GameType } from '@/features/teacher/context/class-context';
-import { CATEGORY_LIST } from '@/features/admin/context/admin-content-context';
+import { CATEGORY_LIST } from '@/shared/content/category-meta';
 import { useRouter } from 'expo-router';
 
 const CATEGORY_META: Record<string, { label: string; color: string }> = {

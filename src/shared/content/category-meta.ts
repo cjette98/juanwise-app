@@ -16,6 +16,8 @@ export const CATEGORY_META: CategoryMeta[] = [
   { key: 'heroes', label: 'Filipino Heroes', color: '#8A5A2B' },
 ];
 
+export const CATEGORY_LIST: string[] = CATEGORY_META.map((c) => c.key);
+
 export function getCategoryMeta(key: string): CategoryMeta {
   return CATEGORY_META.find((c) => c.key === key) || { key, label: key, color: '#5C3A21' };
 }
