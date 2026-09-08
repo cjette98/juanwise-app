@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 const CATEGORIES = [
   { key: 'history', label: 'History', color: '#2E6FB8' },
@@ -17,11 +17,28 @@ const CATEGORIES = [
 
 export default function JigsawContentScreen() {
   const router = useRouter();
-  const { ready, error, getEffectiveCategoryContent, setCategoryImageUri, setCategoryContext, resetCategoryImage } =
+  const { packId } = useLocalSearchParams<{ packId: string }>();
+  const { isPackReady, error, ensurePackLoaded, getEffectiveCategoryContent, setCategoryImageUri, setCategoryContext, resetCategoryImage } =
     useAdminContent();
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draftText, setDraftText] = useState('');
   const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (packId) ensurePackLoaded(packId);
+  }, [packId, ensurePackLoaded]);
+
+  if (!packId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>Walang napiling pack. Bumalik sa Content Packs.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const ready = isPackReady(packId);
 
   /**
    * The picked file is uploaded straight to Cloud Storage with a signed URL
@@ -46,7 +63,7 @@ export default function JigsawContentScreen() {
 
     setBusyKey(categoryKey);
     try {
-      const result = await setCategoryImageUri(categoryKey, asset.uri, asset.mimeType ?? undefined);
+      const result = await setCategoryImageUri(packId, categoryKey, asset.uri, asset.mimeType ?? undefined);
       if (!result.success) Alert.alert('Hindi Na-upload', result.message);
     } finally {
       setBusyKey(null);
@@ -56,7 +73,7 @@ export default function JigsawContentScreen() {
   const handleReset = async (categoryKey: string) => {
     setBusyKey(categoryKey);
     try {
-      const result = await resetCategoryImage(categoryKey);
+      const result = await resetCategoryImage(packId, categoryKey);
       if (!result.success) Alert.alert('Hindi Naibalik', result.message);
     } finally {
       setBusyKey(null);
@@ -75,7 +92,7 @@ export default function JigsawContentScreen() {
     }
     setBusyKey(categoryKey);
     try {
-      const result = await setCategoryContext(categoryKey, draftText.trim());
+      const result = await setCategoryContext(packId, categoryKey, draftText.trim());
       if (!result.success) {
         Alert.alert('Hindi Na-save', result.message);
         return;
@@ -112,7 +129,7 @@ export default function JigsawContentScreen() {
         )}
 
         {ready && CATEGORIES.map((cat) => {
-          const content = getEffectiveCategoryContent(cat.key);
+          const content = getEffectiveCategoryContent(packId, cat.key);
           const isEditing = editingKey === cat.key;
           const busy = busyKey === cat.key;
           return (

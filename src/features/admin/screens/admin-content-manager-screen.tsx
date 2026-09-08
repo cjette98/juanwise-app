@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 const CATEGORIES = [
   { key: 'history', label: 'History', color: '#2E6FB8' },
@@ -19,19 +19,38 @@ const ACTIVITIES = [1, 2, 3, 4, 5, 6];
 
 export default function AdminContentManagerScreen() {
   const router = useRouter();
+  const { packId } = useLocalSearchParams<{ packId: string }>();
   const [category, setCategory] = useState(CATEGORIES[0].key);
   const [level, setLevel] = useState(1);
   // Every read and write here goes through the content module, so an edit made
   // on this device is what every student's app fetches next.
   const {
-    ready,
+    isPackReady,
     error,
+    ensurePackLoaded,
+    getPack,
     getEffectiveQuestion,
     isOverridden,
     deleteQuestionOverride,
-    showMiniLesson,
     setShowMiniLesson,
   } = useAdminContent();
+
+  useEffect(() => {
+    if (packId) ensurePackLoaded(packId);
+  }, [packId, ensurePackLoaded]);
+
+  if (!packId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>Walang napiling pack. Bumalik sa Content Packs.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const ready = isPackReady(packId);
+  const pack = getPack(packId);
 
   const activeCategory = CATEGORIES.find((c) => c.key === category)!;
 
@@ -45,7 +64,7 @@ export default function AdminContentManagerScreen() {
           text: 'Alisin',
           style: 'destructive',
           onPress: async () => {
-            const result = await deleteQuestionOverride(category, level, activityNum);
+            const result = await deleteQuestionOverride(packId, category, level, activityNum);
             if (!result.success) Alert.alert('Hindi Naalis', result.message);
           },
         },
@@ -54,7 +73,7 @@ export default function AdminContentManagerScreen() {
   };
 
   const handleToggleMiniLesson = async (value: boolean) => {
-    const result = await setShowMiniLesson(value);
+    const result = await setShowMiniLesson(packId, value);
     if (!result.success) Alert.alert('Hindi Na-save', result.message);
   };
 
@@ -65,7 +84,7 @@ export default function AdminContentManagerScreen() {
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Content Manager</Text>
-        <Text style={styles.headerSubtitle}>I-edit, i-update, o burahin ang mga tanong sa quiz</Text>
+        <Text style={styles.headerSubtitle}>{`I-edit ang: ${pack?.name ?? '...'}`}</Text>
       </View>
 
       <View style={styles.catRowWrap}>
@@ -108,12 +127,16 @@ export default function AdminContentManagerScreen() {
           </Text>
         </View>
         <Switch
-          value={showMiniLesson}
+          value={pack?.showMiniLesson ?? true}
           onValueChange={handleToggleMiniLesson}
           trackColor={{ false: '#D0D0D0', true: activeCategory.color }}
           thumbColor="#FFF"
         />
       </View>
+      <Text style={styles.miniLessonNote}>
+        Tandaan: kasalukuyang naaapektuhan lang nito ang Global Library — hindi pa ito
+        nakikita ng mga estudyanteng gumagamit ng ibang pack.
+      </Text>
 
       {!!error && (
         <View style={styles.errorBanner}>
@@ -131,8 +154,8 @@ export default function AdminContentManagerScreen() {
 
       <ScrollView contentContainerStyle={styles.list}>
         {ready && ACTIVITIES.map((num) => {
-          const q = getEffectiveQuestion(category, level, num);
-          const custom = isOverridden(category, level, num);
+          const q = getEffectiveQuestion(packId, category, level, num);
+          const custom = isOverridden(packId, category, level, num);
           return (
             <View key={num} style={styles.card}>
               <View style={styles.cardTop}>
@@ -153,7 +176,7 @@ export default function AdminContentManagerScreen() {
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: activeCategory.color }]}
                   onPress={() =>
-                    router.navigate({ pathname: '/question-editor', params: { category, level, activityNum: num, categoryColor: activeCategory.color, categoryLabel: activeCategory.label } })
+                    router.navigate({ pathname: '/question-editor', params: { packId, category, level, activityNum: num, categoryColor: activeCategory.color, categoryLabel: activeCategory.label } })
                   }
                 >
                   <Ionicons name="create-outline" size={16} color="#FFF" />
@@ -210,6 +233,7 @@ const styles = StyleSheet.create({
   },
   miniLessonTitle: { fontWeight: 'bold', fontSize: 13.5, color: '#1A1A1A' },
   miniLessonSub: { fontSize: 11.5, color: '#8E8E93', marginTop: 2, lineHeight: 16 },
+  miniLessonNote: { fontSize: 11, color: '#8E8E93', marginTop: 4, paddingHorizontal: 16, lineHeight: 15 },
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#B23A3A',
     borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginHorizontal: 16, marginTop: 12,
