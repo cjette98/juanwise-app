@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, View, TouchableOpacity, StyleSheet, ScrollView, type ImageSourcePropType, type ViewStyle } from 'react-native';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
-import { useAdminContent } from '@/features/admin/context/admin-content-context';
+import { useClassContent } from '@/features/learning/context/class-content-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import { getPrimaryActivityAction } from '@/features/learning/lib/activity-list-model';
@@ -28,7 +28,7 @@ export default function ActivityListScreen() {
   const { getProgress, getFailed } = useGameProgress();
   // The admin console sets the cut per activity; unset ones keep the ramp that
   // used to be hardcoded here.
-  const { getJigsawPieceCount, getEffectiveQuestion, getEffectiveCategoryContent } = useAdminContent();
+  const { getJigsawPieceCount, getEffectiveQuestion, getEffectiveCategoryContent } = useClassContent();
   const completed = getProgress(category, activityType, level);
   const failed = getFailed(category, activityType, level);
   const { label: diffLabel, color: diffColor } = getLevelDifficulty(level);

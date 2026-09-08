@@ -4,7 +4,7 @@ import { Screen, ScreenHeader, Card, Button, Pill, Icon, H2, Body, BodyStrong, C
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
-import { useAdminContent } from '@/features/admin/context/admin-content-context';
+import { useClassContent } from '@/features/learning/context/class-content-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 import { quizLessonText } from '@/features/admin/lib/question-mapping';
 import { useRouter } from 'expo-router';
@@ -28,7 +28,7 @@ export default function MiniLessonsScreen() {
   // Mini-lessons and category write-ups come from the content module, so an
   // admin's edit shows up in the unlocked lesson too. A quiz activity whose
   // mini-lesson is empty falls back to its explanation — see `quizLessonText`.
-  const { getEffectiveQuestion, getEffectiveCategoryContent } = useAdminContent();
+  const { getEffectiveQuestion, getEffectiveCategoryContent } = useClassContent();
 
   // A "mini-lesson" is unlocked the first time the student answers that
   // exact category/level/activity/type correctly — dedupe on that key and

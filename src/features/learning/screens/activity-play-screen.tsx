@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
-import { useAdminContent } from '@/features/admin/context/admin-content-context';
+import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
 import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
@@ -56,7 +56,7 @@ export default function ActivityPlayScreen() {
   const { name: studentName } = useUser();
   // Content and the app-wide "Mini-Lesson" toggle both come from the content
   // module now, so an admin's edit reaches every student's device.
-  const { showMiniLesson, ready: adminReady, getEffectiveQuestion } = useAdminContent();
+  const { showMiniLesson, ready: adminReady, getEffectiveQuestion } = useClassContent();
 
   const headerColor = color || tokens.color.primary;
   const cat = categoryColor(category);
