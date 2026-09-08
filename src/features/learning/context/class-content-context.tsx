@@ -50,7 +50,7 @@ type ClassContentContextType = {
 const ClassContentContext = createContext<ClassContentContextType | undefined>(undefined);
 
 export function ClassContentProvider({ children }: { children: React.ReactNode }) {
-  const { classId, ready: classReady } = useClass();
+  const { classId, currentClass, ready: classReady } = useClass();
 
   const [questions, setQuestions] = useState<QuestionOverrides>({});
   const [categories, setCategories] = useState<CategoryOverrides>({});
@@ -92,7 +92,7 @@ export function ClassContentProvider({ children }: { children: React.ReactNode }
       if (!mounted.current) return;
       setError(errorMessage(err, 'Could not load content from the server.'));
     }
-  }, [classId]);
+  }, [classId, currentClass?.packId]);
 
   useEffect(() => {
     if (!classReady) return;

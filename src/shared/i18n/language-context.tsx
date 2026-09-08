@@ -116,6 +116,10 @@ const translations = {
     assignPackCopyBtn: 'Make a copy',
     assignPackLoadErrorTitle: 'Could Not Load',
     assignPackAssignErrorTitle: 'Could Not Assign',
+    contentPackNoClassMsg: "You don't have a class yet.",
+    contentPackAssignedMsg: 'Pack assigned.',
+    contentPackAssignFailedMsg: 'Could not assign the pack.',
+    contentPackClearFailedMsg: 'Could not clear the pack.',
 
     categoriesTitle: 'CATEGORIES OF PHILIPPINES KNOWLEDGE',
     catHistory: 'History',
@@ -336,6 +340,10 @@ const translations = {
     assignPackCopyBtn: 'Gumawa ng Kopya',
     assignPackLoadErrorTitle: 'Hindi Na-load',
     assignPackAssignErrorTitle: 'Hindi Na-assign',
+    contentPackNoClassMsg: 'Wala pang klase.',
+    contentPackAssignedMsg: 'Na-assign ang pack.',
+    contentPackAssignFailedMsg: 'Hindi na-assign ang pack.',
+    contentPackClearFailedMsg: 'Hindi na-clear ang pack.',
 
     categoriesTitle: 'MGA KATEGORYA NG KAALAMAN SA PILIPINAS',
     catHistory: 'Kasaysayan',

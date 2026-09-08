@@ -45,13 +45,13 @@ export default function ClassMapScreen() {
   }, [currentClass?.packId]);
 
   const handleAssignPack = async (input: AssignPackRequest): Promise<{ success: boolean; message: string }> => {
-    if (!currentClass) return { success: false, message: 'Wala pang klase.' };
+    if (!currentClass) return { success: false, message: t('contentPackNoClassMsg') };
     try {
       await classesApi.assignPack(currentClass.id, input);
       await refreshClass();
-      return { success: true, message: 'Na-assign ang pack.' };
+      return { success: true, message: t('contentPackAssignedMsg') };
     } catch (err) {
-      return { success: false, message: errorMessage(err, 'Hindi na-assign ang pack.') };
+      return { success: false, message: errorMessage(err, t('contentPackAssignFailedMsg')) };
     }
   };
 
@@ -62,7 +62,7 @@ export default function ClassMapScreen() {
       await classesApi.clearPack(currentClass.id);
       await refreshClass();
     } catch (err) {
-      Alert.alert(t('contentPackCardTitle'), errorMessage(err, 'Hindi na-clear ang pack.'));
+      Alert.alert(t('contentPackCardTitle'), errorMessage(err, t('contentPackClearFailedMsg')));
     } finally {
       setClearingPack(false);
     }
