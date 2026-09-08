@@ -114,6 +114,8 @@ const translations = {
     assignPackDialogTitle: 'Choose a Content Pack',
     assignPackShareBtn: 'Share it',
     assignPackCopyBtn: 'Make a copy',
+    assignPackLoadErrorTitle: 'Could Not Load',
+    assignPackAssignErrorTitle: 'Could Not Assign',
 
     categoriesTitle: 'CATEGORIES OF PHILIPPINES KNOWLEDGE',
     catHistory: 'History',
@@ -332,6 +334,8 @@ const translations = {
     assignPackDialogTitle: 'Pumili ng Content Pack',
     assignPackShareBtn: 'Ibahagi',
     assignPackCopyBtn: 'Gumawa ng Kopya',
+    assignPackLoadErrorTitle: 'Hindi Na-load',
+    assignPackAssignErrorTitle: 'Hindi Na-assign',
 
     categoriesTitle: 'MGA KATEGORYA NG KAALAMAN SA PILIPINAS',
     catHistory: 'Kasaysayan',

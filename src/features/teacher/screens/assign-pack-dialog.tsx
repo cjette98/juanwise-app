@@ -24,7 +24,7 @@ export function AssignPackDialog({ visible, currentPackId, onAssign, onClose }: 
     packsApi
       .list()
       .then(setPacks)
-      .catch((err) => Alert.alert('Hindi Na-load', errorMessage(err)))
+      .catch((err) => Alert.alert(t('assignPackLoadErrorTitle'), errorMessage(err)))
       .finally(() => setLoading(false));
   }, [visible, currentPackId]);
 
@@ -34,7 +34,7 @@ export function AssignPackDialog({ visible, currentPackId, onAssign, onClose }: 
     try {
       const result = await onAssign({ packId: selectedId, mode });
       if (!result.success) {
-        Alert.alert('Hindi Na-assign', result.message);
+        Alert.alert(t('assignPackAssignErrorTitle'), result.message);
         return;
       }
       onClose();
@@ -84,7 +84,7 @@ export function AssignPackDialog({ visible, currentPackId, onAssign, onClose }: 
           </View>
 
           <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={busy}>
-            <Text style={styles.cancelBtnText}>Kanselahin</Text>
+            <Text style={styles.cancelBtnText}>{t('cancelBtn')}</Text>
           </TouchableOpacity>
         </View>
       </View>
