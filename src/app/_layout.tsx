@@ -12,6 +12,7 @@ import { StudentResultsProvider } from '@/features/results/context/student-resul
 import { GameProgressProvider } from '@/features/learning/context/game-progress-context';
 import { ClassProvider } from '@/features/teacher/context/class-context';
 import { AdminContentProvider } from '@/features/admin/context/admin-content-context';
+import { ClassContentProvider } from '@/features/learning/context/class-content-context';
 
 // Hold the native splash until the fonts are registered, so no screen ever
 // paints a frame in the system font and then reflows into Baloo/Nunito.
@@ -46,10 +47,12 @@ export default function RootLayout() {
             <StudentResultsProvider>
               <GameProgressProvider>
                 <AdminContentProvider>
-                  <StatusBar style="auto" />
-                  {/* Every screen draws its own header/background, exactly as the
-                      original native-stack did with headerShown: false. */}
-                  <Stack screenOptions={{ headerShown: false }} />
+                  <ClassContentProvider>
+                    <StatusBar style="auto" />
+                    {/* Every screen draws its own header/background, exactly as the
+                        original native-stack did with headerShown: false. */}
+                    <Stack screenOptions={{ headerShown: false }} />
+                  </ClassContentProvider>
                 </AdminContentProvider>
               </GameProgressProvider>
             </StudentResultsProvider>
