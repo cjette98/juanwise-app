@@ -32,18 +32,7 @@ export default function QuestionEditorScreen() {
   const level = toNum(params.level, 1);
   const activityNum = toNum(params.activityNum, 1);
   const { getEffectiveQuestion, upsertQuestion, uploadQuestionImage } = useAdminContent();
-
-  if (!packId) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Walang napiling pack</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const existing = getEffectiveQuestion(packId, category, level, activityNum);
+  const existing = getEffectiveQuestion(packId ?? '', category, level, activityNum);
 
   const [saving, setSaving] = useState(false);
   // Never silently reinterpreted: an identification slot keeps its own type and
@@ -71,6 +60,16 @@ export default function QuestionEditorScreen() {
     existing.miniLessonImageUrl ?? null,
   );
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  if (!packId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Walang napiling pack</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   /**
    * Uploads straight to Cloud Storage with a signed URL, then keeps the public
