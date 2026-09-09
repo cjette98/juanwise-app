@@ -27,6 +27,7 @@ export default function TeacherDashboardScreen() {
     { label: t('classOverview'), icon: 'people', color: '#E8801A', href: '/class-overview' },
     { label: t('leaderBoard'), icon: 'trophy', color: '#2E9E5B', href: '/teacher-leaderboard' },
     { label: t('classMap'), icon: 'map', color: '#3B7DD8', href: '/class-map' },
+    { label: t('managePacksBtn'), icon: 'albums', color: '#9B4FD6', href: '/packs' },
     { label: t('performanceProgression'), icon: 'stats-chart', color: '#9B4FD6', href: '/performance' },
   ] as const;
 

@@ -21,17 +21,18 @@ const PUBLISHABLE_TYPES: { key: Extract<QuizType, 'multiple-choice' | 'enumerati
 export default function QuestionEditorScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
+    packId: string;
     category: string;
     level: string;
     activityNum: string;
     categoryColor: string;
     categoryLabel: string;
   }>();
-  const { category, categoryColor, categoryLabel } = params;
+  const { packId, category, categoryColor, categoryLabel } = params;
   const level = toNum(params.level, 1);
   const activityNum = toNum(params.activityNum, 1);
   const { getEffectiveQuestion, upsertQuestion, uploadQuestionImage } = useAdminContent();
-  const existing = getEffectiveQuestion(category, level, activityNum);
+  const existing = getEffectiveQuestion(packId ?? '', category, level, activityNum);
 
   const [saving, setSaving] = useState(false);
   // Never silently reinterpreted: an identification slot keeps its own type and
@@ -59,6 +60,16 @@ export default function QuestionEditorScreen() {
     existing.miniLessonImageUrl ?? null,
   );
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  if (!packId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Walang napiling pack</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   /**
    * Uploads straight to Cloud Storage with a signed URL, then keeps the public
@@ -122,10 +133,10 @@ export default function QuestionEditorScreen() {
   // PUT /content/questions/:category/:level/:activityNum. The API re-validates
   // everything checked below, so a question that renders wrong cannot be
   // published even if this screen were bypassed.
-  const save = async (payload: Parameters<typeof upsertQuestion>[3]) => {
+  const save = async (payload: Parameters<typeof upsertQuestion>[4]) => {
     setSaving(true);
     try {
-      const result = await upsertQuestion(category, level, activityNum, payload);
+      const result = await upsertQuestion(packId, category, level, activityNum, payload);
       if (!result.success) {
         Alert.alert('Hindi Na-save', result.message);
         return;

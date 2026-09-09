@@ -8,6 +8,7 @@ import {
   type ApiProgressTrack,
 } from '@/shared/api';
 import { useUser } from '@/features/auth/context/user-context';
+import { useClass } from '@/features/teacher/context/class-context';
 
 /**
  * Unlock state, now owned by the server.
@@ -75,6 +76,7 @@ const GameProgressContext = createContext<GameProgressContextType | undefined>(u
 
 export function GameProgressProvider({ children }: { children: React.ReactNode }) {
   const { signedIn, ready: userReady, uid } = useUser();
+  const { classId } = useClass();
   const [tracks, setTracks] = useState<TrackMap>({});
   const [ready, setReady] = useState(false);
   const mounted = useRef(true);
@@ -87,7 +89,7 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
       return;
     }
     try {
-      const { tracks: apiTracks } = await progressApi.get();
+      const { tracks: apiTracks } = await progressApi.get(undefined, classId ?? undefined);
       if (!mounted.current) return;
       const local = toLocal(apiTracks);
       setTracks(local);
@@ -96,7 +98,7 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
       // Keep the cached tracks on screen; a wrong "locked" beats a crash.
       console.warn('progress: refresh failed', e);
     }
-  }, [signedIn, uid]);
+  }, [signedIn, uid, classId]);
 
   useEffect(() => {
     if (!userReady) return;
@@ -191,6 +193,7 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
         activityType: activityType as ApiActivityType,
         level,
         activityNum,
+        classId: classId ?? undefined,
       };
 
       try {
@@ -209,7 +212,7 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
         console.warn('progress: mark failed, will reconcile on next refresh', e);
       }
     },
-    [applyLocally, uid],
+    [applyLocally, uid, classId],
   );
 
   const completeActivity: GameProgressContextType['completeActivity'] = useCallback(

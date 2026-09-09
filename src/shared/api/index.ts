@@ -13,6 +13,7 @@ export {
   classesApi,
   contentApi,
   mediaApi,
+  packsApi,
   progressApi,
   resultsApi,
   usersApi,

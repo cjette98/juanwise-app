@@ -121,6 +121,9 @@ export interface ApiClass {
   gradeLevel: string | null;
   section: string | null;
   assignment: ApiAssignment | null;
+  packId: string | null;
+  packBinding: ApiPackBinding | null;
+  packVersion: number | null;
   memberCount: number;
   archived: boolean;
   createdAt: string | null;
@@ -150,6 +153,38 @@ export interface CreateClassRequest {
 export interface JoinClassResponse {
   message: string;
   class: ApiClass;
+}
+
+export type ApiPackStatus = 'draft' | 'published' | 'archived';
+export type ApiPackBinding = 'linked' | 'copied';
+
+export interface ApiPack {
+  id: string;
+  name: string;
+  ownerUid: string;
+  origin: 'system' | 'teacher';
+  forkedFrom: string | null;
+  status: ApiPackStatus;
+  version: number;
+  publishedAt: string | null;
+  showMiniLesson: boolean;
+  classCount: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface CreatePackRequest {
+  name: string;
+}
+
+export interface PatchPackRequest {
+  name?: string;
+  showMiniLesson?: boolean;
+}
+
+export interface AssignPackRequest {
+  packId: string;
+  mode: 'link' | 'copy';
 }
 
 /* ----------------------------------------------------------------- content */
@@ -317,6 +352,7 @@ export interface MarkActivityRequest {
   activityType: ApiActivityType;
   level: number;
   activityNum: number;
+  classId?: string;
 }
 
 /* ----------------------------------------------------------------- results */

@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useClass, GameType } from '@/features/teacher/context/class-context';
-import { CATEGORY_LIST } from '@/features/admin/context/admin-content-context';
+import { CATEGORY_LIST } from '@/shared/content/category-meta';
 import { useRouter } from 'expo-router';
+import { classesApi, packsApi, errorMessage, type ApiPack, type AssignPackRequest } from '@/shared/api';
+import { AssignPackDialog } from './assign-pack-dialog';
 
 const CATEGORY_META: Record<string, { label: string; color: string }> = {
   history: { label: 'History', color: '#2E6FB8' },
@@ -19,11 +21,52 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
 export default function ClassMapScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { assignment, setAssignment, clearAssignment } = useClass();
+  const { assignment, setAssignment, clearAssignment, currentClass, refresh: refreshClass } = useClass();
 
   const [draftCategory, setDraftCategory] = useState<string | null>(assignment?.category ?? null);
   const [draftGameType, setDraftGameType] = useState<GameType | null>(assignment?.gameType ?? null);
   const [busy, setBusy] = useState(false);
+  const [assignedPack, setAssignedPack] = useState<ApiPack | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [clearingPack, setClearingPack] = useState(false);
+
+  useEffect(() => {
+    if (!currentClass?.packId) {
+      setAssignedPack(null);
+      return;
+    }
+    let cancelled = false;
+    packsApi.get(currentClass.packId).then((pack) => {
+      if (!cancelled) setAssignedPack(pack);
+    }).catch(() => {
+      if (!cancelled) setAssignedPack(null);
+    });
+    return () => { cancelled = true; };
+  }, [currentClass?.packId]);
+
+  const handleAssignPack = async (input: AssignPackRequest): Promise<{ success: boolean; message: string }> => {
+    if (!currentClass) return { success: false, message: t('contentPackNoClassMsg') };
+    try {
+      await classesApi.assignPack(currentClass.id, input);
+      await refreshClass();
+      return { success: true, message: t('contentPackAssignedMsg') };
+    } catch (err) {
+      return { success: false, message: errorMessage(err, t('contentPackAssignFailedMsg')) };
+    }
+  };
+
+  const handleClearPack = async () => {
+    if (!currentClass) return;
+    setClearingPack(true);
+    try {
+      await classesApi.clearPack(currentClass.id);
+      await refreshClass();
+    } catch (err) {
+      Alert.alert(t('contentPackCardTitle'), errorMessage(err, t('contentPackClearFailedMsg')));
+    } finally {
+      setClearingPack(false);
+    }
+  };
 
   // PUT /classes/:id/assignment — the lock now lives on the class document, so
   // every student in the class sees it, not just this device.
@@ -137,24 +180,54 @@ export default function ClassMapScreen() {
           </View>
         </View>
 
+        {/* CONTENT PACK CARD */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('contentPackCardTitle')}</Text>
+          {currentClass?.packId ? (
+            <>
+              <Text style={styles.cardDesc}>
+                {assignedPack?.name ?? '...'} —{' '}
+                {currentClass.packBinding === 'copied' ? t('contentPackBoundCopied') : t('contentPackBoundLinked')}
+              </Text>
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={[styles.actionBtn, styles.assignBtn]} onPress={() => setDialogOpen(true)}>
+                  <Text style={styles.actionBtnText}>{t('contentPackChangeBtn')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.clearBtn, clearingPack && styles.disabledBtn]}
+                  onPress={handleClearPack}
+                  disabled={clearingPack}
+                >
+                  <Text style={styles.actionBtnText}>{t('contentPackClearBtn')}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.noAssignText}>{t('contentPackNoneAssigned')}</Text>
+              <TouchableOpacity style={[styles.actionBtn, styles.assignBtn]} onPress={() => setDialogOpen(true)}>
+                <Text style={styles.actionBtnText}>{t('contentPackChangeBtn')}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        <AssignPackDialog
+          visible={dialogOpen}
+          currentPackId={currentClass?.packId ?? null}
+          onAssign={handleAssignPack}
+          onClose={() => setDialogOpen(false)}
+        />
+
         {/* CONTENT MANAGEMENT LINKS */}
         <Text style={styles.sectionTitle}>{t('contentManagementTitle')}</Text>
 
         <TouchableOpacity
           style={[styles.linkCard, { backgroundColor: '#3B7DD8' }]}
-          onPress={() => router.navigate('/admin-content-manager')}
+          onPress={() => router.navigate('/packs')}
         >
-          <Ionicons name="help-circle" size={22} color="#FFF" />
-          <Text style={styles.linkCardText}>{t('quizContentBtn')}</Text>
-          <Ionicons name="chevron-forward" size={18} color="#FFF" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.linkCard, { backgroundColor: '#9B4FD6' }]}
-          onPress={() => router.navigate('/jigsaw-content')}
-        >
-          <Ionicons name="extension-puzzle" size={22} color="#FFF" />
-          <Text style={styles.linkCardText}>{t('jigsawContentBtn')}</Text>
+          <Ionicons name="albums" size={22} color="#FFF" />
+          <Text style={styles.linkCardText}>{t('managePacksBtn')}</Text>
           <Ionicons name="chevron-forward" size={18} color="#FFF" />
         </TouchableOpacity>
       </ScrollView>

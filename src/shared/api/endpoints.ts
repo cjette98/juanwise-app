@@ -11,6 +11,7 @@ import type {
   ApiActivityResult,
   ApiAssignment,
   ApiLeaderboard,
+  ApiPack,
   ApiProgress,
   ApiProgressTrack,
   ApiQuestion,
@@ -18,12 +19,15 @@ import type {
   ApiStudentProgression,
   ApiStudentSummary,
   ApiUserProfile,
+  AssignPackRequest,
   CreateClassRequest,
+  CreatePackRequest,
   JoinClassResponse,
   ListResultsQuery,
   LoginRequest,
   MarkActivityRequest,
   Page,
+  PatchPackRequest,
   RegisterRequest,
   SubmitResultRequest,
   UpdateCategoryRequest,
@@ -183,69 +187,135 @@ export const classesApi = {
   clearAssignment(id: string): Promise<ApiClass> {
     return request(`/classes/${encodeURIComponent(id)}/assignment`, { method: 'DELETE' });
   },
+
+  assignPack(id: string, input: AssignPackRequest): Promise<ApiClass> {
+    return request(`/classes/${encodeURIComponent(id)}/pack`, { method: 'PUT', body: input });
+  },
+
+  clearPack(id: string): Promise<ApiClass> {
+    return request(`/classes/${encodeURIComponent(id)}/pack`, { method: 'DELETE' });
+  },
+
+  async categories(id: string): Promise<ApiCategory[]> {
+    const { items } = await request<{ items: ApiCategory[] }>(
+      `/classes/${encodeURIComponent(id)}/content/categories`,
+    );
+    return items;
+  },
+
+  async questions(id: string, query: { category?: ApiCategoryKey; level?: number } = {}): Promise<ApiQuestion[]> {
+    const { items } = await request<{ items: ApiQuestion[] }>(
+      `/classes/${encodeURIComponent(id)}/content/questions`,
+      { query },
+    );
+    return items;
+  },
+};
+
+/* -------------------------------------------------------------------- packs */
+
+export const packsApi = {
+  async list(mine = false): Promise<ApiPack[]> {
+    const { items } = await request<{ items: ApiPack[] }>('/packs', { query: { mine } });
+    return items;
+  },
+
+  create(name: string): Promise<ApiPack> {
+    return request('/packs', { method: 'POST', body: { name } });
+  },
+
+  get(id: string): Promise<ApiPack> {
+    return request(`/packs/${encodeURIComponent(id)}`);
+  },
+
+  patch(id: string, input: Partial<PatchPackRequest>): Promise<ApiPack> {
+    return request(`/packs/${encodeURIComponent(id)}`, { method: 'PATCH', body: input });
+  },
+
+  /** The backend derives the copy's name itself — this route takes no body. */
+  duplicate(id: string): Promise<ApiPack> {
+    return request(`/packs/${encodeURIComponent(id)}/duplicate`, { method: 'POST' });
+  },
+
+  publish(id: string): Promise<ApiPack> {
+    return request(`/packs/${encodeURIComponent(id)}/publish`, { method: 'POST' });
+  },
+
+  archive(id: string): Promise<ApiPack> {
+    return request(`/packs/${encodeURIComponent(id)}/archive`, { method: 'POST' });
+  },
 };
 
 /* ----------------------------------------------------------------- content */
 
 export const contentApi = {
-  async categories(): Promise<ApiCategory[]> {
-    const { items } = await request<{ items: ApiCategory[] }>('/content/categories');
+  async categories(packId: string): Promise<ApiCategory[]> {
+    const { items } = await request<{ items: ApiCategory[] }>(
+      `/packs/${encodeURIComponent(packId)}/categories`,
+    );
     return items;
   },
 
-  category(key: ApiCategoryKey): Promise<ApiCategory> {
-    return request(`/content/categories/${key}`);
+  category(packId: string, key: ApiCategoryKey): Promise<ApiCategory> {
+    return request(`/packs/${encodeURIComponent(packId)}/categories/${key}`);
   },
 
-  updateCategory(key: ApiCategoryKey, patch: UpdateCategoryRequest): Promise<ApiCategory> {
-    return request(`/content/categories/${key}`, { method: 'PUT', body: patch });
+  updateCategory(packId: string, key: ApiCategoryKey, patch: UpdateCategoryRequest): Promise<ApiCategory> {
+    return request(`/packs/${encodeURIComponent(packId)}/categories/${key}`, { method: 'PUT', body: patch });
   },
 
-  /**
-   * Returns every slot in the grid, not just admin edits — a slot with no
-   * override comes back with `isOverride: false`.
-   */
-  async questions(query: { category?: ApiCategoryKey; level?: number } = {}): Promise<ApiQuestion[]> {
-    const { items } = await request<{ items: ApiQuestion[] }>('/content/questions', { query });
+  async questions(
+    packId: string,
+    query: { category?: ApiCategoryKey; level?: number } = {},
+  ): Promise<ApiQuestion[]> {
+    const { items } = await request<{ items: ApiQuestion[] }>(
+      `/packs/${encodeURIComponent(packId)}/questions`,
+      { query },
+    );
     return items;
   },
 
-  question(category: ApiCategoryKey, level: number, activityNum: number): Promise<ApiQuestion> {
-    return request(`/content/questions/${category}/${level}/${activityNum}`);
+  question(packId: string, category: ApiCategoryKey, level: number, activityNum: number): Promise<ApiQuestion> {
+    return request(`/packs/${encodeURIComponent(packId)}/questions/${category}/${level}/${activityNum}`);
   },
 
   upsertQuestion(
+    packId: string,
     category: ApiCategoryKey,
     level: number,
     activityNum: number,
     input: UpsertQuestionRequest,
   ): Promise<ApiQuestion> {
-    return request(`/content/questions/${category}/${level}/${activityNum}`, {
+    return request(`/packs/${encodeURIComponent(packId)}/questions/${category}/${level}/${activityNum}`, {
       method: 'PUT',
       body: input,
     });
   },
 
   /** Reverts to the seeded default; 404s when there was no override. */
-  revertQuestion(category: ApiCategoryKey, level: number, activityNum: number): Promise<ApiQuestion> {
-    return request(`/content/questions/${category}/${level}/${activityNum}`, { method: 'DELETE' });
+  revertQuestion(packId: string, category: ApiCategoryKey, level: number, activityNum: number): Promise<ApiQuestion> {
+    return request(`/packs/${encodeURIComponent(packId)}/questions/${category}/${level}/${activityNum}`, {
+      method: 'DELETE',
+    });
   },
 
+  /**
+   * Unscoped by design — this is the old global toggle, not part of the pack
+   * model. `GET /packs/:packId` is where a pack's OWN `showMiniLesson` lives;
+   * see `docs/superpowers/specs/2026-09-08-teacher-packs-mobile-design.md`
+   * fact 6 for why the student-facing toggle still reads this endpoint.
+   */
   settings(): Promise<ApiContentSettings> {
     return request('/content/settings');
-  },
-
-  updateSettings(showMiniLesson: boolean): Promise<ApiContentSettings> {
-    return request('/content/settings', { method: 'PUT', body: { showMiniLesson } });
   },
 };
 
 /* ---------------------------------------------------------------- progress */
 
 export const progressApi = {
-  /** Pass `uid` to read a student you teach; omit for your own. */
-  get(uid?: string): Promise<ApiProgress> {
-    return request('/progress/me', { query: { uid } });
+  /** Pass `uid` to read a student you teach; omit for your own. `classId` picks which class's progress — omit to fall back to the caller's single active class. */
+  get(uid?: string, classId?: string): Promise<ApiProgress> {
+    return request('/progress/me', { query: { uid, classId } });
   },
 
   complete(input: MarkActivityRequest): Promise<ApiProgressTrack> {

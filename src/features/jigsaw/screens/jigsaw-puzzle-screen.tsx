@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import Svg, { Path, Image as SvgImage, ClipPath, Defs, G } from 'react-native-svg';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
-import { useAdminContent } from '@/features/admin/context/admin-content-context';
+import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
 import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
@@ -72,7 +72,7 @@ export default function JigsawPuzzleScreen() {
   const { completeActivity, failActivity } = useGameProgress();
   const { addResult } = useStudentResults();
   const { name: studentName } = useUser();
-  const { getEffectiveCategoryContent } = useAdminContent();
+  const { getEffectiveCategoryContent } = useClassContent();
   const { t } = useLanguage();
   const cat = categoryColor(category);
 

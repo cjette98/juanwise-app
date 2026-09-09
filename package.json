@@ -1,7 +1,7 @@
 {
   "name": "juanwise-app-v2",
   "main": "expo-router/entry",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "dependencies": {
     "@expo-google-fonts/baloo-2": "^0.4.2",
     "@expo-google-fonts/nunito": "^0.4.2",
