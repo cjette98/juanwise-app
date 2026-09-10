@@ -7,7 +7,7 @@ const REQUIRED: IconName[] = [
   'home', 'book', 'lesson', 'quiz', 'puzzle', 'trophy', 'user', 'star',
   'clock', 'lock', 'check', 'close', 'chevronLeft', 'chevronRight',
   'medal', 'play', 'key', 'lightbulb', 'chart', 'flag', 'bolt', 'refresh',
-  'eye', 'logout', 'grid', 'bookmark',
+  'eye', 'logout', 'grid', 'bookmark', 'help', 'minus', 'pencil', 'share',
 ];
 
 describe('icon registry', () => {
