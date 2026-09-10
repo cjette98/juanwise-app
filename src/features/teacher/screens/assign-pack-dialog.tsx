@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Modal, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { packsApi, errorMessage, type ApiPack, type AssignPackRequest } from '@/shared/api';
 import { useLanguage } from '@/shared/i18n/language-context';
+import { Button, H2, BodyStrong, Caption } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 
 interface AssignPackDialogProps {
   visible: boolean;
@@ -45,46 +47,62 @@ export function AssignPackDialog({ visible, currentPackId, onAssign, onClose }: 
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View style={styles.root}>
+        <View style={styles.scrim} />
         <View style={styles.sheet}>
-          <Text style={styles.title}>{t('assignPackDialogTitle')}</Text>
+          <H2 style={styles.title}>{t('assignPackDialogTitle')}</H2>
 
           {loading ? (
-            <ActivityIndicator style={{ marginVertical: 20 }} />
+            <ActivityIndicator style={styles.loading} color={tokens.color.primary} />
           ) : (
             <ScrollView style={styles.list}>
-              {packs.map((pack) => (
-                <TouchableOpacity
-                  key={pack.id}
-                  style={[styles.packRow, selectedId === pack.id && styles.packRowActive]}
-                  onPress={() => setSelectedId(pack.id)}
-                >
-                  <Text style={styles.packRowText}>{pack.name}</Text>
-                  <Text style={styles.packRowMeta}>{pack.status}</Text>
-                </TouchableOpacity>
-              ))}
+              {packs.map((pack) => {
+                const selected = selectedId === pack.id;
+                return (
+                  <TouchableOpacity
+                    key={pack.id}
+                    style={[styles.packRow, selected && styles.packRowActive]}
+                    onPress={() => setSelectedId(pack.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <BodyStrong style={styles.packRowText} numberOfLines={1}>
+                      {pack.name}
+                    </BodyStrong>
+                    <Caption style={styles.packRowMeta}>{pack.status}</Caption>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           )}
 
           <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.shareBtn, (!selectedId || busy) && styles.disabledBtn]}
+            <Button
+              label={t('assignPackShareBtn')}
               onPress={() => choose('link')}
-              disabled={!selectedId || busy}
-            >
-              {busy ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.actionBtnText}>{t('assignPackShareBtn')}</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.copyBtn, (!selectedId || busy) && styles.disabledBtn]}
+              disabled={!selectedId}
+              busy={busy}
+              color={tokens.color.success}
+              shadowColor={tokens.color.successDark}
+              style={!selectedId ? styles.actionBtnDisabled : styles.actionBtn}
+            />
+            <Button
+              label={t('assignPackCopyBtn')}
               onPress={() => choose('copy')}
               disabled={!selectedId || busy}
-            >
-              <Text style={styles.actionBtnText}>{t('assignPackCopyBtn')}</Text>
-            </TouchableOpacity>
+              color={tokens.color.navQuiz}
+              shadowColor={tokens.color.primaryDark}
+              style={!selectedId || busy ? styles.actionBtnDisabled : styles.actionBtn}
+            />
           </View>
 
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={busy}>
-            <Text style={styles.cancelBtnText}>{t('cancelBtn')}</Text>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={onClose}
+            disabled={busy}
+            accessibilityRole="button"
+          >
+            <BodyStrong style={styles.cancelBtnText}>{t('cancelBtn')}</BodyStrong>
           </TouchableOpacity>
         </View>
       </View>
@@ -92,24 +110,45 @@ export function AssignPackDialog({ visible, currentPackId, onAssign, onClose }: 
   );
 }
 
+/** Layout only — every colour, radius and size comes from `tokens`. */
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '80%' },
-  title: { fontSize: 16, fontWeight: '900', color: '#0038A8', marginBottom: 12 },
-  list: { maxHeight: 260, marginBottom: 12 },
-  packRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 12, borderRadius: 12, borderWidth: 1.5, borderColor: '#E0D5BE', marginBottom: 8,
+  root: { flex: 1, justifyContent: 'flex-end' },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: tokens.color.ink, opacity: 0.55 },
+  sheet: {
+    backgroundColor: tokens.color.canvas,
+    borderTopLeftRadius: tokens.radius.sheet,
+    borderTopRightRadius: tokens.radius.sheet,
+    padding: tokens.space.lg,
+    gap: tokens.space.md,
+    maxHeight: '80%',
   },
-  packRowActive: { borderColor: '#3B7DD8', backgroundColor: '#EFF3FF' },
-  packRowText: { fontSize: 13, fontWeight: '600', color: '#1A1A1A' },
-  packRowMeta: { fontSize: 11, color: '#8E8E93' },
-  actionRow: { flexDirection: 'row', gap: 10 },
-  actionBtn: { flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center' },
-  shareBtn: { backgroundColor: '#2E9E5B' },
-  copyBtn: { backgroundColor: '#3B7DD8' },
-  disabledBtn: { opacity: 0.4 },
-  actionBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
-  cancelBtn: { marginTop: 10, alignItems: 'center' },
-  cancelBtnText: { color: '#8E8E93', fontWeight: '600' },
+  title: { color: tokens.color.primary },
+  loading: { marginVertical: tokens.space.xl },
+  list: { maxHeight: 260 },
+  packRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: tokens.space.sm,
+    minHeight: tokens.hit.min,
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.sm,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1.5,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.surface,
+    marginBottom: tokens.space.sm,
+  },
+  packRowActive: { borderColor: tokens.color.primary, backgroundColor: tokens.color.surfaceSunken },
+  packRowText: { flex: 1 },
+  packRowMeta: { color: tokens.color.inkMuted },
+  actionRow: { flexDirection: 'row', gap: tokens.space.sm },
+  actionBtn: { flex: 1 },
+  actionBtnDisabled: { flex: 1, opacity: 0.4 },
+  cancelBtn: {
+    minHeight: tokens.hit.min,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: { color: tokens.color.inkMuted },
 });

@@ -87,7 +87,7 @@ export default function PerformanceProgressionScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('performanceProgression')}</Text>
+        <Text style={styles.headerTitle}>{t('performanceProgression').toUpperCase()}</Text>
         <Text style={styles.headerSubtitle}>
           Hinahambing ang unang mga sagot laban sa pinakabagong mga sagot para makita kung sino ang umuunlad.
         </Text>

@@ -5,26 +5,19 @@ import {
   errorMessage,
   readCache,
   writeCache,
-  type ApiCategoryKey,
   type ApiClass,
   type ApiClassMember,
 } from '@/shared/api';
 import { useUser } from '@/features/auth/context/user-context';
 
 /**
- * The class, its roster and its current assignment — all server-side now.
+ * The class and its roster — all server-side now.
  *
  * This is what fixes the cross-device join: `joinClass` resolves the code
  * against Firestore rather than against whatever code happens to be in the
  * student's own storage, so a student on one phone can join a class created on
  * the teacher's phone.
  */
-export type GameType = 'quiz' | 'jigsaw';
-
-export interface Assignment {
-  category: string;
-  gameType: GameType;
-}
 
 /** Roster row, kept in the shape the Class Overview screen already renders. */
 export interface JoinedStudent {
@@ -75,10 +68,6 @@ type ClassContextType = {
   setCustomCode: (code: string) => Promise<ActionResult>;
   joinClass: (code: string) => Promise<ActionResult>;
   removeStudent: (uid: string) => Promise<ActionResult>;
-
-  assignment: Assignment | null;
-  setAssignment: (category: string, gameType: GameType) => Promise<ActionResult>;
-  clearAssignment: () => Promise<ActionResult>;
 };
 
 const ClassContext = createContext<ClassContextType | undefined>(undefined);
@@ -262,40 +251,6 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
     [currentClass],
   );
 
-  const setAssignment: ClassContextType['setAssignment'] = useCallback(
-    async (category, gameType) => {
-      try {
-        const existing = currentClass ?? (await ensureClass());
-        const updated = await classesApi.setAssignment(existing.id, {
-          category: category as ApiCategoryKey,
-          gameType,
-        });
-        if (mounted.current) {
-          setCurrentClass(updated);
-          writeCache(CLASS_CACHE_KEY, updated);
-        }
-        return { success: true, message: 'Na-assign ang activity sa klase.' };
-      } catch (err) {
-        return { success: false, message: errorMessage(err, 'Hindi na-assign ang activity.') };
-      }
-    },
-    [currentClass, ensureClass],
-  );
-
-  const clearAssignment: ClassContextType['clearAssignment'] = useCallback(async () => {
-    if (!currentClass) return { success: true, message: 'Walang naka-assign.' };
-    try {
-      const updated = await classesApi.clearAssignment(currentClass.id);
-      if (mounted.current) {
-        setCurrentClass(updated);
-        writeCache(CLASS_CACHE_KEY, updated);
-      }
-      return { success: true, message: 'Na-clear ang assignment.' };
-    } catch (err) {
-      return { success: false, message: errorMessage(err, 'Hindi na-clear ang assignment.') };
-    }
-  }, [currentClass]);
-
   const value = useMemo<ClassContextType>(
     () => ({
       ready,
@@ -310,11 +265,8 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
       setCustomCode,
       joinClass,
       removeStudent,
-      assignment: currentClass?.assignment ?? null,
-      setAssignment,
-      clearAssignment,
     }),
-    [ready, currentClass, students, error, refresh, generateCode, setCustomCode, joinClass, removeStudent, setAssignment, clearAssignment],
+    [ready, currentClass, students, error, refresh, generateCode, setCustomCode, joinClass, removeStudent],
   );
 
   return <ClassContext.Provider value={value}>{children}</ClassContext.Provider>;

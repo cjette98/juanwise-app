@@ -1,28 +1,30 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  Alert,
-  Share,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { View, TextInput, StyleSheet, ScrollView, Alert, Share, RefreshControl, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useClass } from '@/features/teacher/context/class-context';
-import { useRouter } from 'expo-router';
+import {
+  Screen,
+  ScreenHeader,
+  Card,
+  Button,
+  Pill,
+  Icon,
+  Avatar,
+  Display,
+  Body,
+  BodyStrong,
+  Caption,
+  Label,
+} from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 
 export default function ClassOverviewScreen() {
   const router = useRouter();
   const { t } = useLanguage();
   // The roster comes from GET /classes/:id/members, so every student who joined
   // with this code shows up here regardless of the device they joined from.
-  const { classCode, students, totalStudents, generateCode, setCustomCode, removeStudent, refresh, error } =
+  const { classCode, students, totalStudents, currentClass, generateCode, setCustomCode, removeStudent, refresh, error } =
     useClass();
 
   const [editing, setEditing] = useState(false);
@@ -71,10 +73,10 @@ export default function ClassOverviewScreen() {
   };
 
   const handleRemove = (uid: string, name: string) => {
-    Alert.alert('Alisin sa Klase?', `Aalisin si ${name} sa roster. Mananatili ang mga naitala niyang resulta.`, [
-      { text: 'Kanselahin', style: 'cancel' },
+    Alert.alert(t('removeStudentTitle'), t('removeStudentMsg', { name }), [
+      { text: t('cancelBtn'), style: 'cancel' },
       {
-        text: 'Alisin',
+        text: t('removeStudentBtn'),
         style: 'destructive',
         onPress: async () => {
           const result = await removeStudent(uid);
@@ -95,32 +97,37 @@ export default function ClassOverviewScreen() {
     }
   };
 
+  const hasGradeSection = !!(currentClass?.gradeLevel || currentClass?.section);
+  const gradeSection = `${t('grade')} ${currentClass?.gradeLevel || '—'} · ${t('section')} ${currentClass?.section || '—'}`;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>{t('back')}</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>{t('classOverview')}</Text>
-        <View style={{ width: 50 }} />
-      </View>
+    <Screen>
+      <ScreenHeader
+        title={t('classOverview')}
+        subtitle={hasGradeSection ? gradeSection : undefined}
+        onBack={() => router.back()}
+      >
+        <View style={styles.headerPills}>
+          <Pill label={`${t('totalStudents')}: ${totalStudents}`} icon="grid" tone="translucent" />
+        </View>
+      </ScreenHeader>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#FFF" />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={tokens.color.primary} />
         }
       >
         {!!error && (
-          <View style={styles.errorBanner}>
-            <Ionicons name="cloud-offline-outline" size={16} color="#FFF" />
-            <Text style={styles.errorBannerText}>{error}</Text>
-          </View>
+          <Card style={styles.errorBanner}>
+            <Icon name="flag" size={18} color={tokens.color.dangerInk} />
+            <Body style={styles.errorBannerText}>{error}</Body>
+          </Card>
         )}
 
         {/* CLASS CODE CARD */}
-        <View style={styles.codeCard}>
-          <Text style={styles.codeLabel}>{t('classCodeLabel')}</Text>
+        <Card raised style={styles.codeCard}>
+          <Label>{t('classCodeLabel')}</Label>
 
           {editing ? (
             <>
@@ -131,158 +138,153 @@ export default function ClassOverviewScreen() {
                 maxLength={10}
                 autoCapitalize="characters"
                 placeholder="A1B2C3D4E5"
-                placeholderTextColor="#AAB"
+                placeholderTextColor={tokens.color.inkFaint}
               />
               <View style={styles.codeBtnRow}>
-                <TouchableOpacity
-                  style={[styles.smallBtn, styles.saveBtn, busy && styles.busyBtn]}
+                <Button
+                  label={t('saveCode')}
                   onPress={handleSaveCustom}
-                  disabled={busy}
-                >
-                  <Text style={styles.smallBtnText}>{t('saveCode')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.smallBtn, styles.cancelBtn]}
+                  busy={busy}
+                  color={tokens.color.success}
+                  shadowColor={tokens.color.successDark}
+                  style={styles.codeActionBtn}
+                />
+                <Button
+                  label={t('cancelCode')}
                   onPress={() => setEditing(false)}
                   disabled={busy}
-                >
-                  <Text style={styles.smallBtnText}>{t('cancelCode')}</Text>
-                </TouchableOpacity>
+                  color={tokens.color.danger}
+                  shadowColor={tokens.color.dangerInk}
+                  style={styles.codeActionBtn}
+                />
               </View>
             </>
           ) : (
             <>
-              <Text style={styles.codeValue}>{classCode || '— — — — — — — — — —'}</Text>
+              <View style={styles.codePlate}>
+                <Display style={styles.codeValue} numberOfLines={1} adjustsFontSizeToFit allowFontScaling={false}>
+                  {classCode || '— — — — — — — — — —'}
+                </Display>
+              </View>
               <View style={styles.codeBtnRow}>
+                <Button label={t('generateCode')} onPress={handleGenerate} busy={busy} icon="refresh" style={styles.generateBtn} />
                 <TouchableOpacity
-                  style={[styles.smallBtn, styles.generateBtn, busy && styles.busyBtn]}
-                  onPress={handleGenerate}
-                  disabled={busy}
+                  style={[styles.iconBtn, { backgroundColor: tokens.color.navQuiz }]}
+                  onPress={handleStartEdit}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('editCode')}
                 >
-                  {busy ? (
-                    <ActivityIndicator color="#FFF" size="small" />
-                  ) : (
-                    <Ionicons name="refresh" size={14} color="#FFF" />
-                  )}
-                  <Text style={styles.smallBtnText}>{t('generateCode')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.smallBtn, styles.editBtn]} onPress={handleStartEdit}>
-                  <Ionicons name="pencil" size={14} color="#FFF" />
-                  <Text style={styles.smallBtnText}>{t('editCode')}</Text>
+                  <Icon name="pencil" size={22} color={tokens.color.onDark} />
                 </TouchableOpacity>
                 {!!classCode && (
-                  <TouchableOpacity style={[styles.smallBtn, styles.shareBtn]} onPress={handleShare}>
-                    <Ionicons name="share-social" size={14} color="#FFF" />
-                    <Text style={styles.smallBtnText}>{t('copyCode')}</Text>
+                  <TouchableOpacity
+                    style={[styles.iconBtn, { backgroundColor: tokens.color.success }]}
+                    onPress={handleShare}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('copyCode')}
+                  >
+                    <Icon name="share" size={22} color={tokens.color.onDark} />
                   </TouchableOpacity>
                 )}
               </View>
             </>
           )}
-        </View>
-
-        {/* TOTAL STUDENTS */}
-        <View style={styles.totalPill}>
-          <Ionicons name="people" size={16} color="#FFF" />
-          <Text style={styles.totalText}>{t('totalStudents')}: {totalStudents}</Text>
-        </View>
+        </Card>
 
         {/* STUDENT LIST */}
-        <Text style={styles.sectionTitle}>{t('joinedStudents')}</Text>
+        <Label style={styles.sectionLabel}>{t('joinedStudents')}</Label>
 
         {students.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={40} color="#9AA" />
-            <Text style={styles.emptyText}>{t('noStudentsYet')}</Text>
+            <Icon name="grid" size={40} color={tokens.color.inkFaint} />
+            <Body style={styles.emptyText}>{t('noStudentsYet')}</Body>
           </View>
         ) : (
-          students.map((s) => (
-            <View key={s.uid} style={styles.studentCard}>
-              <View style={styles.studentAvatar}>
-                <Text style={styles.studentAvatarText}>🧑‍🎓</Text>
-              </View>
-              <View style={styles.studentInfo}>
-                <Text style={styles.studentName}>{s.name}</Text>
-                <Text style={styles.studentDetail}>{t('gradeLabel')}: {s.grade} — {s.section}</Text>
-                <Text style={styles.studentDetail}>{t('lrnShort')}: {s.lrn}</Text>
-                <Text style={styles.studentDetail}>{t('gmailShort')}: {s.email}</Text>
-              </View>
-              <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemove(s.uid, s.name)}>
-                <Ionicons name="person-remove-outline" size={18} color="#B23A3A" />
-              </TouchableOpacity>
-            </View>
-          ))
+          <View style={styles.studentList}>
+            {students.map((s) => (
+              <Card key={s.uid} style={styles.studentRow}>
+                <Avatar name={s.name} />
+                <View style={styles.studentInfo}>
+                  <BodyStrong numberOfLines={1}>{s.name}</BodyStrong>
+                  <Caption numberOfLines={1}>@{s.username}</Caption>
+                </View>
+                <TouchableOpacity
+                  style={styles.removeBtn}
+                  onPress={() => handleRemove(s.uid, s.name)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('removeStudentBtn')}
+                >
+                  <Icon name="close" size={18} color={tokens.color.dangerInk} />
+                </TouchableOpacity>
+              </Card>
+            ))}
+          </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B3D91' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4,
-  },
-  backText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
-  title: { color: '#FCD116', fontWeight: '900', fontSize: 18 },
-  scrollContent: { padding: 16, paddingBottom: 40 },
+  scrollContent: { padding: tokens.space.lg, gap: tokens.space.sm, paddingBottom: tokens.space.xxl },
 
-  codeCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 18,
-    alignItems: 'center', marginBottom: 14,
-  },
-  codeLabel: { fontSize: 12, color: '#666', fontWeight: '700', marginBottom: 6, letterSpacing: 1 },
-  codeValue: {
-    fontSize: 24, fontWeight: '900', color: '#0038A8', letterSpacing: 3, marginBottom: 12,
-  },
-  codeInput: {
-    borderWidth: 2, borderColor: '#0038A8', borderRadius: 10, paddingHorizontal: 14,
-    paddingVertical: 8, fontSize: 18, fontWeight: 'bold', letterSpacing: 2, color: '#1A1A1A',
-    width: '100%', textAlign: 'center', marginBottom: 12,
-  },
-  codeBtnRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
-  smallBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8,
-    paddingHorizontal: 12, borderRadius: 14,
-  },
-  generateBtn: { backgroundColor: '#E8801A' },
-  editBtn: { backgroundColor: '#3B7DD8' },
-  shareBtn: { backgroundColor: '#2E9E5B' },
-  saveBtn: { backgroundColor: '#2E9E5B' },
-  cancelBtn: { backgroundColor: '#B23A3A' },
-  busyBtn: { opacity: 0.6 },
-  smallBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  headerPills: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm, marginTop: tokens.space.md },
 
   errorBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#B23A3A',
-    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.sm,
+    backgroundColor: tokens.color.dangerSoft,
+    borderColor: tokens.color.dangerBorder,
   },
-  errorBannerText: { color: '#FFF', fontSize: 12, flex: 1 },
+  errorBannerText: { flex: 1, color: tokens.color.dangerInk },
 
-  removeBtn: { padding: 8, borderRadius: 10, backgroundColor: '#FCEAEA' },
-
-  totalPill: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#B23A3A', paddingVertical: 10, borderRadius: 16, marginBottom: 18,
+  codeCard: { alignItems: 'center', gap: tokens.space.sm },
+  codePlate: {
+    width: '100%',
+    backgroundColor: tokens.color.surfaceSunken,
+    borderRadius: tokens.radius.md,
+    paddingVertical: tokens.space.lg,
+    alignItems: 'center',
   },
-  totalText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
-
-  sectionTitle: { color: '#FCD116', fontWeight: '900', fontSize: 15, marginBottom: 10 },
-
-  emptyState: { alignItems: 'center', paddingVertical: 30, gap: 8 },
-  emptyText: { color: '#DDE', textAlign: 'center', fontSize: 13, paddingHorizontal: 20 },
-
-  studentCard: {
-    flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 12,
-    marginBottom: 10, alignItems: 'center', gap: 12,
+  codeValue: { color: tokens.color.primary, letterSpacing: 4 },
+  codeInput: {
+    width: '100%',
+    borderWidth: 2,
+    borderColor: tokens.color.border,
+    borderRadius: tokens.radius.md,
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.sm,
+    textAlign: 'center',
+    color: tokens.color.ink,
+    ...tokens.type.display,
+    letterSpacing: 4,
   },
-  studentAvatar: {
-    width: 46, height: 46, borderRadius: 23, backgroundColor: '#EFF3FF',
-    alignItems: 'center', justifyContent: 'center',
+  codeBtnRow: { flexDirection: 'row', gap: tokens.space.sm, width: '100%', alignItems: 'center' },
+  generateBtn: { flex: 1 },
+  codeActionBtn: { flex: 1 },
+  iconBtn: {
+    width: tokens.hit.primary,
+    height: tokens.hit.primary,
+    borderRadius: tokens.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  studentAvatarText: { fontSize: 22 },
-  studentInfo: { flex: 1 },
-  studentName: { fontWeight: 'bold', fontSize: 14, color: '#1A1A1A', marginBottom: 2 },
-  studentDetail: { fontSize: 11, color: '#666' },
+
+  sectionLabel: { marginTop: tokens.space.xs },
+
+  emptyState: { alignItems: 'center', paddingVertical: tokens.space.xxl, gap: tokens.space.sm },
+  emptyText: { textAlign: 'center' },
+
+  studentList: { gap: tokens.space.sm },
+  studentRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.md },
+  studentInfo: { flex: 1, gap: 2 },
+  removeBtn: {
+    width: tokens.hit.min,
+    height: tokens.hit.min,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.color.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
