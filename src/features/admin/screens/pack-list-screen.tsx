@@ -36,7 +36,7 @@ export default function PackListScreen() {
       setPacks(items);
       setError(null);
     } catch (err) {
-      setError(errorMessage(err, 'Hindi na-load ang mga content pack.'));
+      setError(errorMessage(err, 'Hindi na-load ang Activity Management.'));
     } finally {
       setReady(true);
     }
@@ -107,8 +107,8 @@ export default function PackListScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Content Packs</Text>
-        <Text style={styles.headerSubtitle}>Gumawa, kopyahin, o i-publish ang iyong mga content pack</Text>
+        <Text style={styles.headerTitle}>Activity Management</Text>
+        <Text style={styles.headerSubtitle}>Gumawa, kopyahin, o i-publish ang iyong Activity Management</Text>
       </View>
 
       {!!error && (

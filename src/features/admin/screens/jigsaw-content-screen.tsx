@@ -32,7 +32,7 @@ export default function JigsawContentScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>Walang napiling pack. Bumalik sa Content Packs.</Text>
+          <Text style={styles.errorBannerText}>Walang napiling pack. Bumalik sa Activity Management.</Text>
         </View>
       </SafeAreaView>
     );
