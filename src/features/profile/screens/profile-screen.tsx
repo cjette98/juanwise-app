@@ -381,7 +381,7 @@ export default function ProfileScreen() {
 
         {!isTeacher && (
           <Card style={styles.progressCard}>
-            <Label style={styles.progressTitle}>{t('performanceProgression')}</Label>
+            <Label style={styles.progressTitle}>{t('performanceProgression').toUpperCase()}</Label>
             <View style={styles.progressList}>
               {CATEGORY_KEYS.map((key) => (
                 <View key={key} style={styles.progressRow}>

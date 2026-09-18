@@ -1,53 +1,138 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useStudentResults, LearnerPace, ResultFilter, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS, COMBINED_MAX_TIME_SECONDS } from '@/features/results/context/student-results-context';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import {
+  Screen,
+  ScreenHeader,
+  Card,
+  Button,
+  Icon,
+  Avatar,
+  StarRow,
+  Segmented,
+  H3,
+  Body,
+  BodyStrong,
+  Caption,
+  Label,
+  type IconName,
+  type SegmentedOption,
+} from '@/shared/components/ui';
+import { tokens, categoryColor } from '@/shared/theme/tokens';
+import {
+  useStudentResults,
+  ResultFilter,
+  TROPHY_TIERS,
+  Trophy,
+  LearnerPace,
+  COMBINED_MAX_POINTS,
+  COMBINED_MAX_TIME_SECONDS,
+} from '@/features/results/context/student-results-context';
+import { formatDuration, paceTone } from '@/features/leaderboard/teacher-leaderboard-format';
 import CATEGORY_META from '@/shared/content/category-meta';
+import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useRouter } from 'expo-router';
 
 type SortMode = 'speed' | 'points';
+type FilterKey = 'topic' | 'type' | 'level';
 const LEVELS = [1, 2, 3, 4, 5];
 
-const TROPHY_COLORS: Record<'gold' | 'silver' | 'bronze', string> = {
-  gold: '#FFC700',
-  silver: '#A8AEB8',
-  bronze: '#CD7F32',
+/** The tier's own name, so the legend never renders `TROPHY_TIERS.label` (emoji + English). */
+const TIER_NAME_KEY: Record<'gold' | 'silver' | 'bronze', TranslationKey> = {
+  gold: 'medalGold',
+  silver: 'medalSilver',
+  bronze: 'medalBronze',
 };
 
-function trophyIcon(trophy: Trophy, size = 15) {
-  if (trophy === 'gold' || trophy === 'silver' || trophy === 'bronze') {
-    return <Ionicons name="trophy" size={size} color={TROPHY_COLORS[trophy]} />;
-  }
-  return <Text style={{ color: '#8E8E93' }}>—</Text>;
-}
-
-function formatSeconds(total: number) {
-  const s = Math.max(0, Math.round(total));
-  const mm = Math.floor(s / 60);
-  const ss = s % 60;
-  return `${mm}m ${ss.toString().padStart(2, '0')}s`;
-}
-
-const PACE_META: Record<LearnerPace, { label: string; color: string; icon: string }> = {
-  fast: { label: '🚀 Mabilis Matuto', color: '#D4A017', icon: 'flash' },
-  steady: { label: '🚶 Sakto sa Bilis', color: '#8E9AAF', icon: 'walk' },
-  'needs-support': { label: '🐢 Kailangan ng Tulong', color: '#B08D57', icon: 'help-buoy' },
+/** The legend's "Trophy = Pace" rows are keyed on tier, the pace tone helper on pace — this bridges the two. */
+const PACE_BY_TIER: Record<'gold' | 'silver' | 'bronze', LearnerPace> = {
+  gold: 'fast',
+  silver: 'steady',
+  bronze: 'needs-support',
 };
 
-function starsDisplay(avgStars: number) {
-  const rounded = Math.round(avgStars);
-  return '⭐'.repeat(rounded) + '☆'.repeat(Math.max(0, 3 - rounded));
+/**
+ * The trophy, drawn as the same line icon the rest of the app uses, tinted to
+ * the tier it stands for, rather than the old bespoke `TROPHY_COLORS` hex
+ * triplet. `null` (no trophy yet) draws a dash instead of leaving a hole in
+ * the row.
+ */
+function TrophyGlyph({ trophy }: { trophy: Trophy }) {
+  if (!trophy) return <Caption style={{ color: tokens.color.inkFaint }}>—</Caption>;
+  const color =
+    trophy === 'gold' ? tokens.color.medalGold : trophy === 'silver' ? tokens.color.medalSilver : tokens.color.medalBronze;
+  return <Icon name="trophy" size={20} color={color} />;
+}
+
+/** One of the three collapsed filter chips — shows the active selection, or its "All" default, and opens its option set. */
+function FilterChip({
+  icon,
+  label,
+  active,
+  open,
+  onPress,
+}: {
+  icon: IconName;
+  label: string;
+  active: boolean;
+  open: boolean;
+  onPress: () => void;
+}) {
+  const highlighted = active || open;
+  return (
+    <TouchableOpacity
+      style={[styles.filterChip, highlighted && styles.filterChipActive]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open, selected: active }}
+    >
+      <Icon name={icon} size={15} color={highlighted ? tokens.color.onDark : tokens.color.inkMuted} />
+      <Caption
+        style={[styles.filterChipText, highlighted && styles.filterChipTextActive]}
+        numberOfLines={1}
+      >
+        {label}
+      </Caption>
+    </TouchableOpacity>
+  );
+}
+
+/** One option inside an open filter panel — "All" or a specific value. */
+function OptionPill({
+  label,
+  active,
+  color,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  color?: string;
+  onPress: () => void;
+}) {
+  const border = color ?? tokens.color.border;
+  const bg = active ? color ?? tokens.color.primary : tokens.color.surface;
+  const fg = active ? tokens.color.onDark : color ?? tokens.color.inkMuted;
+  return (
+    <TouchableOpacity
+      style={[styles.optionPill, { borderColor: border, backgroundColor: bg }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+    >
+      <Caption style={[styles.optionPillText, { color: fg }]}>{label}</Caption>
+    </TouchableOpacity>
+  );
 }
 
 export default function TeacherLeaderboardScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { getLeaderboard, getFilteredResults, ready, clearResults } = useStudentResults();
   const [sortMode, setSortMode] = useState<SortMode>('speed');
   const [category, setCategory] = useState<string | null>(null);
   const [activityType, setActivityType] = useState<'quiz' | 'jigsaw' | null>(null);
   const [level, setLevel] = useState<number | null>(null);
   const [showLegend, setShowLegend] = useState(false);
+  const [openFilter, setOpenFilter] = useState<FilterKey | null>(null);
 
   const isUnfiltered = !category && !activityType && !level;
 
@@ -73,254 +158,383 @@ export default function TeacherLeaderboardScreen() {
   // DELETE /results is scoped to this class and admin-only — a teacher gets a
   // clear 403 message back rather than a button that silently does nothing.
   const handleClear = () => {
-    Alert.alert('I-clear ang Leaderboard?', 'Buburahin lahat ng naitalang resulta ng klaseng ito.', [
-      { text: 'Kanselahin', style: 'cancel' },
+    Alert.alert(t('clearBoardTitle'), t('clearBoardMsg'), [
+      { text: t('cancelBtn'), style: 'cancel' },
       {
-        text: 'I-clear',
+        text: t('clearAllData'),
         style: 'destructive',
         onPress: async () => {
           const result = await clearResults();
-          Alert.alert(result.success ? 'Tapos na' : 'Hindi Nabura', result.message);
+          Alert.alert(result.success ? t('clearSuccessTitle') : t('clearFailTitle'), result.message);
         },
       },
     ]);
   };
 
+  const toggleFilter = (key: FilterKey) => setOpenFilter((v) => (v === key ? null : key));
+
+  const topicChipLabel = category ? CATEGORY_META.find((c) => c.key === category)?.label ?? category : t('filterTopic');
+  const typeChipLabel =
+    activityType === 'quiz' ? t('gameTypeQuiz') : activityType === 'jigsaw' ? t('gameTypeJigsaw') : t('filterType');
+  const levelChipLabel = level ? `${t('level')} ${level}` : t('filterLevel');
+
+  const SORT_OPTIONS: SegmentedOption<SortMode>[] = [
+    { value: 'speed', label: t('sortFastest'), icon: 'clock' },
+    { value: 'points', label: t('sortHighestPoints'), icon: 'star' },
+  ];
+
+  const subtitle = `${scopedResults.length} ${t('activitiesCompleted')}`;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
-          <Ionicons name="chevron-back" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerTopRow}>
-          <View>
-            <Text style={styles.headerTitle}>Leaderboard</Text>
-            <Text style={styles.headerSubtitle}>{scopedResults.length} kabuuang gawaing natapos · {leaderboard.length} estudyante</Text>
-          </View>
-          <TouchableOpacity style={styles.legendButton} onPress={() => setShowLegend((v) => !v)}>
-            <Ionicons name="trophy" size={14} color="#2E9E5B" />
-            <Text style={styles.legendButtonText}>Trophy Guide</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {showLegend && (
-        <View style={styles.legendCard}>
-          <Text style={styles.legendTitle}>Paano makakuha ng Trophy (Combined Quiz & Jigsaw, walang filter)</Text>
-          {TROPHY_TIERS.map((t) => (
-            <View key={t.trophy} style={styles.legendRow}>
-              <Text style={styles.legendRowLabel}>{t.label}</Text>
-              <Text style={styles.legendRowDetail}>{t.minPoints}+ pts · {t.timeLabel}</Text>
-            </View>
-          ))}
-          <Text style={styles.legendFoot}>Max posible: {COMBINED_MAX_POINTS} pts sa {COMBINED_MAX_TIME_SECONDS.toLocaleString()} sec. Trophy ay makikita lamang kapag "Lahat" ang filter sa Kategorya, Uri ng Gawain, at Level.</Text>
-
-          <View style={styles.legendDivider} />
-          <Text style={styles.legendTitle}>Trophy = Pace (parehong batayan)</Text>
-          <View style={styles.legendRow}>
-            <Text style={styles.legendRowLabel}>{trophyIcon('gold')} Gold</Text>
-            <Text style={styles.legendRowDetail}>→ 🚀 Mabilis Matuto (Fast Learner)</Text>
-          </View>
-          <View style={styles.legendRow}>
-            <Text style={styles.legendRowLabel}>{trophyIcon('silver')} Silver</Text>
-            <Text style={styles.legendRowDetail}>→ 🚶 Sakto sa Bilis (Steady/Normal)</Text>
-          </View>
-          <View style={styles.legendRow}>
-            <Text style={styles.legendRowLabel}>{trophyIcon('bronze')} Bronze / Wala</Text>
-            <Text style={styles.legendRowDetail}>→ 🐢 Kailangan ng Tulong (Needs Support)</Text>
-          </View>
-          <Text style={styles.legendFoot}>⭐ Stars = average na bituin kada gawain (3⭐ pinakamabilis/tama, 1⭐ pumasa lang, 0⭐ mali/timeout).</Text>
-        </View>
-      )}
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* FILTERS */}
-        <View style={styles.filterCard}>
-          <Text style={styles.filterLabel}>Kategorya</Text>
-          <View style={styles.chipRow}>
+    <Screen>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScreenHeader
+          title={t('leaderBoard')}
+          subtitle={subtitle}
+          color={tokens.color.navLeaderboard}
+          onBack={() => router.back()}
+          right={
             <TouchableOpacity
-              style={[styles.chip, !category && styles.chipActiveNeutral]}
-              onPress={() => setCategory(null)}
+              style={styles.legendToggle}
+              onPress={() => setShowLegend((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={t('trophyGuide')}
+              accessibilityState={{ expanded: showLegend }}
             >
-              <Text style={[styles.chipText, !category && styles.chipTextActive]}>Lahat</Text>
+              <Icon name="help" size={22} color={tokens.color.onDark} />
             </TouchableOpacity>
-            {CATEGORY_META.map((c) => {
-              const active = category === c.key;
-              return (
-                <TouchableOpacity
-                  key={c.key}
-                  style={[styles.chip, { borderColor: c.color }, active && { backgroundColor: c.color }]}
-                  onPress={() => setCategory(active ? null : c.key)}
-                >
-                  <Text style={[styles.chipText, { color: active ? '#FFF' : c.color }]}>{c.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          }
+        >
+          <Segmented options={SORT_OPTIONS} value={sortMode} onChange={setSortMode} tone="onDark" style={styles.sortSwitch} />
 
-          <Text style={styles.filterLabel}>Uri ng Gawain</Text>
-          <View style={styles.chipRow}>
-            <TouchableOpacity
-              style={[styles.chip, !activityType && styles.chipActiveNeutral]}
-              onPress={() => setActivityType(null)}
-            >
-              <Text style={[styles.chipText, !activityType && styles.chipTextActive]}>Lahat</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.chip, styles.gameChip, activityType === 'quiz' && styles.gameChipActive]}
-              onPress={() => setActivityType(activityType === 'quiz' ? null : 'quiz')}
-            >
-              <Text style={[styles.chipText, activityType === 'quiz' && { color: '#FFF' }]}>Quiz</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.chip, styles.gameChip, activityType === 'jigsaw' && styles.gameChipActive]}
-              onPress={() => setActivityType(activityType === 'jigsaw' ? null : 'jigsaw')}
-            >
-              <Text style={[styles.chipText, activityType === 'jigsaw' && { color: '#FFF' }]}>Jigsaw</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.filterLabel}>Level</Text>
-          <View style={styles.chipRow}>
-            <TouchableOpacity
-              style={[styles.chip, !level && styles.chipActiveNeutral]}
-              onPress={() => setLevel(null)}
-            >
-              <Text style={[styles.chipText, !level && styles.chipTextActive]}>Lahat</Text>
-            </TouchableOpacity>
-            {LEVELS.map((lvl) => {
-              const active = level === lvl;
-              return (
-                <TouchableOpacity
-                  key={lvl}
-                  style={[styles.chip, styles.gameChip, active && styles.gameChipActive]}
-                  onPress={() => setLevel(active ? null : lvl)}
-                >
-                  <Text style={[styles.chipText, active && { color: '#FFF' }]}>Lvl {lvl}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.sortRow}>
-          <TouchableOpacity
-            style={[styles.sortChip, sortMode === 'speed' && styles.sortChipActive]}
-            onPress={() => setSortMode('speed')}
-          >
-            <Text style={[styles.sortChipText, sortMode === 'speed' && styles.sortChipTextActive]}>⏱ Pinakamabilis</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.sortChip, sortMode === 'points' && styles.sortChipActive]}
-            onPress={() => setSortMode('points')}
-          >
-            <Text style={[styles.sortChipText, sortMode === 'points' && styles.sortChipTextActive]}>★ Pinakamataas na Puntos</Text>
-          </TouchableOpacity>
-        </View>
-
-        {!ready && <Text style={styles.emptyText}>Naglo-load...</Text>}
-        {ready && sorted.length === 0 && (
-          <Text style={styles.emptyText}>Wala pang natatapos na gawain ang mga estudyante sa napiling filter.</Text>
-        )}
-        {sorted.map((s, i) => {
-          const meta = PACE_META[s.pace];
-          return (
-            <TouchableOpacity
-              key={s.studentName}
-              style={styles.row}
-              onPress={() => router.navigate({ pathname: '/student-summary', params: { studentName: s.studentName } })}
-            >
-              <Text style={styles.rank}>{i + 1}</Text>
-              <View style={styles.rowMain}>
-                <Text style={styles.studentName}>{s.studentName}</Text>
-                <View style={[styles.paceBadge, { backgroundColor: meta.color }]}>
-                  <Ionicons name={meta.icon as any} size={12} color="#FFF" />
-                  <Text style={styles.paceBadgeText}>{meta.label}</Text>
+          {showLegend && (
+            <Card style={styles.legendCard}>
+              <BodyStrong style={styles.legendTitle}>{t('trophyGuideIntro')}</BodyStrong>
+              {TROPHY_TIERS.map((tier) => (
+                <View key={tier.trophy} style={styles.legendRow}>
+                  <View style={styles.legendRowLabelWrap}>
+                    <TrophyGlyph trophy={tier.trophy} />
+                    <BodyStrong style={styles.legendRowLabel}>{t(TIER_NAME_KEY[tier.trophy])}</BodyStrong>
+                  </View>
+                  <Caption style={styles.legendRowDetail}>
+                    {t('legendPointsAndTime', {
+                      points: String(tier.minPoints),
+                      time: formatDuration(tier.maxTimeSeconds),
+                    })}
+                  </Caption>
                 </View>
-                <Text style={styles.starsLine}>{starsDisplay(s.avgStars)} ({s.avgStars.toFixed(1)} avg)</Text>
-              </View>
-              <View style={styles.statsBlock}>
-                {isUnfiltered ? (
-                  <Text style={styles.statLine}>{trophyIcon(s.trophy)} ★ {s.totalPoints}/{COMBINED_MAX_POINTS} pts</Text>
-                ) : (
-                  <Text style={styles.statLine}>★ {s.totalPoints} pts</Text>
-                )}
-                <Text style={styles.statLine}>⏱ {formatSeconds(s.totalTimeUsed)} total</Text>
-                <Text style={styles.statLineSmall}>{s.attempts} gawain · {s.timeOuts} timeout</Text>
-                {isUnfiltered && (
-                  <Text style={styles.statLineSmall}>Quiz: {s.quizCorrect}/30 tama</Text>
-                )}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+              ))}
+              <Caption style={styles.legendFoot}>
+                {t('trophyMaxPossible', {
+                  points: String(COMBINED_MAX_POINTS),
+                  seconds: COMBINED_MAX_TIME_SECONDS.toLocaleString(),
+                })}
+              </Caption>
 
-      {scopedResults.length > 0 && (
-        <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
-          <Text style={styles.clearButtonText}>I-clear ang Lahat ng Data</Text>
-        </TouchableOpacity>
-      )}
-    </SafeAreaView>
+              <View style={styles.legendDivider} />
+              <BodyStrong style={styles.legendTitle}>{t('trophyPaceTitle')}</BodyStrong>
+              {(['gold', 'silver', 'bronze'] as const).map((tier) => {
+                const tone = paceTone(PACE_BY_TIER[tier]);
+                return (
+                  <View key={tier} style={styles.legendRow}>
+                    <View style={styles.legendRowLabelWrap}>
+                      <TrophyGlyph trophy={tier} />
+                      <BodyStrong style={styles.legendRowLabel}>
+                        {tier === 'gold' ? t('medalGold') : tier === 'silver' ? t('medalSilver') : t('legendBronzeOrNone')}
+                      </BodyStrong>
+                    </View>
+                    <View style={styles.legendPaceRow}>
+                      <Caption style={styles.legendRowDetail}>→</Caption>
+                      <Icon name={tone.icon} size={13} color={tokens.color.inkMuted} />
+                      <Caption style={styles.legendRowDetail}>{t(tone.labelKey)}</Caption>
+                    </View>
+                  </View>
+                );
+              })}
+              <View style={styles.legendFootRow}>
+                <Icon name="star" size={13} color={tokens.color.gold} filled />
+                <Caption style={styles.legendFootText}>{t('starsExplain')}</Caption>
+              </View>
+            </Card>
+          )}
+        </ScreenHeader>
+
+        <View style={styles.body}>
+          {/* FILTERS — three chips in one row, each opening its own option set below */}
+          <View style={styles.filterChipRow}>
+            <FilterChip
+              icon="flag"
+              label={topicChipLabel}
+              active={!!category}
+              open={openFilter === 'topic'}
+              onPress={() => toggleFilter('topic')}
+            />
+            <FilterChip
+              icon="quiz"
+              label={typeChipLabel}
+              active={!!activityType}
+              open={openFilter === 'type'}
+              onPress={() => toggleFilter('type')}
+            />
+            <FilterChip
+              icon="chart"
+              label={levelChipLabel}
+              active={!!level}
+              open={openFilter === 'level'}
+              onPress={() => toggleFilter('level')}
+            />
+          </View>
+
+          {openFilter === 'topic' && (
+            <Card style={styles.filterPanel}>
+              <Label style={styles.filterPanelLabel}>{t('topicLabel')}</Label>
+              <View style={styles.optionRow}>
+                <OptionPill
+                  label={t('allFilter')}
+                  active={!category}
+                  onPress={() => {
+                    setCategory(null);
+                    setOpenFilter(null);
+                  }}
+                />
+                {CATEGORY_META.map((c) => {
+                  const active = category === c.key;
+                  return (
+                    <OptionPill
+                      key={c.key}
+                      label={c.label}
+                      active={active}
+                      color={categoryColor(c.key).base}
+                      onPress={() => {
+                        setCategory(active ? null : c.key);
+                        setOpenFilter(null);
+                      }}
+                    />
+                  );
+                })}
+              </View>
+            </Card>
+          )}
+
+          {openFilter === 'type' && (
+            <Card style={styles.filterPanel}>
+              <Label style={styles.filterPanelLabel}>{t('activityTypeLabel')}</Label>
+              <View style={styles.optionRow}>
+                <OptionPill
+                  label={t('allFilter')}
+                  active={!activityType}
+                  onPress={() => {
+                    setActivityType(null);
+                    setOpenFilter(null);
+                  }}
+                />
+                <OptionPill
+                  label={t('gameTypeQuiz')}
+                  active={activityType === 'quiz'}
+                  onPress={() => {
+                    setActivityType(activityType === 'quiz' ? null : 'quiz');
+                    setOpenFilter(null);
+                  }}
+                />
+                <OptionPill
+                  label={t('gameTypeJigsaw')}
+                  active={activityType === 'jigsaw'}
+                  onPress={() => {
+                    setActivityType(activityType === 'jigsaw' ? null : 'jigsaw');
+                    setOpenFilter(null);
+                  }}
+                />
+              </View>
+            </Card>
+          )}
+
+          {openFilter === 'level' && (
+            <Card style={styles.filterPanel}>
+              <Label style={styles.filterPanelLabel}>{t('level')}</Label>
+              <View style={styles.optionRow}>
+                <OptionPill
+                  label={t('allFilter')}
+                  active={!level}
+                  onPress={() => {
+                    setLevel(null);
+                    setOpenFilter(null);
+                  }}
+                />
+                {LEVELS.map((lvl) => {
+                  const active = level === lvl;
+                  return (
+                    <OptionPill
+                      key={lvl}
+                      label={`${t('level')} ${lvl}`}
+                      active={active}
+                      onPress={() => {
+                        setLevel(active ? null : lvl);
+                        setOpenFilter(null);
+                      }}
+                    />
+                  );
+                })}
+              </View>
+            </Card>
+          )}
+
+          {!ready && <Body style={styles.emptyText}>{t('loadingResults')}</Body>}
+          {ready && sorted.length === 0 && <Body style={styles.emptyText}>{t('noResultsForFilter')}</Body>}
+
+          <View style={styles.list}>
+            {sorted.map((s, i) => {
+              const tone = paceTone(s.pace);
+              return (
+                <TouchableOpacity
+                  key={s.studentName}
+                  onPress={() => router.navigate({ pathname: '/student-summary', params: { studentName: s.studentName } })}
+                  accessibilityRole="button"
+                >
+                  <Card style={styles.row}>
+                    <View style={styles.rankCircle}>
+                      <Caption style={styles.rankText}>{i + 1}</Caption>
+                    </View>
+                    <Avatar name={s.studentName} size={44} />
+                    <View style={styles.rowMain}>
+                      <BodyStrong numberOfLines={1}>{s.studentName}</BodyStrong>
+                      <View style={styles.rowMetaRow}>
+                        <View style={[styles.paceBadge, { backgroundColor: tone.bg }]}>
+                          <Icon name={tone.icon} size={12} color={tone.fg} />
+                          <Caption style={[styles.paceBadgeText, { color: tone.fg }]}>{t(tone.labelKey)}</Caption>
+                        </View>
+                        <StarRow earned={Math.round(s.avgStars)} size={12} />
+                      </View>
+                      <Caption style={styles.rowSubStat}>
+                        {t('activityTimeoutStat', { attempts: String(s.attempts), timeouts: String(s.timeOuts) })}
+                      </Caption>
+                      {isUnfiltered && (
+                        <Caption style={styles.rowSubStat}>
+                          {t('quizCorrectStat', { correct: String(s.quizCorrect) })}
+                        </Caption>
+                      )}
+                    </View>
+                    <View style={styles.statsBlock}>
+                      {isUnfiltered && <TrophyGlyph trophy={s.trophy} />}
+                      <H3 style={styles.pointsText}>
+                        {isUnfiltered
+                          ? `${s.totalPoints}/${COMBINED_MAX_POINTS} ${t('ptsSuffix')}`
+                          : `${s.totalPoints} ${t('ptsSuffix')}`}
+                      </H3>
+                      <View style={styles.durationRow}>
+                        <Icon name="clock" size={12} color={tokens.color.inkMuted} />
+                        <Caption style={styles.durationText}>
+                          {formatDuration(s.totalTimeUsed)} {t('totalTimeSuffix')}
+                        </Caption>
+                      </View>
+                    </View>
+                  </Card>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {scopedResults.length > 0 && (
+            <Button
+              label={t('clearAllData')}
+              onPress={handleClear}
+              color={tokens.color.danger}
+              shadowColor={tokens.color.dangerInk}
+              style={styles.clearButton}
+            />
+          )}
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5EFE0' },
-  header: { backgroundColor: '#2E9E5B', paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
-  headerBack: { marginBottom: 4 },
-  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
-  headerSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.9, marginTop: 2 },
-  legendButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FFF',
-    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 14,
+  scroll: { paddingBottom: tokens.space.xxl },
+  legendToggle: {
+    width: tokens.hit.min,
+    height: tokens.hit.min,
+    borderRadius: tokens.radius.md,
+    backgroundColor: tokens.color.onDarkChip,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  legendButtonText: { fontSize: 11, fontWeight: 'bold', color: '#2E9E5B' },
-  legendCard: {
-    marginHorizontal: 16, marginTop: 12, backgroundColor: '#FFF', borderRadius: 14, padding: 14,
-    borderWidth: 1.5, borderColor: '#2E9E5B',
+  sortSwitch: { marginTop: tokens.space.md },
+
+  legendCard: { gap: tokens.space.xs, marginTop: tokens.space.md },
+  legendTitle: { marginBottom: tokens.space.xs },
+  legendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: tokens.space.xs / 2 },
+  legendRowLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
+  legendRowLabel: { color: tokens.color.ink },
+  legendRowDetail: { color: tokens.color.inkMuted, fontFamily: tokens.font.bodyBold },
+  legendPaceRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2 },
+  legendFoot: { marginTop: tokens.space.xs, fontStyle: 'italic' },
+  legendFootRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2, marginTop: tokens.space.xs },
+  legendFootText: { fontStyle: 'italic', flex: 1 },
+  legendDivider: { height: 1, backgroundColor: tokens.color.divider, marginVertical: tokens.space.sm },
+
+  body: { paddingHorizontal: tokens.space.lg, paddingTop: tokens.space.lg, gap: tokens.space.sm },
+
+  filterChipRow: { flexDirection: 'row', gap: tokens.space.sm },
+  filterChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.space.xs,
+    minHeight: tokens.hit.min,
+    paddingHorizontal: tokens.space.sm,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1.5,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.surface,
   },
-  legendTitle: { fontSize: 12.5, fontWeight: 'bold', color: '#5C3A21', marginBottom: 8 },
-  legendRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  legendRowLabel: { fontSize: 12, fontWeight: '700', color: '#1A1A1A' },
-  legendRowDetail: { fontSize: 11, color: '#5C3A21', fontWeight: '600' },
-  legendFoot: { fontSize: 10, color: '#8E8E93', marginTop: 8, fontStyle: 'italic' },
-  legendDivider: { height: 1, backgroundColor: '#E0D5BE', marginVertical: 10 },
+  filterChipActive: { backgroundColor: tokens.color.primary, borderColor: tokens.color.primary },
+  filterChipText: { color: tokens.color.inkMuted, fontFamily: tokens.font.bodyBold },
+  filterChipTextActive: { color: tokens.color.onDark },
 
-  scrollContent: { padding: 16, paddingBottom: 20 },
-
-  filterCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#E0D5BE' },
-  filterLabel: { fontSize: 12, fontWeight: 'bold', color: '#333', marginTop: 6, marginBottom: 8 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1.5, borderColor: '#CCC', backgroundColor: '#FFF' },
-  chipText: { fontWeight: 'bold', fontSize: 11.5, color: '#5C3A21' },
-  chipTextActive: { color: '#FFF' },
-  chipActiveNeutral: { backgroundColor: '#5C3A21', borderColor: '#5C3A21' },
-  gameChip: { borderColor: '#2E9E5B' },
-  gameChipActive: { backgroundColor: '#2E9E5B' },
-
-  sortRow: { flexDirection: 'row', gap: 8, marginBottom: 14, justifyContent: 'center' },
-  sortChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: '#E5DCC8' },
-  sortChipActive: { backgroundColor: '#2E9E5B' },
-  sortChipText: { fontWeight: 'bold', fontSize: 12, color: '#5C3A21' },
-  sortChipTextActive: { color: '#FFF' },
-
-  emptyText: { textAlign: 'center', color: '#8E8E93', marginTop: 20, fontSize: 13 },
-  row: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14,
-    padding: 12, borderWidth: 1.5, borderColor: '#E0D5BE', gap: 10, marginBottom: 10,
+  filterPanel: { gap: tokens.space.sm },
+  filterPanelLabel: { marginBottom: 0 },
+  optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm },
+  optionPill: {
+    minHeight: tokens.hit.min,
+    paddingHorizontal: tokens.space.sm,
+    paddingVertical: tokens.space.xs,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1.5,
+    justifyContent: 'center',
   },
-  rank: { fontWeight: '900', fontSize: 18, color: '#5C3A21', width: 24, textAlign: 'center' },
-  rowMain: { flex: 1 },
-  studentName: { fontWeight: 'bold', fontSize: 14.5, color: '#1A1A1A', marginBottom: 4 },
-  paceBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  paceBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
-  starsLine: { fontSize: 11, color: '#5C3A21', marginTop: 4, fontWeight: '600' },
-  statsBlock: { alignItems: 'flex-end' },
-  statLine: { fontSize: 12, fontWeight: '700', color: '#5C3A21' },
-  statLineSmall: { fontSize: 10, color: '#8E8E93', marginTop: 2 },
-  clearButton: { alignSelf: 'center', marginBottom: 16, marginTop: 4, paddingVertical: 10, paddingHorizontal: 22, borderRadius: 18, backgroundColor: '#C4304A' },
-  clearButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  optionPillText: { fontFamily: tokens.font.bodyBold },
+
+  emptyText: { textAlign: 'center', marginTop: tokens.space.xl, paddingHorizontal: tokens.space.sm },
+
+  list: { gap: tokens.space.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm },
+  rankCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 1.5,
+    borderColor: tokens.color.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankText: { color: tokens.color.inkMuted, fontFamily: tokens.font.bodyBold },
+  rowMain: { flex: 1, gap: 4 },
+  rowSubStat: { color: tokens.color.inkMuted },
+  rowMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: tokens.space.xs },
+  paceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: tokens.space.xs,
+    paddingVertical: 3,
+    borderRadius: tokens.radius.pill,
+  },
+  paceBadgeText: { ...tokens.type.tab },
+  statsBlock: { alignItems: 'flex-end', gap: 2 },
+  pointsText: { color: tokens.color.ink },
+  durationRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  durationText: { color: tokens.color.inkMuted },
+
+  clearButton: { marginTop: tokens.space.sm },
 });
