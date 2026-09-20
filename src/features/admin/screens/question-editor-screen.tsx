@@ -3,20 +3,20 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
+import { ClearableTextInput } from '@/features/admin/components/clearable-text-input';
 import { QuizType, MIN_ENUMERATION_POOL } from '@/shared/content/quiz-content';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 
-/**
- * The two types this screen can author. The API stores identification as well,
- * but authoring it needs a repeatable list of accepted spellings that this
- * screen has no design for yet — so an identification slot opens read-only
- * below and is edited in the JuanWise Admin console instead.
- */
-const PUBLISHABLE_TYPES: { key: Extract<QuizType, 'multiple-choice' | 'enumeration'>; label: string }[] = [
-  { key: 'multiple-choice', label: 'Multiple Choice' },
-  { key: 'enumeration', label: 'Enumeration' },
-];
+const TYPE_LABELS: Record<QuizType, string> = {
+  'multiple-choice': 'Multiple Choice',
+  identification: 'Identification',
+  enumeration: 'Enumeration',
+};
+const QUESTION_TYPES: QuizType[] = ['multiple-choice', 'identification', 'enumeration'];
+
+/** UI-side cap on Identification's accepted-answer alternatives, matching the JuanWise Admin web console. */
+const MAX_ACCEPTED_ANSWERS = 20;
 
 export default function QuestionEditorScreen() {
   const router = useRouter();
@@ -35,16 +35,14 @@ export default function QuestionEditorScreen() {
   const existing = getEffectiveQuestion(packId ?? '', category, level, activityNum);
 
   const [saving, setSaving] = useState(false);
-  // Never silently reinterpreted: an identification slot keeps its own type and
-  // renders read-only below. Converting it to multiple-choice here would let a
-  // save discard the accepted spellings without the admin being told.
-  const isIdentification = existing.type === 'identification';
   const [type, setType] = useState<QuizType>(existing.type);
   const [hint, setHint] = useState(existing.hint);
   const [question, setQuestion] = useState(existing.question);
   const [choices, setChoices] = useState<string[]>(existing.choices ?? ['', '', '', '']);
   const [correctAnswer, setCorrectAnswer] = useState(existing.correctAnswer);
   const [explanation, setExplanation] = useState(existing.explanation);
+  // Identification-only: alternate spellings graded as correct alongside correctAnswer.
+  const [acceptedAnswers, setAcceptedAnswers] = useState<string[]>(existing.acceptedAnswers ?? []);
   // Enumeration-only: Admin's answer pool (min MIN_ENUMERATION_POOL) and
   // how many of those the player must correctly answer to pass.
   const [answerPool, setAnswerPool] = useState<string[]>(() => {
@@ -130,6 +128,58 @@ export default function QuestionEditorScreen() {
     setAnswerPool((prev) => prev.filter((_, idx) => idx !== i));
   };
 
+  const updateAcceptedAnswer = (i: number, val: string) => {
+    const next = [...acceptedAnswers];
+    next[i] = val;
+    setAcceptedAnswers(next);
+  };
+
+  const addAcceptedAnswer = () => {
+    if (acceptedAnswers.length >= MAX_ACCEPTED_ANSWERS) {
+      Alert.alert('Sobra na', `Pinakamarami ay ${MAX_ACCEPTED_ANSWERS} na tinatanggap na sagot.`);
+      return;
+    }
+    setAcceptedAnswers((prev) => [...prev, '']);
+  };
+
+  const removeAcceptedAnswer = (i: number) => setAcceptedAnswers((prev) => prev.filter((_, idx) => idx !== i));
+
+  // Only the fields the *current* type owns are inspected, so leftovers from a
+  // type the admin already switched away from never trigger the warning below.
+  const hasAnswerContent = () => {
+    if (type === 'multiple-choice') return choices.some((c) => c.trim()) || !!correctAnswer.trim();
+    if (type === 'identification') return !!correctAnswer.trim() || acceptedAnswers.some((a) => a.trim());
+    return answerPool.some((a) => a.trim());
+  };
+
+  // Resets every answer field, not just the old type's — correctAnswer is
+  // shared between multiple-choice and identification, so leaving it in place
+  // would silently turn a discarded choice into the new type's primary answer.
+  const applyTypeChange = (nextType: QuizType) => {
+    setType(nextType);
+    setChoices(['', '', '', '']);
+    setCorrectAnswer('');
+    setAnswerPool(Array.from({ length: MIN_ENUMERATION_POOL }, () => ''));
+    setRequiredAnswers('3');
+    setAcceptedAnswers([]);
+  };
+
+  const requestTypeChange = (nextType: QuizType) => {
+    if (nextType === type) return;
+    if (!hasAnswerContent()) {
+      applyTypeChange(nextType);
+      return;
+    }
+    Alert.alert(
+      `Palitan sa ${TYPE_LABELS[nextType]}?`,
+      `Mananatili ang tanong, hint, paliwanag, at mini-lesson. Mabubura ang mga sagot ng kasalukuyang uri (${TYPE_LABELS[type]}). Wala pang na-se-save hangga't hindi pinipindot ang "I-save ang Tanong".`,
+      [
+        { text: 'Kanselahin', style: 'cancel' },
+        { text: 'Palitan at Burahin', style: 'destructive', onPress: () => applyTypeChange(nextType) },
+      ],
+    );
+  };
+
   // PUT /content/questions/:category/:level/:activityNum. The API re-validates
   // everything checked below, so a question that renders wrong cannot be
   // published even if this screen were bypassed.
@@ -211,6 +261,29 @@ export default function QuestionEditorScreen() {
       return;
     }
 
+    if (type === 'identification') {
+      const primary = correctAnswer.trim();
+      const filledAccepted = acceptedAnswers.map((a) => a.trim()).filter(Boolean);
+      // De-dupe (case-insensitive) and drop anything that just repeats the
+      // primary answer, mirroring the enumeration pool's de-dupe above and
+      // the JuanWise Admin console's own identification validation.
+      const uniqueAccepted = Array.from(new Map(filledAccepted.map((a) => [a.toLowerCase(), a])).values()).filter(
+        (a) => a.toLowerCase() !== primary.toLowerCase(),
+      );
+
+      await save({
+        hint: hint.trim(),
+        type,
+        question: question.trim(),
+        correctAnswer: primary,
+        acceptedAnswers: uniqueAccepted,
+        explanation: explanation.trim() || hint.trim(),
+        miniLesson: existing.miniLesson,
+        miniLessonImageUrl,
+      });
+      return;
+    }
+
     await save({
       hint: hint.trim(),
       type,
@@ -223,57 +296,6 @@ export default function QuestionEditorScreen() {
     });
   };
 
-  if (isIdentification) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={[styles.header, { backgroundColor: categoryColor || '#3B7DD8' }]}>
-          <Text style={styles.headerTitle}>{categoryLabel} — Level {level}, Activity {activityNum}</Text>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.form}>
-          <Text style={styles.label}>Uri ng Tanong</Text>
-          <View style={styles.typeRow}>
-            <View style={[styles.typeChip, styles.typeChipActive]}>
-              <Text style={[styles.typeChipText, styles.typeChipTextActive]}>Identification</Text>
-            </View>
-          </View>
-          <Text style={styles.helperNote}>
-            Hindi pa ma-e-edit ang uring ito rito. Buksan ang JuanWise Admin sa web upang baguhin
-            ang tanong at ang mga tinatanggap na sagot.
-          </Text>
-
-          <Text style={styles.label}>Mini-Lesson / Hint</Text>
-          <Text style={styles.readOnlyValue}>{existing.hint || '—'}</Text>
-
-          <Text style={styles.label}>Tanong</Text>
-          <Text style={styles.readOnlyValue}>{existing.question || '—'}</Text>
-
-          <Text style={styles.label}>Tamang Sagot</Text>
-          <Text style={styles.readOnlyValue}>{existing.correctAnswer || '—'}</Text>
-
-          <Text style={styles.label}>Iba pang tinatanggap na sagot</Text>
-          <Text style={styles.readOnlyValue}>
-            {existing.acceptedAnswers?.length ? existing.acceptedAnswers.join('\n') : '—'}
-          </Text>
-
-          <Text style={styles.label}>Paliwanag (pagkatapos ng tamang sagot)</Text>
-          <Text style={styles.readOnlyValue}>{existing.explanation || '—'}</Text>
-
-          <Text style={styles.label}>Larawan ng Aralin</Text>
-          {existing.miniLessonImageUrl ? (
-            <Image source={{ uri: existing.miniLessonImageUrl }} style={styles.imagePreview} />
-          ) : (
-            <Text style={styles.readOnlyValue}>—</Text>
-          )}
-
-          <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
-            <Text style={styles.cancelButtonText}>Bumalik</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { backgroundColor: categoryColor || '#3B7DD8' }]}>
@@ -283,30 +305,30 @@ export default function QuestionEditorScreen() {
       <ScrollView contentContainerStyle={styles.form}>
         <Text style={styles.label}>Uri ng Tanong</Text>
         <View style={styles.typeRow}>
-          {PUBLISHABLE_TYPES.map((option) => (
+          {QUESTION_TYPES.map((key) => (
             <TouchableOpacity
-              key={option.key}
-              style={[styles.typeChip, type === option.key && styles.typeChipActive]}
-              onPress={() => setType(option.key)}
+              key={key}
+              style={[styles.typeChip, type === key && styles.typeChipActive]}
+              onPress={() => requestTypeChange(key)}
             >
-              <Text style={[styles.typeChipText, type === option.key && styles.typeChipTextActive]}>
-                {option.label}
+              <Text style={[styles.typeChipText, type === key && styles.typeChipTextActive]}>
+                {TYPE_LABELS[key]}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <Text style={styles.label}>Mini-Lesson / Hint</Text>
-        <TextInput style={[styles.input, styles.multiline]} value={hint} onChangeText={setHint} multiline placeholder="Maikling paliwanag bago ang tanong..." />
+        <ClearableTextInput style={[styles.input, styles.multiline]} value={hint} onChangeText={setHint} multiline placeholder="Maikling paliwanag bago ang tanong..." />
 
         <Text style={styles.label}>Tanong</Text>
-        <TextInput style={styles.input} value={question} onChangeText={setQuestion} placeholder="I-type ang tanong..." />
+        <ClearableTextInput style={styles.input} value={question} onChangeText={setQuestion} placeholder="I-type ang tanong..." />
 
         {type === 'multiple-choice' && (
           <>
             <Text style={styles.label}>Mga Choices</Text>
             {choices.map((c, i) => (
-              <TextInput
+              <ClearableTextInput
                 key={i}
                 style={styles.input}
                 value={c}
@@ -320,7 +342,7 @@ export default function QuestionEditorScreen() {
         {type === 'enumeration' && (
           <>
             <Text style={styles.label}>Ilang Sagot ang Kailangan ng Player (Required Answers)</Text>
-            <TextInput
+            <ClearableTextInput
               style={styles.input}
               value={requiredAnswers}
               onChangeText={setRequiredAnswers}
@@ -357,12 +379,40 @@ export default function QuestionEditorScreen() {
         {type !== 'enumeration' && (
           <>
             <Text style={styles.label}>Tamang Sagot</Text>
-            <TextInput style={styles.input} value={correctAnswer} onChangeText={setCorrectAnswer} placeholder="Tamang sagot..." />
+            <ClearableTextInput style={styles.input} value={correctAnswer} onChangeText={setCorrectAnswer} placeholder="Tamang sagot..." />
+          </>
+        )}
+
+        {type === 'identification' && (
+          <>
+            <View style={styles.poolHeaderRow}>
+              <Text style={styles.label}>Iba pang Tinatanggap na Sagot</Text>
+              <Text style={styles.poolCount}>{acceptedAnswers.filter((a) => a.trim()).length}/{MAX_ACCEPTED_ANSWERS}</Text>
+            </View>
+            <Text style={styles.helperNote}>
+              Opsyonal. Ibang paraan ng pagsulat ng parehong sagot (hal. ibang baybay) na ituturing ding tama.
+            </Text>
+            {acceptedAnswers.map((val, i) => (
+              <View key={i} style={styles.poolRow}>
+                <TextInput
+                  style={[styles.input, styles.poolInput]}
+                  value={val}
+                  onChangeText={(text) => updateAcceptedAnswer(i, text)}
+                  placeholder={`Ibang sagot ${i + 1}`}
+                />
+                <TouchableOpacity style={styles.removePoolButton} onPress={() => removeAcceptedAnswer(i)}>
+                  <Text style={styles.removePoolButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addPoolButton} onPress={addAcceptedAnswer}>
+              <Text style={styles.addPoolButtonText}>+ Magdagdag ng Tinatanggap na Sagot</Text>
+            </TouchableOpacity>
           </>
         )}
 
         <Text style={styles.label}>Paliwanag (pagkatapos ng tamang sagot)</Text>
-        <TextInput style={[styles.input, styles.multiline]} value={explanation} onChangeText={setExplanation} multiline placeholder="Bakit tama ang sagot..." />
+        <ClearableTextInput style={[styles.input, styles.multiline]} value={explanation} onChangeText={setExplanation} multiline placeholder="Bakit tama ang sagot..." />
 
         <Text style={styles.label}>Larawan ng Aralin</Text>
         <Text style={styles.helperNote}>
@@ -442,8 +492,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0EADC', borderWidth: 1.5, borderColor: '#E0D5BE', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#5C3A21', marginBottom: 8,
   },
-  typeRow: { flexDirection: 'row', gap: 8 },
-  typeChip: { flex: 1, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, borderColor: '#E0D5BE', alignItems: 'center', backgroundColor: '#FFF' },
+  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  typeChip: { flexGrow: 1, flexBasis: 100, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, borderColor: '#E0D5BE', alignItems: 'center', backgroundColor: '#FFF' },
   typeChipActive: { backgroundColor: '#3B7DD8', borderColor: '#3B7DD8' },
   typeChipText: { fontWeight: 'bold', fontSize: 12, color: '#5C3A21' },
   typeChipTextActive: { color: '#FFF' },
