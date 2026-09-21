@@ -248,7 +248,7 @@ const en = {
   legendBronzeOrNone: 'Bronze / None',
   starsExplain:
     'Stars = average stars earned per activity (3 stars = fastest/correct, 1 star = passed only, 0 stars = wrong/timeout).',
-  sortFastest: 'Fastest',
+  sortFastest: 'Top Performers',
   sortHighestPoints: 'Highest Points',
   loadingResults: 'Loading...',
   noResultsForFilter: 'No students have completed an activity under the selected filter yet.',
@@ -507,7 +507,7 @@ const tl: Record<TranslationKey, string> = {
   legendBronzeOrNone: 'Tanso / Wala',
   starsExplain:
     'Stars = average na bituin kada gawain (3 stars pinakamabilis/tama, 1 star pumasa lang, 0 stars mali/timeout).',
-  sortFastest: 'Pinakamabilis',
+  sortFastest: 'Nangungunang Estudyante',
   sortHighestPoints: 'Pinakamataas na Puntos',
   loadingResults: 'Naglo-load...',
   noResultsForFilter: 'Wala pang natatapos na gawain ang mga estudyante sa napiling filter.',

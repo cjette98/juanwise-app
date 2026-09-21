@@ -15,6 +15,9 @@ import {
 import { Medal } from '@/shared/components/activity-timer';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
+import { computePerformanceScore } from './performance-score';
+
+export { computePerformanceScore } from './performance-score';
 
 // ─── Scoring reference ───────────────────────────────────────────────────────
 // Points and medals are now awarded by the server (juanwise-be
@@ -33,8 +36,10 @@ export const POINTS_PER_LEVEL = POINTS_PER_ACTIVITY * ACTIVITIES_PER_LEVEL; // 9
 export const QUIZ_MAX_POINTS = POINTS_PER_LEVEL * LEVELS_PER_TYPE; // 450
 export const JIGSAW_MAX_POINTS = POINTS_PER_LEVEL * LEVELS_PER_TYPE; // 450
 export const COMBINED_MAX_POINTS = QUIZ_MAX_POINTS + JIGSAW_MAX_POINTS; // 900
-export const QUIZ_MAX_TIME_SECONDS = 60 * ACTIVITIES_PER_LEVEL * LEVELS_PER_TYPE; // 1,800
-export const JIGSAW_MAX_TIME_SECONDS = 120 * ACTIVITIES_PER_LEVEL * LEVELS_PER_TYPE; // 3,600
+export const QUIZ_TIME_BUDGET_SECONDS = 60;
+export const JIGSAW_TIME_BUDGET_SECONDS = 120;
+export const QUIZ_MAX_TIME_SECONDS = QUIZ_TIME_BUDGET_SECONDS * ACTIVITIES_PER_LEVEL * LEVELS_PER_TYPE; // 1,800
+export const JIGSAW_MAX_TIME_SECONDS = JIGSAW_TIME_BUDGET_SECONDS * ACTIVITIES_PER_LEVEL * LEVELS_PER_TYPE; // 3,600
 export const COMBINED_MAX_TIME_SECONDS = QUIZ_MAX_TIME_SECONDS + JIGSAW_MAX_TIME_SECONDS; // 5,400
 export const TOTAL_QUIZ_ACTIVITIES = ACTIVITIES_PER_LEVEL * LEVELS_PER_TYPE; // 30
 
@@ -138,7 +143,15 @@ export interface StudentSummary {
   avgStars: number;
   quizCorrect: number;
   quizWrongOutOf30: number;
+  /**
+   * 0–1 blend of points earned (volume of correct work) and pace, used to
+   * rank the "Top Performers" leaderboard. Weighted 70/30 toward points so a
+   * student who completes many activities isn't out-ranked by one who did
+   * only one or two quickly — see PERFORMANCE_POINTS_WEIGHT below.
+   */
+  performanceScore: number;
 }
+
 
 export interface ResultFilter {
   category?: string;
@@ -212,6 +225,13 @@ function summarize(entries: ActivityResult[]): StudentSummary[] {
       if (trophy === 'gold') pace = 'fast';
       else if (trophy === 'silver') pace = 'steady';
 
+      const performanceScore = computePerformanceScore(
+        totalPoints,
+        avgTimeUsed,
+        COMBINED_MAX_POINTS,
+        JIGSAW_TIME_BUDGET_SECONDS,
+      );
+
       return {
         studentName,
         attempts,
@@ -225,12 +245,13 @@ function summarize(entries: ActivityResult[]): StudentSummary[] {
         avgStars,
         quizCorrect,
         quizWrongOutOf30,
+        performanceScore,
       };
     }
   );
 
-  // Fastest average time first (used when the UI sorts by speed).
-  return summaries.sort((a, b) => a.avgTimeUsed - b.avgTimeUsed);
+  // Top Performers first (used when the UI sorts by "speed" mode).
+  return summaries.sort((a, b) => b.performanceScore - a.performanceScore);
 }
 
 function matchesFilter(r: ActivityResult, filter?: ResultFilter) {
@@ -519,7 +540,7 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
  * there and the local row replaced on the next refresh.
  */
 function scoreLocally(attempt: AttemptInput, uid: string, studentName: string): ActivityResult {
-  const budget = attempt.activityType === 'jigsaw' ? 120 : 60;
+  const budget = attempt.activityType === 'jigsaw' ? JIGSAW_TIME_BUDGET_SECONDS : QUIZ_TIME_BUDGET_SECONDS;
   const timeUsed = Math.max(0, Math.min(Math.round(attempt.timeUsed), budget));
   const passed = !attempt.timedOut && attempt.requiredCount > 0 && attempt.correctCount >= attempt.requiredCount;
 

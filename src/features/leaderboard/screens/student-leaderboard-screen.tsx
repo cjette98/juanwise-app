@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import {
   Screen,
@@ -20,15 +20,63 @@ import {
 } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
 import { beatsPercent } from '@/features/leaderboard/percentile';
-import { useStudentResults, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS, COMBINED_MAX_TIME_SECONDS, LearnerPace } from '@/features/results/context/student-results-context';
+import {
+  TROPHY_TIERS,
+  Trophy,
+  COMBINED_MAX_POINTS,
+  COMBINED_MAX_TIME_SECONDS,
+  JIGSAW_TIME_BUDGET_SECONDS,
+  LearnerPace,
+  computePerformanceScore,
+  type StudentSummary,
+} from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
+import { useClass } from '@/features/teacher/context/class-context';
+import { analyticsApi, type ApiStudentSummary, type ApiTrophy, type ApiPace } from '@/shared/api';
 import { useRouter } from 'expo-router';
+
+function mapTrophy(trophy: ApiTrophy): Trophy {
+  return trophy === 'none' ? null : trophy;
+}
+
+// The backend derives pace from the same trophy tiers (gold→fast,
+// silver→average, bronze/none→slow/none); the local UI only distinguishes
+// three tiers, so average/slow/none all read as "needs support".
+function mapPace(pace: ApiPace): LearnerPace {
+  if (pace === 'fast') return 'fast';
+  if (pace === 'average') return 'steady';
+  return 'needs-support';
+}
+
+// The class-wide leaderboard only exposes per-student totals, not raw
+// attempts, so fields the personal record screens need (fastest time,
+// timeouts, per-quiz correctness) aren't available here and aren't rendered
+// by this screen.
+function toStudentSummary(item: ApiStudentSummary): StudentSummary {
+  const totalStars = item.goldMedals * 3 + item.silverMedals * 2 + item.bronzeMedals;
+  const avgTimeUsed = item.activitiesCompleted > 0 ? item.totalTimeSec / item.activitiesCompleted : 0;
+  return {
+    studentName: item.studentName,
+    attempts: item.activitiesCompleted,
+    totalPoints: item.totalPoints,
+    totalTimeUsed: item.totalTimeSec,
+    avgTimeUsed,
+    fastestTimeUsed: 0,
+    timeOuts: 0,
+    pace: mapPace(item.pace),
+    trophy: mapTrophy(item.trophy),
+    avgStars: item.activitiesCompleted > 0 ? totalStars / item.activitiesCompleted : 0,
+    quizCorrect: 0,
+    quizWrongOutOf30: 0,
+    performanceScore: computePerformanceScore(item.totalPoints, avgTimeUsed, COMBINED_MAX_POINTS, JIGSAW_TIME_BUDGET_SECONDS),
+  };
+}
 
 type SortMode = 'points' | 'speed';
 
 const SORT_OPTIONS: SegmentedOption<SortMode>[] = [
   { value: 'points', label: 'Puntos', icon: 'star' },
-  { value: 'speed', label: 'Bilis', icon: 'clock' },
+  { value: 'speed', label: 'Nangunguna', icon: 'clock' },
 ];
 
 // Pace and trophy tier share the same three-way split (gold/silver/bronze),
@@ -101,15 +149,47 @@ const PODIUM_AVATAR: Record<1 | 2 | 3, number> = { 1: 64, 2: 52, 3: 52 };
 export default function StudentLeaderboardScreen() {
   const router = useRouter();
   const { name } = useUser();
-  const { leaderboard, ready } = useStudentResults();
+  const { classId, ready: classReady } = useClass();
+  const [leaderboard, setLeaderboard] = useState<StudentSummary[]>([]);
+  const [ready, setReady] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('points');
   const [peekStudent, setPeekStudent] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState(false);
 
+  useEffect(() => {
+    if (!classReady) return;
+    let cancelled = false;
+    (async () => {
+      if (!classId) {
+        if (!cancelled) {
+          setLeaderboard([]);
+          setReady(true);
+        }
+        return;
+      }
+      try {
+        const { items } = await analyticsApi.leaderboard(classId);
+        console.error('[DEBUG leaderboard] classId', classId, 'raw items', JSON.stringify(items));
+        if (cancelled) return;
+        const summaries = items.map(toStudentSummary).sort((a, b) => b.performanceScore - a.performanceScore);
+        console.error('[DEBUG leaderboard] mapped summaries', JSON.stringify(summaries));
+        setLeaderboard(summaries);
+      } catch (err) {
+        console.error('[DEBUG leaderboard] CAUGHT ERROR', err instanceof Error ? err.stack : String(err));
+        if (!cancelled) setLeaderboard([]);
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, classReady]);
+
   const sorted = useMemo(() => {
     const list = [...leaderboard];
     if (sortMode === 'points') list.sort((a, b) => b.totalPoints - a.totalPoints);
-    // 'speed' is already sorted fastest-average-time-first from the context
+    // 'speed' is already sorted by performanceScore (points + pace), from the fetch above
     return list;
   }, [leaderboard, sortMode]);
 

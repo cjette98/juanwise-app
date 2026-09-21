@@ -151,7 +151,7 @@ export default function TeacherLeaderboardScreen() {
   const sorted = useMemo(() => {
     const list = [...leaderboard];
     if (sortMode === 'points') list.sort((a, b) => b.totalPoints - a.totalPoints);
-    // 'speed' is already sorted fastest-first from the context
+    // 'speed' is already sorted by performanceScore (points + pace) from the context
     return list;
   }, [leaderboard, sortMode]);
 
