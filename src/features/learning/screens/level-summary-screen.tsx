@@ -123,15 +123,16 @@ export default function LevelSummaryScreen() {
   const allComplete = perActivity.every((a) => !!a.passingAttempt || a.exhausted);
 
   // Fanfare once when the summary opens with all 6 finished — the ref keeps
-  // later re-renders (results refreshing) from replaying it.
+  // later re-renders (results refreshing) from replaying it. A teacher viewing
+  // a student's summary did not just finish anything, so it stays quiet.
   const { playSfx } = useSound();
   const completeSoundPlayed = useRef(false);
   useEffect(() => {
-    if (allComplete && !completeSoundPlayed.current) {
+    if (allComplete && !isReadOnly && !completeSoundPlayed.current) {
       completeSoundPlayed.current = true;
       playSfx('complete');
     }
-  }, [allComplete, playSfx]);
+  }, [allComplete, isReadOnly, playSfx]);
 
   const totalPoints = perActivity.reduce((sum, a) => sum + (a.passingAttempt?.points ?? 0), 0);
   const totalTime = perActivity.reduce((sum, a) => sum + (a.passingAttempt?.timeUsed ?? 0), 0);

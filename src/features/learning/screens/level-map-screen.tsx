@@ -66,14 +66,18 @@ export default function LevelMapScreen() {
   const { category, activityType } = params;
   const label = t(getCategoryMeta(category).labelKey) || params.label || t('categoryLabel');
   const color = params.color || tokens.color.primary;
-  const { isLevelUnlocked, getProgress } = useGameProgress();
+  const { isLevelUnlocked, getProgress, getExhausted } = useGameProgress();
 
   // isLevelUnlocked is the only gate; the "current" node is simply the
   // highest level it reports unlocked, and everything unlocked below that
   // reads as completed.
   const nodes = LEVELS.map((lvl) => ({ lvl, unlocked: isLevelUnlocked(category, activityType, lvl) }));
   const currentLevel = [...nodes].reverse().find((n) => n.unlocked)?.lvl ?? 1;
-  const doneInCurrent = getProgress(category, activityType, currentLevel).length;
+  // Finished = passed or out of tries, the same count the Activity List shows.
+  const doneInCurrent = new Set([
+    ...getProgress(category, activityType, currentLevel),
+    ...getExhausted(category, activityType, currentLevel),
+  ]).size;
 
   const cat = categoryColor(category);
   const trailTint = lightenHex(cat.base, 0.55);
