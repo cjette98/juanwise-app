@@ -244,7 +244,7 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
     (packId, category, level, activityNum) => {
       const base = categoryContent[category] || categoryContent.history;
       const api = stateFor(packId).categories[category];
-      return resolveEffectiveCategoryContent(base, api, level, activityNum);
+      return resolveEffectiveCategoryContent(base, api, 'tl', level, activityNum);
     },
     [stateFor],
   );

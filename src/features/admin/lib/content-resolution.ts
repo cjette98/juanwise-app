@@ -12,6 +12,7 @@
  */
 import type { ApiCategory, ApiJigsawPieceCount, ApiQuestion } from '@/shared/api';
 import type { QuizQuestion } from '@/shared/content/quiz-content';
+import type { Language } from '@/shared/i18n/language-context';
 import { toQuizQuestion } from './question-mapping';
 
 export type CategoryOverrides = Partial<Record<string, ApiCategory>>;
@@ -51,8 +52,9 @@ export function resolveEffectiveQuestion(local: QuizQuestion, api: ApiQuestion |
 }
 
 export function resolveEffectiveCategoryContent(
-  base: { image: any; context_tl: string },
+  base: { image: any; context_tl: string; context_en?: string },
   api: ApiCategory | undefined,
+  language: Language,
   level?: number,
   activityNum?: number,
 ): EffectiveCategoryContent {
@@ -62,11 +64,17 @@ export function resolveEffectiveCategoryContent(
       : undefined;
   const picked = assignedId ? api?.jigsaws?.find((item) => item.id === assignedId) : undefined;
 
+  const english = language === 'en';
+
   if (picked) {
     return {
       image: { uri: picked.imageUrl },
-      context: picked.context_tl ?? picked.context_en ?? api?.context_tl ?? base.context_tl,
-      definition: picked.definition_tl ?? picked.definition_en ?? null,
+      context: english
+        ? (picked.context_en ?? api?.context_en ?? picked.context_tl ?? api?.context_tl ?? base.context_en ?? base.context_tl)
+        : (picked.context_tl ?? picked.context_en ?? api?.context_tl ?? base.context_tl),
+      definition: english
+        ? (picked.definition_en ?? picked.definition_tl ?? null)
+        : (picked.definition_tl ?? picked.definition_en ?? null),
       title: picked.title,
       hasCustomImage: true,
     };
@@ -74,8 +82,12 @@ export function resolveEffectiveCategoryContent(
 
   return {
     image: api?.imageUrl ? { uri: api.imageUrl } : base.image,
-    context: api?.context_tl ?? base.context_tl,
-    definition: api?.definition_tl ?? api?.definition_en ?? null,
+    context: english
+      ? (api?.context_en ?? api?.context_tl ?? base.context_en ?? base.context_tl)
+      : (api?.context_tl ?? base.context_tl),
+    definition: english
+      ? (api?.definition_en ?? api?.definition_tl ?? null)
+      : (api?.definition_tl ?? api?.definition_en ?? null),
     title: null,
     hasCustomImage: !!api?.imageUrl,
   };
