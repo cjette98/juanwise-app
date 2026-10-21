@@ -571,6 +571,8 @@ const en = {
   questionNumShort: 'Question {num}',
   puzzleNumShort: 'Puzzle {num}',
   quizPlaySubtitle: '{type} · {difficulty} · Question {num}',
+  scoringAnswer: 'Checking your answer…',
+  scoringPuzzle: 'Puzzle complete — scoring it now…',
   levelSubtitle: '{label} · {mode}',
 
   // --- Result sheet detail lines ---
@@ -1227,6 +1229,8 @@ const tl: Record<TranslationKey, string> = {
   questionNumShort: 'Tanong {num}',
   puzzleNumShort: 'Puzzle {num}',
   quizPlaySubtitle: '{type} · {difficulty} · Tanong {num}',
+  scoringAnswer: 'Sinusuri ang iyong sagot…',
+  scoringPuzzle: 'Buo na ang puzzle — binibilang na ang puntos…',
   levelSubtitle: '{label} · {mode}',
 
   // --- Result sheet detail lines ---

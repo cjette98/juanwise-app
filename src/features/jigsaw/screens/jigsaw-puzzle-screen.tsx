@@ -134,6 +134,8 @@ export default function JigsawPuzzleScreen() {
 
   const { playSfx } = useSound();
   const [phase, setPhase] = useState<Phase>('playing');
+  /** Last piece placed, waiting on the server for the points. */
+  const [scoring, setScoring] = useState(false);
   const phaseRef = useRef(phase);
   useEffect(() => {
     phaseRef.current = phase;
@@ -220,7 +222,6 @@ export default function JigsawPuzzleScreen() {
 
       if (recorded.medal) {
         recordOutcome(category, 'jigsaw', level, activityNum, true, recorded.attemptSeq, { queued });
-        playSfx('complete');
         setTimeout(() => setPhase('success'), 250);
       } else {
         recordOutcome(category, 'jigsaw', level, activityNum, false, recorded.attemptSeq, { queued });
@@ -239,6 +240,7 @@ export default function JigsawPuzzleScreen() {
       }
       Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedResultMsg')));
       phaseRef.current = 'playing';
+      setScoring(false);
       setPhase('playing');
     }
   };
@@ -251,6 +253,10 @@ export default function JigsawPuzzleScreen() {
     const isSolved = finalPlaced.size === pieceCount;
     if (isSolved && phaseRef.current === 'playing') {
       phaseRef.current = 'success';
+      // The puzzle is solved on this frame; only the points wait for the
+      // server, so the fanfare and the "scoring" line go out now.
+      playSfx('complete');
+      setScoring(true);
       const timerResult = timerRef.current?.stop();
       if (timerResult) void recordAttempt(timerResult, true);
     }
@@ -403,7 +409,9 @@ export default function JigsawPuzzleScreen() {
       </ScreenHeader>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Caption style={styles.hintText}>{t('dragPiecesHint')}</Caption>
+        <Caption style={styles.hintText}>
+          {scoring ? t('scoringPuzzle') : t('dragPiecesHint')}
+        </Caption>
 
         <View style={styles.progressRow}>
           <View style={styles.progressBarWrap}>

@@ -108,6 +108,13 @@ export default function ActivityPlayScreen() {
       : t('activityFinishedNoTries');
   };
   const [submitting, setSubmitting] = useState(false);
+  /**
+   * The answer the student just gave and whether it was right, set on the tap
+   * itself rather than when the server replies (evaluation items 3.1 and 4.1).
+   * Waiting for the round trip left the screen looking dead, so students tapped
+   * again; the grading is local anyway — the server only decides the points.
+   */
+  const [picked, setPicked] = useState<{ value: string; correct: boolean } | null>(null);
   const [attemptKey] = useState(0);
 
   const timerRef = useRef<ActivityTimerHandle>(null);
@@ -119,6 +126,7 @@ export default function ActivityPlayScreen() {
     setChoices(q.choices ? shuffleChoices(q.choices) : []);
     setEnumAnswers(Array(requiredAnswers).fill(''));
     setTextAnswer('');
+    setPicked(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionSignature, requiredAnswers]);
 
@@ -206,11 +214,9 @@ export default function ActivityPlayScreen() {
 
       if (recorded.medal) {
         recordOutcome(category, activityType, level, activityNum, true, recorded.attemptSeq, { queued: wasQueued });
-        playSfx('correct');
         setPhase('success');
       } else {
         recordOutcome(category, activityType, level, activityNum, false, recorded.attemptSeq, { queued: wasQueued });
-        playSfx('wrong');
         setPhase('incorrect');
       }
     } catch (err) {
@@ -227,6 +233,7 @@ export default function ActivityPlayScreen() {
         return;
       }
       Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedAnswerMsg')));
+      setPicked(null);
       setPhase('question');
     } finally {
       setSubmitting(false);
@@ -235,20 +242,25 @@ export default function ActivityPlayScreen() {
 
   const handleAnswer = (given: string) => {
     if (phase !== 'question' || submitting) return;
-    playSfx('tap');
+    const correct = isCorrect(given);
+    // Mark and sound the answer on this frame; the pop-up follows when the
+    // server has scored it.
+    setPicked({ value: given, correct });
+    playSfx(correct ? 'correct' : 'wrong');
     const timerResult = timerRef.current?.stop();
     if (!timerResult) return;
-    void recordAttempt(timerResult, isCorrect(given), false);
+    void recordAttempt(timerResult, correct, false);
   };
 
   // Enumeration: submits all filled tabs at once.
   const handleSubmitEnumeration = () => {
     if (phase !== 'question' || submitting) return;
-    playSfx('tap');
+    const { correctCount, passed } = checkEnumerationAnswers(enumAnswers);
+    setPicked({ value: enumAnswers.join('|'), correct: passed });
+    playSfx(passed ? 'correct' : 'wrong');
     const timerResult = timerRef.current?.stop();
     if (!timerResult) return;
 
-    const { correctCount, passed } = checkEnumerationAnswers(enumAnswers);
     void recordAttempt(timerResult, passed, false, correctCount);
   };
 
@@ -262,6 +274,7 @@ export default function ActivityPlayScreen() {
 
   const handleExpire = (timerResult: ActivityTimerResult) => {
     if (phase === 'success' || phase === 'incorrect') return;
+    playSfx('wrong');
     const correctCount =
       q.type === 'enumeration' ? checkEnumerationAnswers(enumAnswers).correctCount : undefined;
     void recordAttempt(timerResult, false, true, correctCount);
@@ -288,6 +301,9 @@ export default function ActivityPlayScreen() {
   };
 
   const filledCount = enumAnswers.filter((a) => a.trim()).length;
+  const answerBoxTint = picked
+    ? { borderColor: picked.correct ? tokens.color.success : tokens.color.danger }
+    : null;
 
   return (
     <Screen>
@@ -346,34 +362,63 @@ export default function ActivityPlayScreen() {
 
             {q.type === 'multiple-choice' && (
               <View style={styles.choicesWrap}>
-                {choices.map((choice, i) => (
-                  <TouchableOpacity
-                    key={choice}
-                    style={[styles.choiceRow, { borderColor: headerColor }]}
-                    onPress={() => handleAnswer(choice)}
-                    activeOpacity={0.75}
-                  >
-                    <View style={[styles.choiceChip, { backgroundColor: headerColor }]}>
-                      <BodyStrong style={styles.choiceChipText}>{CHOICE_LETTERS[i] ?? i + 1}</BodyStrong>
-                    </View>
-                    <Body style={[styles.choiceText, { color: headerColor }]}>{choice}</Body>
-                  </TouchableOpacity>
-                ))}
+                {choices.map((choice, i) => {
+                  const isPicked = picked?.value === choice;
+                  // Green or red the instant it is tapped; the others fade so
+                  // the marked one is unmistakable, and nothing stays tappable.
+                  const tint = isPicked
+                    ? picked.correct
+                      ? { line: tokens.color.success, fill: tokens.color.successSoft, ink: tokens.color.successInk }
+                      : { line: tokens.color.danger, fill: tokens.color.dangerSoft, ink: tokens.color.dangerInk }
+                    : null;
+                  return (
+                    <TouchableOpacity
+                      key={choice}
+                      style={[
+                        styles.choiceRow,
+                        { borderColor: tint?.line ?? headerColor },
+                        tint && { backgroundColor: tint.fill },
+                        picked && !isPicked && styles.choiceRowFaded,
+                      ]}
+                      onPress={() => handleAnswer(choice)}
+                      disabled={!!picked || submitting}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: !!picked, selected: isPicked }}
+                    >
+                      <View style={[styles.choiceChip, { backgroundColor: tint?.line ?? headerColor }]}>
+                        {isPicked ? (
+                          <Icon
+                            name={picked.correct ? 'check' : 'close'}
+                            size={18}
+                            color={tokens.color.onDark}
+                            strokeWidth={3}
+                          />
+                        ) : (
+                          <BodyStrong style={styles.choiceChipText}>{CHOICE_LETTERS[i] ?? i + 1}</BodyStrong>
+                        )}
+                      </View>
+                      <Body style={[styles.choiceText, { color: tint?.ink ?? headerColor }]}>{choice}</Body>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
 
             {q.type === 'identification' && (
               <View style={styles.identificationWrap}>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, answerBoxTint]}
                   value={textAnswer}
                   onChangeText={setTextAnswer}
+                  editable={!picked && !submitting}
                   placeholder={t('typeYourAnswer')}
                   placeholderTextColor={tokens.color.inkFaint}
                 />
                 <Button
                   label={t('submitBtn')}
                   onPress={() => handleAnswer(textAnswer)}
+                  disabled={!!picked || submitting}
                   color={cat.base}
                   shadowColor={cat.dark}
                   style={styles.fullWidthButton}
@@ -392,9 +437,10 @@ export default function ActivityPlayScreen() {
                       <Label style={styles.enumIndexText}>{i + 1}</Label>
                     </View>
                     <TextInput
-                      style={[styles.textInput, styles.enumInput]}
+                      style={[styles.textInput, styles.enumInput, answerBoxTint]}
                       value={val}
                       onChangeText={(text) => updateEnumAnswer(i, text)}
+                      editable={!picked && !submitting}
                       placeholder={t('answerNPlaceholder', { n: i + 1 })}
                       placeholderTextColor={tokens.color.inkFaint}
                     />
@@ -403,10 +449,17 @@ export default function ActivityPlayScreen() {
                 <Button
                   label={t('submitCompleteAnswer')}
                   onPress={handleSubmitEnumeration}
+                  disabled={!!picked || submitting}
                   color={cat.base}
                   shadowColor={cat.dark}
                   style={styles.fullWidthButton}
                 />
+              </View>
+            )}
+            {submitting && (
+              <View style={styles.scoringRow}>
+                <ActivityIndicator color={headerColor} />
+                <Caption style={styles.scoringText}>{t('scoringAnswer')}</Caption>
               </View>
             )}
           </Card>
@@ -523,6 +576,9 @@ const styles = StyleSheet.create({
   questionCard: { width: '100%' },
   questionText: { marginBottom: tokens.space.lg, textAlign: 'center' },
   choicesWrap: { gap: tokens.space.sm },
+  choiceRowFaded: { opacity: 0.45 },
+  scoringRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: tokens.space.sm, marginTop: tokens.space.lg },
+  scoringText: { color: tokens.color.inkMuted },
   choiceRow: {
     minHeight: 62,
     flexDirection: 'row',
