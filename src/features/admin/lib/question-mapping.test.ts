@@ -35,6 +35,7 @@ const identification: ApiQuestion = {
   answerPool: null,
   requiredAnswers: null,
   acceptedAnswers: ['Andres Bonifacio', 'Bonifacio'],
+  en: null,
 };
 
 describe('toQuizQuestion', () => {
@@ -47,6 +48,7 @@ describe('toQuizQuestion', () => {
       acceptedAnswers: ['Andres Bonifacio', 'Bonifacio'],
       explanation: 'Andrés Bonifacio founded it.',
       miniLessonImageUrl: null,
+      en: null,
     });
   });
 
@@ -116,7 +118,8 @@ describe('quizLessonText', () => {
 
 describe('toUpsertRequest', () => {
   const lesson = 'Ang Katipunan ay lihim na samahang itinatag noong 1892.';
-  const question: QuizQuestion = { ...fallback, miniLesson: lesson };
+  const englishVersion = { question: 'Q', hint: '', explanation: '' };
+  const question: QuizQuestion = { ...fallback, miniLesson: lesson, en: englishVersion };
 
   it.each([
     ['multiple-choice', question],
@@ -129,7 +132,7 @@ describe('toUpsertRequest', () => {
   });
 
   it('sends null rather than an empty string when there is no mini-lesson', () => {
-    expect(toUpsertRequest({ ...fallback, miniLesson: '  ' })).toMatchObject({ miniLesson: null });
+    expect(toUpsertRequest({ ...fallback, miniLesson: '  ', en: englishVersion })).toMatchObject({ miniLesson: null });
   });
 });
 
@@ -175,6 +178,7 @@ describe('mini-lesson image mapping', () => {
       correctAnswer: 'a',
       explanation: 'e',
       miniLessonImageUrl: url,
+      en: { question: 'Q', hint: '', explanation: '' },
     });
     expect(sent.miniLessonImageUrl).toBe(url);
   });
@@ -188,7 +192,67 @@ describe('mini-lesson image mapping', () => {
       correctAnswer: 'a',
       explanation: 'e',
       miniLessonImageUrl: '   ',
+      en: { question: 'Q', hint: '', explanation: '' },
     });
     expect(sent.miniLessonImageUrl).toBeNull();
+  });
+});
+
+describe('English version', () => {
+  const apiEn = {
+    question: 'Who founded the Katipunan?',
+    hint: null,
+    explanation: 'He did.',
+    miniLesson: null,
+    choices: null,
+    correctAnswer: 'Andres Bonifacio',
+    answerPool: null,
+    acceptedAnswers: ['Bonifacio'],
+  };
+
+  it('maps api.en onto the question', () => {
+    const mapped = toQuizQuestion({ ...identification, en: apiEn }, fallback);
+    expect(mapped.en).toEqual({
+      question: 'Who founded the Katipunan?',
+      hint: '',
+      explanation: 'He did.',
+      miniLesson: '',
+      correctAnswer: 'Andres Bonifacio',
+      acceptedAnswers: ['Bonifacio'],
+    });
+  });
+
+  it('maps a missing English version to null', () => {
+    expect(toQuizQuestion({ ...identification, en: null }, fallback).en).toBeNull();
+  });
+
+  const base: QuizQuestion = {
+    hint: 'h',
+    type: 'identification',
+    question: 'q',
+    correctAnswer: 'a',
+    explanation: 'e',
+  };
+
+  it('refuses to build a request without an English question', () => {
+    expect(() =>
+      toUpsertRequest({ ...base, en: { question: '   ', hint: 'stray', explanation: '', correctAnswer: 'x' } }),
+    ).toThrow();
+    expect(() => toUpsertRequest({ ...base, en: null })).toThrow();
+  });
+
+  it('drops English fields the type does not own', () => {
+    const sent = toUpsertRequest({
+      ...base,
+      en: { question: 'Q', hint: '', explanation: '', choices: ['a', 'b'], correctAnswer: ' A ', acceptedAnswers: [' x ', ''] },
+    });
+    expect(sent.en).toEqual({
+      question: 'Q',
+      hint: null,
+      explanation: null,
+      miniLesson: null,
+      correctAnswer: 'A',
+      acceptedAnswers: ['x'],
+    });
   });
 });

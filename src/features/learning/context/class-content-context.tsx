@@ -20,6 +20,7 @@ import {
   type EffectiveCategoryContent,
   type QuestionOverrides,
 } from '@/features/admin/lib/content-resolution';
+import { localizeQuestion } from '@/shared/content/localize-question';
 import { useLanguage } from '@/shared/i18n/language-context';
 
 /**
@@ -51,7 +52,7 @@ type ClassContentContextType = {
 const ClassContentContext = createContext<ClassContentContextType | undefined>(undefined);
 
 export function ClassContentProvider({ children }: { children: React.ReactNode }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { classId, currentClass, ready: classReady } = useClass();
 
   const [questions, setQuestions] = useState<QuestionOverrides>({});
@@ -127,17 +128,17 @@ export function ClassContentProvider({ children }: { children: React.ReactNode }
     (category, level, activityNum) => {
       const local = getQuizQuestion(category, level, activityNum);
       const api = questions[slotId(category, level, activityNum)];
-      return resolveEffectiveQuestion(local, api);
+      return localizeQuestion(resolveEffectiveQuestion(local, api), language);
     },
-    [questions],
+    [questions, language],
   );
 
   const getEffectiveCategoryContent: ClassContentContextType['getEffectiveCategoryContent'] = useCallback(
     (category, level, activityNum) => {
       const base = categoryContent[category] || categoryContent.history;
-      return resolveEffectiveCategoryContent(base, categories[category], level, activityNum);
+      return resolveEffectiveCategoryContent(base, categories[category], language, level, activityNum);
     },
-    [categories],
+    [categories, language],
   );
 
   const getJigsawPieceCount: ClassContentContextType['getJigsawPieceCount'] = useCallback(

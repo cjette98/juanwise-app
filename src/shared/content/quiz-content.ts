@@ -5,6 +5,27 @@ export type QuizType = 'multiple-choice' | 'identification' | 'enumeration';
 /** Admin must supply at least this many pool answers for an Enumeration question. */
 export const MIN_ENUMERATION_POOL = 10;
 
+/**
+ * The English version of a question: the text fields only. Pictures, `type`
+ * and `requiredAnswers` are shared with the Tagalog version, so they are not
+ * repeated here. As with the Tagalog fields, the answer fields are filled in
+ * only for the type that owns them.
+ */
+export interface QuizQuestionEn {
+  question: string;
+  hint: string;
+  explanation: string;
+  miniLesson?: string;
+  /** 'multiple-choice' only. */
+  choices?: string[];
+  /** 'multiple-choice' and 'identification'. */
+  correctAnswer?: string;
+  /** 'enumeration' only. */
+  answerPool?: string[];
+  /** 'identification' only. */
+  acceptedAnswers?: string[];
+}
+
 export interface QuizQuestion {
   /** Mini-lesson paragraph shown BEFORE the question — doubles as a hint. */
   hint: string;
@@ -55,6 +76,12 @@ export interface QuizQuestion {
    * screen falls back to the category image in that case.
    */
   miniLessonImageUrl?: string | null;
+  /**
+   * English version. The fields above are the Tagalog one. Absent or null means
+   * no English version was written. Screens never read this directly — they get
+   * a question through `localizeQuestion`, which drops it.
+   */
+  en?: QuizQuestionEn | null;
 }
 
 // content-driven map: category -> level -> activityNum -> question.

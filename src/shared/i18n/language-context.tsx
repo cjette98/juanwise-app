@@ -432,6 +432,7 @@ const en = {
   changePictureBtn: 'Change Picture',
   restoreDefaultBtn: 'Restore Default',
   typeMiniLesson: 'Type the mini-lesson...',
+  miniLessonLabel: 'Mini-Lesson',
   editMiniLessonBtn: '✎ Edit the Mini-Lesson',
 
   // --- Admin — pack list ---
@@ -463,6 +464,11 @@ const en = {
   // --- Admin — question editor ---
   questionTypeLabel: 'Question Type',
   miniLessonHintLabel: 'Mini-Lesson / Hint',
+  contentLangTagalog: 'Tagalog',
+  contentLangEnglish: 'English',
+  bothLanguagesRequired: 'Fill in both the English and Tagalog versions.',
+  englishVersionPrefix: 'English version: ',
+  answerTooLongMsg: 'An answer can have at most {max} characters.',
   miniLessonHintPlaceholder: 'Short explanation before the question...',
   questionLabel: 'Question',
   questionPlaceholder: 'Type the question...',
@@ -1076,6 +1082,7 @@ const tl: Record<TranslationKey, string> = {
   changePictureBtn: 'Palitan ang Larawan',
   restoreDefaultBtn: 'Ibalik sa Default',
   typeMiniLesson: 'I-type ang mini-lesson...',
+  miniLessonLabel: 'Mini-Lesson',
   editMiniLessonBtn: '✎ I-edit ang Mini-Lesson',
 
   // --- Admin — pack list ---
@@ -1107,6 +1114,11 @@ const tl: Record<TranslationKey, string> = {
   // --- Admin — question editor ---
   questionTypeLabel: 'Uri ng Tanong',
   miniLessonHintLabel: 'Mini-Lesson / Hint',
+  contentLangTagalog: 'Tagalog',
+  contentLangEnglish: 'Ingles',
+  bothLanguagesRequired: 'Punan ang bersyong Ingles at Tagalog.',
+  englishVersionPrefix: 'Bersyong Ingles: ',
+  answerTooLongMsg: 'Ang sagot ay hindi maaaring lumampas sa {max} na character.',
   miniLessonHintPlaceholder: 'Maikling paliwanag bago ang tanong...',
   questionLabel: 'Tanong',
   questionPlaceholder: 'I-type ang tanong...',

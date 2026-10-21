@@ -4,7 +4,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import { ClearableTextInput } from '@/features/admin/components/clearable-text-input';
-import { QuizType, MIN_ENUMERATION_POOL } from '@/shared/content/quiz-content';
+import { QuizType, MIN_ENUMERATION_POOL, type QuizQuestion } from '@/shared/content/quiz-content';
+import { validateQuestionDraft, type LangDraft } from '@/features/admin/lib/question-validation';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
@@ -18,6 +19,78 @@ const QUESTION_TYPES: QuizType[] = ['multiple-choice', 'identification', 'enumer
 
 /** UI-side cap on Identification's accepted-answer alternatives, matching the JuanWise Admin web console. */
 const MAX_ACCEPTED_ANSWERS = 20;
+
+/** One field, labelled once, with the English and Tagalog inputs stacked. */
+function BilingualInput(props: {
+  label: string;
+  enValue: string;
+  tlValue: string;
+  onEn: (v: string) => void;
+  onTl: (v: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+}) {
+  const { t } = useLanguage();
+  const { label, enValue, tlValue, onEn, onTl, placeholder, multiline } = props;
+  const inputStyle = multiline ? [styles.input, styles.multiline] : styles.input;
+  return (
+    <>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.langLabel}>{t('contentLangEnglish')}</Text>
+      <ClearableTextInput style={inputStyle} value={enValue} onChangeText={onEn} multiline={multiline} placeholder={placeholder} />
+      <Text style={styles.langLabel}>{t('contentLangTagalog')}</Text>
+      <ClearableTextInput style={inputStyle} value={tlValue} onChangeText={onTl} multiline={multiline} placeholder={placeholder} />
+    </>
+  );
+}
+
+/** Column headings above a list whose rows hold an English and a Tagalog input side by side. */
+function LangColumns({ withRemove }: { withRemove?: boolean }) {
+  const { t } = useLanguage();
+  return (
+    <View style={styles.poolRow}>
+      <Text style={[styles.langLabel, styles.langColumn]}>{t('contentLangEnglish')}</Text>
+      <Text style={[styles.langLabel, styles.langColumn]}>{t('contentLangTagalog')}</Text>
+      {withRemove && <View style={styles.removeSpacer} />}
+    </View>
+  );
+}
+
+const pad = (list: string[], length: number) => [...list, ...Array.from({ length: Math.max(0, length - list.length) }, () => '')];
+
+/**
+ * The editor's two drafts for a question. The English one is empty when the
+ * question has none. Pools and accepted-answer lists are padded to the same
+ * length in both languages so rows stay paired.
+ */
+function initialDrafts(q: QuizQuestion): { tl: LangDraft; en: LangDraft } {
+  const en = q.en;
+  const choiceLen = Math.max(4, q.choices?.length ?? 0, en?.choices?.length ?? 0);
+  const poolLen = Math.max(MIN_ENUMERATION_POOL, q.answerPool?.length ?? 0, en?.answerPool?.length ?? 0);
+  const acceptedLen = Math.max(q.acceptedAnswers?.length ?? 0, en?.acceptedAnswers?.length ?? 0);
+  return {
+    tl: {
+      hint: q.hint,
+      miniLesson: q.miniLesson ?? '',
+      question: q.question,
+      choices: pad(q.choices ?? [], choiceLen),
+      correctAnswer: q.correctAnswer,
+      acceptedAnswers: pad(q.acceptedAnswers ?? [], acceptedLen),
+      answerPool: pad(q.answerPool ?? [], poolLen),
+      explanation: q.explanation,
+    },
+    en: {
+      hint: en?.hint ?? '',
+      miniLesson: en?.miniLesson ?? '',
+      question: en?.question ?? '',
+      choices: pad(en?.choices ?? [], choiceLen),
+      correctAnswer: en?.correctAnswer ?? '',
+      acceptedAnswers: pad(en?.acceptedAnswers ?? [], acceptedLen),
+      answerPool: pad(en?.answerPool ?? [], poolLen),
+      explanation: en?.explanation ?? '',
+    },
+  };
+}
 
 export default function QuestionEditorScreen() {
   const router = useRouter();
@@ -38,21 +111,11 @@ export default function QuestionEditorScreen() {
 
   const [saving, setSaving] = useState(false);
   const [type, setType] = useState<QuizType>(existing.type);
-  const [hint, setHint] = useState(existing.hint);
-  const [question, setQuestion] = useState(existing.question);
-  const [choices, setChoices] = useState<string[]>(existing.choices ?? ['', '', '', '']);
-  const [correctAnswer, setCorrectAnswer] = useState(existing.correctAnswer);
-  const [explanation, setExplanation] = useState(existing.explanation);
-  // Identification-only: alternate spellings graded as correct alongside correctAnswer.
-  const [acceptedAnswers, setAcceptedAnswers] = useState<string[]>(existing.acceptedAnswers ?? []);
-  // Enumeration-only: Admin's answer pool (min MIN_ENUMERATION_POOL) and
-  // how many of those the player must correctly answer to pass.
-  const [answerPool, setAnswerPool] = useState<string[]>(() => {
-    const base = existing.answerPool ?? [];
-    const padded = [...base];
-    while (padded.length < MIN_ENUMERATION_POOL) padded.push('');
-    return padded;
-  });
+  // Every text field has a Tagalog (the question's main fields) and an English
+  // version; the two lists of each kind always have the same length so row i
+  // in one language pairs with row i in the other.
+  const [tl, setTl] = useState<LangDraft>(() => initialDrafts(existing).tl);
+  const [en, setEn] = useState<LangDraft>(() => initialDrafts(existing).en);
   const [requiredAnswers, setRequiredAnswers] = useState(String(existing.requiredAnswers ?? 3));
   // The picture that illustrates the mini-lesson. Held in the draft until the
   // admin saves, because the URL is stored on the question, not uploaded to it.
@@ -108,62 +171,70 @@ export default function QuestionEditorScreen() {
     }
   };
 
-  const updateChoice = (i: number, val: string) => {
-    const next = [...choices];
-    next[i] = val;
-    setChoices(next);
+  const setField = (lang: 'tl' | 'en', patch: Partial<LangDraft>) =>
+    (lang === 'tl' ? setTl : setEn)((prev) => ({ ...prev, ...patch }));
+
+  const updateListItem = (lang: 'tl' | 'en', key: 'choices' | 'answerPool' | 'acceptedAnswers', i: number, val: string) => {
+    const list = [...(lang === 'tl' ? tl : en)[key]];
+    list[i] = val;
+    setField(lang, { [key]: list });
   };
 
-  const updatePoolAnswer = (i: number, val: string) => {
-    const next = [...answerPool];
-    next[i] = val;
-    setAnswerPool(next);
+  const addPoolSlot = () => {
+    setTl((prev) => ({ ...prev, answerPool: [...prev.answerPool, ''] }));
+    setEn((prev) => ({ ...prev, answerPool: [...prev.answerPool, ''] }));
   };
-
-  const addPoolSlot = () => setAnswerPool((prev) => [...prev, '']);
 
   const removePoolSlot = (i: number) => {
-    if (answerPool.length <= MIN_ENUMERATION_POOL) {
+    if (tl.answerPool.length <= MIN_ENUMERATION_POOL) {
       Alert.alert(t('minPoolTitle'), t('minPoolMsg', { min: MIN_ENUMERATION_POOL }));
       return;
     }
-    setAnswerPool((prev) => prev.filter((_, idx) => idx !== i));
-  };
-
-  const updateAcceptedAnswer = (i: number, val: string) => {
-    const next = [...acceptedAnswers];
-    next[i] = val;
-    setAcceptedAnswers(next);
+    const drop = (prev: LangDraft) => ({ ...prev, answerPool: prev.answerPool.filter((_, idx) => idx !== i) });
+    setTl(drop);
+    setEn(drop);
   };
 
   const addAcceptedAnswer = () => {
-    if (acceptedAnswers.length >= MAX_ACCEPTED_ANSWERS) {
+    if (tl.acceptedAnswers.length >= MAX_ACCEPTED_ANSWERS) {
       Alert.alert(t('tooManyTitle'), t('tooManyAcceptedMsg', { max: MAX_ACCEPTED_ANSWERS }));
       return;
     }
-    setAcceptedAnswers((prev) => [...prev, '']);
+    setTl((prev) => ({ ...prev, acceptedAnswers: [...prev.acceptedAnswers, ''] }));
+    setEn((prev) => ({ ...prev, acceptedAnswers: [...prev.acceptedAnswers, ''] }));
   };
 
-  const removeAcceptedAnswer = (i: number) => setAcceptedAnswers((prev) => prev.filter((_, idx) => idx !== i));
+  const removeAcceptedAnswer = (i: number) => {
+    const drop = (prev: LangDraft) => ({ ...prev, acceptedAnswers: prev.acceptedAnswers.filter((_, idx) => idx !== i) });
+    setTl(drop);
+    setEn(drop);
+  };
 
   // Only the fields the *current* type owns are inspected, so leftovers from a
   // type the admin already switched away from never trigger the warning below.
-  const hasAnswerContent = () => {
-    if (type === 'multiple-choice') return choices.some((c) => c.trim()) || !!correctAnswer.trim();
-    if (type === 'identification') return !!correctAnswer.trim() || acceptedAnswers.some((a) => a.trim());
-    return answerPool.some((a) => a.trim());
-  };
+  const hasAnswerContent = () =>
+    [tl, en].some((d) => {
+      if (type === 'multiple-choice') return d.choices.some((c) => c.trim()) || !!d.correctAnswer.trim();
+      if (type === 'identification') return !!d.correctAnswer.trim() || d.acceptedAnswers.some((a) => a.trim());
+      return d.answerPool.some((a) => a.trim());
+    });
 
-  // Resets every answer field, not just the old type's — correctAnswer is
-  // shared between multiple-choice and identification, so leaving it in place
-  // would silently turn a discarded choice into the new type's primary answer.
+  // Resets every answer field in both languages, not just the old type's —
+  // correctAnswer is shared between multiple-choice and identification, so
+  // leaving it in place would silently turn a discarded choice into the new
+  // type's primary answer.
   const applyTypeChange = (nextType: QuizType) => {
     setType(nextType);
-    setChoices(['', '', '', '']);
-    setCorrectAnswer('');
-    setAnswerPool(Array.from({ length: MIN_ENUMERATION_POOL }, () => ''));
+    const clear = (prev: LangDraft): LangDraft => ({
+      ...prev,
+      choices: ['', '', '', ''],
+      correctAnswer: '',
+      answerPool: Array.from({ length: MIN_ENUMERATION_POOL }, () => ''),
+      acceptedAnswers: [],
+    });
+    setTl(clear);
+    setEn(clear);
     setRequiredAnswers('3');
-    setAcceptedAnswers([]);
   };
 
   const requestTypeChange = (nextType: QuizType) => {
@@ -201,100 +272,50 @@ export default function QuestionEditorScreen() {
 
   const handleSave = async () => {
     if (saving) return;
-    if (!question.trim() || !hint.trim()) {
-      Alert.alert(t('missingInfo'), t('needLessonAndQuestionMsg'));
-      return;
-    }
-    if (type !== 'enumeration' && !correctAnswer.trim()) {
-      Alert.alert(t('missingInfo'), t('needCorrectAnswerMsg'));
-      return;
-    }
-    if (type === 'multiple-choice') {
-      const filled = choices.map((c) => c.trim()).filter(Boolean);
-      if (filled.length < 2) {
-        Alert.alert(t('needChoicesTitle'), t('needChoicesMsg'));
-        return;
-      }
-      if (!filled.map((c) => c.toLowerCase()).includes(correctAnswer.trim().toLowerCase())) {
-        Alert.alert(t('mismatchTitle'), t('mismatchMsg'));
-        return;
-      }
-    }
-
-    if (type === 'enumeration') {
-      const filledPool = answerPool.map((a) => a.trim()).filter(Boolean);
-      // De-dupe (case-insensitive) so the pool doesn't silently count the
-      // same accepted answer twice.
-      const uniquePool = Array.from(new Map(filledPool.map((a) => [a.toLowerCase(), a])).values());
-      if (uniquePool.length < MIN_ENUMERATION_POOL) {
-        Alert.alert(
-          t('poolTooSmallTitle'),
-          t('poolTooSmallMsg', { min: MIN_ENUMERATION_POOL, count: uniquePool.length })
-        );
-        return;
-      }
-      const requiredNum = parseInt(requiredAnswers, 10);
-      if (!requiredNum || requiredNum < 1) {
-        Alert.alert(t('invalidTitle'), t('invalidRequiredMsg'));
-        return;
-      }
-      if (requiredNum > uniquePool.length) {
-        Alert.alert(
-          t('invalidTitle'),
-          t('requiredExceedsPoolMsg', { required: requiredNum, pool: uniquePool.length })
-        );
-        return;
-      }
-
-      await save({
-        hint: hint.trim(),
-        type,
-        question: question.trim(),
-        correctAnswer: uniquePool.join(', '),
-        answerPool: uniquePool,
-        requiredAnswers: requiredNum,
-        explanation: explanation.trim() || hint.trim(),
-        // Both are sent on every save: the PUT is a full overwrite, so a
-        // payload that omitted them would clear the write-up and the picture
-        // the Mini-Lessons screen shows.
-        miniLesson: existing.miniLesson,
-        miniLessonImageUrl,
-      });
+    const result = validateQuestionDraft({
+      type,
+      tl,
+      en,
+      requiredAnswers,
+      minPool: MIN_ENUMERATION_POOL,
+    });
+    if (!result.ok) {
+      const { titleKey, msgKey, params, english } = result.error;
+      const message = t(msgKey, params);
+      Alert.alert(t(titleKey), english ? t('englishVersionPrefix') + message : message);
       return;
     }
 
-    if (type === 'identification') {
-      const primary = correctAnswer.trim();
-      const filledAccepted = acceptedAnswers.map((a) => a.trim()).filter(Boolean);
-      // De-dupe (case-insensitive) and drop anything that just repeats the
-      // primary answer, mirroring the enumeration pool's de-dupe above and
-      // the JuanWise Admin console's own identification validation.
-      const uniqueAccepted = Array.from(new Map(filledAccepted.map((a) => [a.toLowerCase(), a])).values()).filter(
-        (a) => a.toLowerCase() !== primary.toLowerCase(),
-      );
-
-      await save({
-        hint: hint.trim(),
-        type,
-        question: question.trim(),
-        correctAnswer: primary,
-        acceptedAnswers: uniqueAccepted,
-        explanation: explanation.trim() || hint.trim(),
-        miniLesson: existing.miniLesson,
-        miniLessonImageUrl,
-      });
-      return;
-    }
+    const { tl: tlOut, en: enOut, requiredAnswers: requiredNum } = result;
+    const shared = {
+      type,
+      // Both are sent on every save: the PUT is a full overwrite, so a payload
+      // that omitted them would clear the write-up and the picture the
+      // Mini-Lessons screen shows.
+      miniLessonImageUrl,
+    };
+    const ownFields = (d: LangDraft) =>
+      type === 'enumeration'
+        ? { correctAnswer: d.correctAnswer, answerPool: d.answerPool }
+        : type === 'identification'
+          ? { correctAnswer: d.correctAnswer, acceptedAnswers: d.acceptedAnswers }
+          : { correctAnswer: d.correctAnswer, choices: d.choices };
 
     await save({
-      hint: hint.trim(),
-      type,
-      question: question.trim(),
-      choices: type === 'multiple-choice' ? choices.map((c) => c.trim()).filter(Boolean) : undefined,
-      correctAnswer: correctAnswer.trim(),
-      explanation: explanation.trim() || hint.trim(),
-      miniLesson: existing.miniLesson,
-      miniLessonImageUrl,
+      ...shared,
+      hint: tlOut.hint,
+      miniLesson: tlOut.miniLesson,
+      question: tlOut.question,
+      explanation: tlOut.explanation,
+      ...ownFields(tlOut),
+      ...(type === 'enumeration' && { requiredAnswers: requiredNum }),
+      en: {
+        question: enOut.question,
+        hint: enOut.hint,
+        explanation: enOut.explanation,
+        miniLesson: enOut.miniLesson,
+        ...ownFields(enOut),
+      },
     });
   };
 
@@ -322,23 +343,48 @@ export default function QuestionEditorScreen() {
           ))}
         </View>
 
-        <Text style={styles.label}>{t('miniLessonHintLabel')}</Text>
-        <ClearableTextInput style={[styles.input, styles.multiline]} value={hint} onChangeText={setHint} multiline placeholder={t('miniLessonHintPlaceholder')} />
+        <BilingualInput
+          label={t('miniLessonHintLabel')}
+          enValue={en.hint}
+          tlValue={tl.hint}
+          onEn={(v) => setField('en', { hint: v })}
+          onTl={(v) => setField('tl', { hint: v })}
+          placeholder={t('miniLessonHintPlaceholder')}
+          multiline
+        />
 
-        <Text style={styles.label}>{t('questionLabel')}</Text>
-        <ClearableTextInput style={styles.input} value={question} onChangeText={setQuestion} placeholder={t('questionPlaceholder')} />
+        <BilingualInput
+          label={t('questionLabel')}
+          enValue={en.question}
+          tlValue={tl.question}
+          onEn={(v) => setField('en', { question: v })}
+          onTl={(v) => setField('tl', { question: v })}
+          placeholder={t('questionPlaceholder')}
+        />
 
         {type === 'multiple-choice' && (
           <>
             <Text style={styles.label}>{t('choicesLabel')}</Text>
-            {choices.map((c, i) => (
-              <ClearableTextInput
-                key={i}
-                style={styles.input}
-                value={c}
-                onChangeText={(val) => updateChoice(i, val)}
-                placeholder={t('choicePlaceholder', { n: i + 1 })}
-              />
+            <LangColumns />
+            {tl.choices.map((_, i) => (
+              <View key={i} style={styles.poolRow}>
+                <View style={styles.langColumn}>
+                  <ClearableTextInput
+                    style={styles.input}
+                    value={en.choices[i]}
+                    onChangeText={(val) => updateListItem('en', 'choices', i, val)}
+                    placeholder={t('choicePlaceholder', { n: i + 1 })}
+                  />
+                </View>
+                <View style={styles.langColumn}>
+                  <ClearableTextInput
+                    style={styles.input}
+                    value={tl.choices[i]}
+                    onChangeText={(val) => updateListItem('tl', 'choices', i, val)}
+                    placeholder={t('choicePlaceholder', { n: i + 1 })}
+                  />
+                </View>
+              </View>
             ))}
           </>
         )}
@@ -358,15 +404,22 @@ export default function QuestionEditorScreen() {
             <View style={styles.poolHeaderRow}>
               <Text style={styles.label}>{t('answerPoolLabel', { min: MIN_ENUMERATION_POOL })}</Text>
               <Text style={styles.poolCount}>
-                {t('poolFilledCount', { count: answerPool.filter((a) => a.trim()).length })}
+                {t('poolFilledCount', { count: tl.answerPool.filter((a) => a.trim()).length })}
               </Text>
             </View>
-            {answerPool.map((val, i) => (
+            <LangColumns withRemove />
+            {tl.answerPool.map((_, i) => (
               <View key={i} style={styles.poolRow}>
                 <TextInput
-                  style={[styles.input, styles.poolInput]}
-                  value={val}
-                  onChangeText={(text) => updatePoolAnswer(i, text)}
+                  style={[styles.input, styles.langColumn]}
+                  value={en.answerPool[i]}
+                  onChangeText={(text) => updateListItem('en', 'answerPool', i, text)}
+                  placeholder={t('poolAnswerPlaceholder', { n: i + 1 })}
+                />
+                <TextInput
+                  style={[styles.input, styles.langColumn]}
+                  value={tl.answerPool[i]}
+                  onChangeText={(text) => updateListItem('tl', 'answerPool', i, text)}
                   placeholder={t('poolAnswerPlaceholder', { n: i + 1 })}
                 />
                 <TouchableOpacity style={styles.removePoolButton} onPress={() => removePoolSlot(i)}>
@@ -381,10 +434,14 @@ export default function QuestionEditorScreen() {
         )}
 
         {type !== 'enumeration' && (
-          <>
-            <Text style={styles.label}>{t('correctAnswerLabel')}</Text>
-            <ClearableTextInput style={styles.input} value={correctAnswer} onChangeText={setCorrectAnswer} placeholder={t('correctAnswerPlaceholder')} />
-          </>
+          <BilingualInput
+            label={t('correctAnswerLabel')}
+            enValue={en.correctAnswer}
+            tlValue={tl.correctAnswer}
+            onEn={(v) => setField('en', { correctAnswer: v })}
+            onTl={(v) => setField('tl', { correctAnswer: v })}
+            placeholder={t('correctAnswerPlaceholder')}
+          />
         )}
 
         {type === 'identification' && (
@@ -393,18 +450,25 @@ export default function QuestionEditorScreen() {
               <Text style={styles.label}>{t('otherAcceptedLabel')}</Text>
               <Text style={styles.poolCount}>
                 {t('acceptedCount', {
-                  count: acceptedAnswers.filter((a) => a.trim()).length,
+                  count: tl.acceptedAnswers.filter((a) => a.trim()).length,
                   max: MAX_ACCEPTED_ANSWERS,
                 })}
               </Text>
             </View>
             <Text style={styles.helperNote}>{t('acceptedAnswersNote')}</Text>
-            {acceptedAnswers.map((val, i) => (
+            {tl.acceptedAnswers.length > 0 && <LangColumns withRemove />}
+            {tl.acceptedAnswers.map((_, i) => (
               <View key={i} style={styles.poolRow}>
                 <TextInput
-                  style={[styles.input, styles.poolInput]}
-                  value={val}
-                  onChangeText={(text) => updateAcceptedAnswer(i, text)}
+                  style={[styles.input, styles.langColumn]}
+                  value={en.acceptedAnswers[i]}
+                  onChangeText={(text) => updateListItem('en', 'acceptedAnswers', i, text)}
+                  placeholder={t('otherAcceptedPlaceholder', { n: i + 1 })}
+                />
+                <TextInput
+                  style={[styles.input, styles.langColumn]}
+                  value={tl.acceptedAnswers[i]}
+                  onChangeText={(text) => updateListItem('tl', 'acceptedAnswers', i, text)}
                   placeholder={t('otherAcceptedPlaceholder', { n: i + 1 })}
                 />
                 <TouchableOpacity style={styles.removePoolButton} onPress={() => removeAcceptedAnswer(i)}>
@@ -418,8 +482,25 @@ export default function QuestionEditorScreen() {
           </>
         )}
 
-        <Text style={styles.label}>{t('explanationLabel')}</Text>
-        <ClearableTextInput style={[styles.input, styles.multiline]} value={explanation} onChangeText={setExplanation} multiline placeholder={t('explanationPlaceholder')} />
+        <BilingualInput
+          label={t('explanationLabel')}
+          enValue={en.explanation}
+          tlValue={tl.explanation}
+          onEn={(v) => setField('en', { explanation: v })}
+          onTl={(v) => setField('tl', { explanation: v })}
+          placeholder={t('explanationPlaceholder')}
+          multiline
+        />
+
+        <BilingualInput
+          label={t('miniLessonLabel')}
+          enValue={en.miniLesson}
+          tlValue={tl.miniLesson}
+          onEn={(v) => setField('en', { miniLesson: v })}
+          onTl={(v) => setField('tl', { miniLesson: v })}
+          placeholder={t('typeMiniLesson')}
+          multiline
+        />
 
         <Text style={styles.label}>{t('lessonImageLabel')}</Text>
         <Text style={styles.helperNote}>{t('lessonImageNote')}</Text>
@@ -503,7 +584,9 @@ const styles = StyleSheet.create({
   poolHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 6 },
   poolCount: { fontSize: 11.5, color: '#3E9E4F', fontWeight: 'bold' },
   poolRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  poolInput: { flex: 1, marginBottom: 8 },
+  langColumn: { flex: 1, marginBottom: 8 },
+  langLabel: { fontSize: 11.5, fontWeight: 'bold', color: '#8E8E93', marginBottom: 4 },
+  removeSpacer: { width: 30 },
   removePoolButton: {
     width: 30, height: 30, borderRadius: 15, backgroundColor: '#FCEAEA',
     alignItems: 'center', justifyContent: 'center', marginBottom: 8,
