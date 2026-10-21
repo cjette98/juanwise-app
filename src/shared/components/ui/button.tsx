@@ -66,7 +66,7 @@ export function Button({
       ) : (
         <View style={styles.inner}>
           {icon && <Icon name={icon} size={20} color={v.fg} />}
-          <H3 style={{ color: v.fg }} numberOfLines={1}>
+          <H3 style={{ color: v.fg }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
             {label}
           </H3>
         </View>

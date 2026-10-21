@@ -8,6 +8,7 @@ import { errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
 import { Screen, Button, Icon, type IconName, H1, Label, Caption } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 
 const LRN_REGEX = /^\d{12}$/;
 const TEACHER_ID_REGEX = /^\d{7}$/;
@@ -456,7 +457,7 @@ const styles = StyleSheet.create({
   fieldInput: {
     flex: 1,
     fontFamily: tokens.font.body,
-    fontSize: tokens.type.body.fontSize,
+    fontSize: typeScale.body.fontSize,
     color: tokens.color.ink,
   },
   eyeBtn: { minWidth: tokens.hit.min, minHeight: tokens.hit.min, alignItems: 'center', justifyContent: 'center' },

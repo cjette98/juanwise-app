@@ -23,6 +23,7 @@ import { errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
 import { Screen, ScreenHeader, Card, Button, Pill, ProgressBar, Icon, type IconName, H3, BodyStrong, Body, Label, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -605,7 +606,7 @@ const styles = StyleSheet.create({
   lockedHintText: { fontStyle: 'italic' },
   cardInput: {
     fontFamily: tokens.font.bodyBold,
-    fontSize: tokens.type.body.fontSize,
+    fontSize: typeScale.body.fontSize,
     color: tokens.color.ink,
     borderBottomWidth: 1,
     borderBottomColor: tokens.color.border,

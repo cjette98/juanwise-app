@@ -11,6 +11,7 @@ import { toNum } from '@/shared/lib/params';
 import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matching';
 import { Screen, ScreenHeader, Card, Button, Icon, ScoreBadge, StarRow, ZoomableImage, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { difficultyLabelKey } from '@/features/learning/lib/activity-list-model';
@@ -622,7 +623,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.space.lg,
     backgroundColor: tokens.color.surface,
     color: tokens.color.ink,
-    ...tokens.type.body,
+    ...typeScale.body,
   },
   enumHelper: { marginBottom: -tokens.space.xs },
   enumRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm },

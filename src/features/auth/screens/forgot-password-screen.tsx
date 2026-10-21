@@ -6,6 +6,7 @@ import { authApi, errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Screen, ScreenHeader, Button, Icon, H2, Body, Caption } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 
 /**
  * Password recovery is Firebase's, via `POST /auth/forgot-password`: the server
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
   fieldInput: {
     flex: 1,
     fontFamily: tokens.font.body,
-    fontSize: tokens.type.body.fontSize,
+    fontSize: typeScale.body.fontSize,
     color: tokens.color.ink,
   },
 

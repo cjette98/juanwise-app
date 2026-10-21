@@ -7,6 +7,7 @@ import { useClass } from '@/features/teacher/context/class-context';
 import { useAssignedPack } from '@/features/teacher/lib/use-assigned-pack';
 import { Screen, ScreenHeader, Card, Pill, Icon, type IconName, BodyStrong, Caption, Label } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 
 const AVATAR_SIZE = 76;
 
@@ -105,7 +106,7 @@ export default function TeacherDashboardScreen() {
       <View style={styles.bottomBar}>
         <View style={styles.bottomItem}>
           <Icon name="home" size={25} color={tokens.color.primary} strokeWidth={2.4} />
-          <Caption style={{ ...tokens.type.tab, color: tokens.color.primary }}>{t('dashboardHomeTab')}</Caption>
+          <Caption style={{ ...typeScale.tab, color: tokens.color.primary }}>{t('dashboardHomeTab')}</Caption>
         </View>
         <TouchableOpacity
           style={styles.bottomItem}
@@ -114,7 +115,7 @@ export default function TeacherDashboardScreen() {
           accessibilityLabel={t('dashboardProfileTab')}
         >
           <Icon name="user" size={25} color={tokens.color.inkDisabled} strokeWidth={2.4} />
-          <Caption style={{ ...tokens.type.tab, color: tokens.color.inkDisabled }}>{t('dashboardProfileTab')}</Caption>
+          <Caption style={{ ...typeScale.tab, color: tokens.color.inkDisabled }}>{t('dashboardProfileTab')}</Caption>
         </TouchableOpacity>
       </View>
     </Screen>

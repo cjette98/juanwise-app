@@ -18,6 +18,7 @@ import {
   type SegmentedOption,
 } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 import {
   useStudentResults,
   ResultFilter,
@@ -536,7 +537,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: tokens.radius.pill,
   },
-  paceBadgeText: { ...tokens.type.tab },
+  paceBadgeText: { ...typeScale.tab },
   statsBlock: { alignItems: 'flex-end', gap: 2 },
   pointsText: { color: tokens.color.ink },
   durationRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },

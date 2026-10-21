@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { Icon, type IconName } from './icon';
 import { Caption } from './text';
 import { tokens } from '@/shared/theme/tokens';
+import { MAX_FONT_MULTIPLIER, typeScale } from '@/shared/theme/typography';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 
 type Tab = 'home' | 'learn' | 'ranks' | 'me';
@@ -36,7 +37,13 @@ export function BottomNav({ active }: { active: Tab }) {
             accessibilityLabel={label}
           >
             <Icon name={tab.icon} size={25} color={on ? tokens.color.primary : tokens.color.inkDisabled} strokeWidth={2.4} />
-            <Caption style={{ ...tokens.type.tab, color: on ? tokens.color.primary : tokens.color.inkDisabled }}>
+            <Caption
+              style={{ ...typeScale.tab, color: on ? tokens.color.primary : tokens.color.inkDisabled }}
+              maxFontSizeMultiplier={MAX_FONT_MULTIPLIER.tab}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
               {label}
             </Caption>
           </TouchableOpacity>

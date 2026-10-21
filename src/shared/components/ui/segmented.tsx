@@ -64,7 +64,12 @@ export function Segmented<T extends string>({
             {option.icon && (
               <Icon name={option.icon} size={15} color={fg} filled={option.icon === 'star'} />
             )}
-            <Caption style={{ color: fg, fontFamily: tokens.font.bodyBold }} numberOfLines={1}>
+            <Caption
+              style={{ color: fg, fontFamily: tokens.font.bodyBold }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
               {option.label}
             </Caption>
           </TouchableOpacity>

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { tokens, categoryColor } from './tokens';
+import {
+  BASE_SCREEN_WIDTH,
+  MAX_FONT_SCALE,
+  MIN_FONT_SCALE,
+  categoryColor,
+  fontScaleFor,
+  scaleTypeStyle,
+  tokens,
+} from './tokens';
 
 describe('legibility floor', () => {
   it('has no type style below 11.5px', () => {
@@ -50,5 +58,30 @@ describe('categoryColor', () => {
       expect(dark).not.toBe(base);
       expect(dark).toMatch(/^#[0-9A-F]{6}$/i);
     }
+  });
+});
+
+describe('font scale', () => {
+  it('draws the layouts at 1 on the width they were drawn for', () => {
+    expect(fontScaleFor(BASE_SCREEN_WIDTH)).toBe(1);
+  });
+
+  it('shrinks on a small phone and grows on a tablet, within the clamp', () => {
+    expect(fontScaleFor(320)).toBe(MIN_FONT_SCALE);
+    expect(fontScaleFor(768)).toBe(MAX_FONT_SCALE);
+    expect(fontScaleFor(412)).toBeCloseTo(412 / BASE_SCREEN_WIDTH, 5);
+  });
+
+  it('falls back to 1 when the width is not a usable number', () => {
+    for (const width of [0, -320, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(fontScaleFor(width)).toBe(1);
+    }
+  });
+
+  it('scales a style and its line height together, keeping the family', () => {
+    const scaled = scaleTypeStyle(tokens.type.body, 1.1);
+    expect(scaled.fontSize).toBe(16.5);
+    expect(scaled.lineHeight).toBe(25.3);
+    expect(scaled.fontFamily).toBe(tokens.type.body.fontFamily);
   });
 });
