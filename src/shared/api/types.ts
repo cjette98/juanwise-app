@@ -315,7 +315,8 @@ export type UpsertQuestionRequest =
       miniLessonImageUrl?: string | null;
       choices: string[];
       correctAnswer: string;
-      en?: (UpsertEnCommon & { choices: string[]; correctAnswer: string }) | null;
+      /** Required: both languages are saved together. */
+      en: UpsertEnCommon & { choices: string[]; correctAnswer: string };
     }
   | {
       type: 'enumeration';
@@ -328,7 +329,7 @@ export type UpsertQuestionRequest =
       answerPool: string[];
       requiredAnswers: number;
       /** Its pool must also hold at least `requiredAnswers` entries. */
-      en?: (UpsertEnCommon & { answerPool: string[] }) | null;
+      en: UpsertEnCommon & { answerPool: string[] };
     }
   | {
       type: 'identification';
@@ -345,7 +346,7 @@ export type UpsertQuestionRequest =
        * `correctAnswer` after trim/collapse/lowercase — enforced server-side.
        */
       acceptedAnswers?: string[];
-      en?: (UpsertEnCommon & { correctAnswer: string; acceptedAnswers?: string[] }) | null;
+      en: UpsertEnCommon & { correctAnswer: string; acceptedAnswers?: string[] };
     };
 
 export interface ApiContentSettings {

@@ -12,10 +12,11 @@ export default function JigsawContentScreen() {
   const router = useRouter();
   const { t } = useLanguage();
   const { packId } = useLocalSearchParams<{ packId: string }>();
-  const { isPackReady, error, ensurePackLoaded, getEffectiveCategoryContent, setCategoryImageUri, setCategoryContext, resetCategoryImage } =
+  const { isPackReady, error, ensurePackLoaded, getEffectiveCategoryContent, getCategoryContexts, setCategoryImageUri, setCategoryContext, resetCategoryImage } =
     useAdminContent();
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [draftText, setDraftText] = useState('');
+  const [draftTl, setDraftTl] = useState('');
+  const [draftEn, setDraftEn] = useState('');
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,19 +75,27 @@ export default function JigsawContentScreen() {
     }
   };
 
-  const startEditingLesson = (categoryKey: string, currentText: string) => {
+  const startEditingLesson = (categoryKey: string) => {
+    const texts = getCategoryContexts(packId, categoryKey);
     setEditingKey(categoryKey);
-    setDraftText(currentText);
+    setDraftEn(texts.context_en);
+    setDraftTl(texts.context_tl);
   };
 
   const saveLesson = async (categoryKey: string) => {
-    if (!draftText.trim()) {
+    const context_en = draftEn.trim();
+    const context_tl = draftTl.trim();
+    if (!context_en && !context_tl) {
       Alert.alert(t('adminEmptyTitle'), t('emptyMiniLessonMsg'));
+      return;
+    }
+    if (!context_en || !context_tl) {
+      Alert.alert(t('adminEmptyTitle'), t('bothLanguagesRequired'));
       return;
     }
     setBusyKey(categoryKey);
     try {
-      const result = await setCategoryContext(packId, categoryKey, draftText.trim());
+      const result = await setCategoryContext(packId, categoryKey, { context_en, context_tl });
       if (!result.success) {
         Alert.alert(t('adminSaveFailedTitle'), result.message);
         return;
@@ -162,10 +171,19 @@ export default function JigsawContentScreen() {
 
               {isEditing ? (
                 <View style={styles.lessonEditWrap}>
+                  <Text style={styles.langLabel}>{t('contentLangEnglish')}</Text>
                   <TextInput
                     style={styles.lessonInput}
-                    value={draftText}
-                    onChangeText={setDraftText}
+                    value={draftEn}
+                    onChangeText={setDraftEn}
+                    multiline
+                    placeholder={t('typeMiniLesson')}
+                  />
+                  <Text style={styles.langLabel}>{t('contentLangTagalog')}</Text>
+                  <TextInput
+                    style={styles.lessonInput}
+                    value={draftTl}
+                    onChangeText={setDraftTl}
                     multiline
                     placeholder={t('typeMiniLesson')}
                   />
@@ -187,7 +205,7 @@ export default function JigsawContentScreen() {
                   </View>
                 </View>
               ) : (
-                <TouchableOpacity onPress={() => startEditingLesson(cat.key, content.context)}>
+                <TouchableOpacity onPress={() => startEditingLesson(cat.key)}>
                   <Text style={styles.lessonText} numberOfLines={3}>{content.context}</Text>
                   <Text style={[styles.editLessonLink, { color: cat.color }]}>{t('editMiniLessonBtn')}</Text>
                 </TouchableOpacity>
@@ -227,6 +245,7 @@ const styles = StyleSheet.create({
   lessonText: { fontSize: 13, color: '#2B2B2B', lineHeight: 19 },
   editLessonLink: { fontSize: 12, fontWeight: 'bold', marginTop: 6 },
   lessonEditWrap: { gap: 8 },
+  langLabel: { fontSize: 11.5, fontWeight: 'bold', color: '#5C3A21', marginBottom: -4 },
   lessonInput: {
     borderWidth: 1.5, borderColor: '#E0D5BE', borderRadius: 12, padding: 10, minHeight: 80,
     textAlignVertical: 'top', fontSize: 13, color: '#1A1A1A',

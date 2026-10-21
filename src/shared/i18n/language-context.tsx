@@ -463,6 +463,10 @@ const en = {
   // --- Admin — question editor ---
   questionTypeLabel: 'Question Type',
   miniLessonHintLabel: 'Mini-Lesson / Hint',
+  contentLangTagalog: 'Tagalog',
+  contentLangEnglish: 'English',
+  bothLanguagesRequired: 'Fill in both the English and Tagalog versions.',
+  englishVersionPrefix: 'English version: ',
   miniLessonHintPlaceholder: 'Short explanation before the question...',
   questionLabel: 'Question',
   questionPlaceholder: 'Type the question...',
@@ -1107,6 +1111,10 @@ const tl: Record<TranslationKey, string> = {
   // --- Admin — question editor ---
   questionTypeLabel: 'Uri ng Tanong',
   miniLessonHintLabel: 'Mini-Lesson / Hint',
+  contentLangTagalog: 'Tagalog',
+  contentLangEnglish: 'Ingles',
+  bothLanguagesRequired: 'Punan ang bersyong Ingles at Tagalog.',
+  englishVersionPrefix: 'Bersyong Ingles: ',
   miniLessonHintPlaceholder: 'Maikling paliwanag bago ang tanong...',
   questionLabel: 'Tanong',
   questionPlaceholder: 'I-type ang tanong...',

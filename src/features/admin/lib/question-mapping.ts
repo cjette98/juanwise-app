@@ -87,12 +87,16 @@ const trimmed = (list: string[] | undefined) => (list ?? []).map((a) => a.trim()
 
 /**
  * The English version with only the fields `type` owns, so a stale field left
- * over from a type change is never sent. Null when the English question is
- * blank: that is how an admin removes the English version.
+ * over from a type change is never sent. The server requires it on every save,
+ * so a blank English question throws here rather than sending `null`; the
+ * editor blocks saving before this can happen.
  */
-function toUpsertEn(en: QuizQuestionEn | null | undefined, type: QuizQuestion['type']) {
+function toUpsertEn(en: QuizQuestionEn | null | undefined, type: 'enumeration'): Extract<UpsertQuestionRequest, { type: 'enumeration' }>['en'];
+function toUpsertEn(en: QuizQuestionEn | null | undefined, type: 'identification'): Extract<UpsertQuestionRequest, { type: 'identification' }>['en'];
+function toUpsertEn(en: QuizQuestionEn | null | undefined, type: 'multiple-choice'): Extract<UpsertQuestionRequest, { type: 'multiple-choice' }>['en'];
+function toUpsertEn(en: QuizQuestionEn | null | undefined, type: QuizQuestion['type']): UpsertQuestionRequest['en'] {
   const question = en?.question.trim();
-  if (!en || !question) return null;
+  if (!en || !question) throw new Error('The English version of the question is required.');
   const common = {
     question,
     hint: en.hint.trim() || null,
@@ -134,7 +138,7 @@ export function toUpsertRequest(q: QuizQuestion): UpsertQuestionRequest {
       type: 'enumeration',
       answerPool: (q.answerPool ?? []).map((a) => a.trim()).filter(Boolean),
       requiredAnswers: q.requiredAnswers ?? 1,
-      en: toUpsertEn(q.en, 'enumeration') as Extract<UpsertQuestionRequest, { type: 'enumeration' }>['en'],
+      en: toUpsertEn(q.en, 'enumeration'),
     };
   }
 
@@ -146,7 +150,7 @@ export function toUpsertRequest(q: QuizQuestion): UpsertQuestionRequest {
       // Blank rows are dropped rather than sent: the server rejects an empty
       // alternative, and an editor that left one behind would fail the save.
       acceptedAnswers: (q.acceptedAnswers ?? []).map((a) => a.trim()).filter(Boolean),
-      en: toUpsertEn(q.en, 'identification') as Extract<UpsertQuestionRequest, { type: 'identification' }>['en'],
+      en: toUpsertEn(q.en, 'identification'),
     };
   }
 
@@ -155,6 +159,6 @@ export function toUpsertRequest(q: QuizQuestion): UpsertQuestionRequest {
     type: 'multiple-choice',
     choices: (q.choices ?? []).map((c) => c.trim()).filter(Boolean),
     correctAnswer: q.correctAnswer.trim(),
-    en: toUpsertEn(q.en, 'multiple-choice') as Extract<UpsertQuestionRequest, { type: 'multiple-choice' }>['en'],
+    en: toUpsertEn(q.en, 'multiple-choice'),
   };
 }

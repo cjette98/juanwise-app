@@ -118,7 +118,8 @@ describe('quizLessonText', () => {
 
 describe('toUpsertRequest', () => {
   const lesson = 'Ang Katipunan ay lihim na samahang itinatag noong 1892.';
-  const question: QuizQuestion = { ...fallback, miniLesson: lesson };
+  const englishVersion = { question: 'Q', hint: '', explanation: '' };
+  const question: QuizQuestion = { ...fallback, miniLesson: lesson, en: englishVersion };
 
   it.each([
     ['multiple-choice', question],
@@ -131,7 +132,7 @@ describe('toUpsertRequest', () => {
   });
 
   it('sends null rather than an empty string when there is no mini-lesson', () => {
-    expect(toUpsertRequest({ ...fallback, miniLesson: '  ' })).toMatchObject({ miniLesson: null });
+    expect(toUpsertRequest({ ...fallback, miniLesson: '  ', en: englishVersion })).toMatchObject({ miniLesson: null });
   });
 });
 
@@ -177,6 +178,7 @@ describe('mini-lesson image mapping', () => {
       correctAnswer: 'a',
       explanation: 'e',
       miniLessonImageUrl: url,
+      en: { question: 'Q', hint: '', explanation: '' },
     });
     expect(sent.miniLessonImageUrl).toBe(url);
   });
@@ -190,6 +192,7 @@ describe('mini-lesson image mapping', () => {
       correctAnswer: 'a',
       explanation: 'e',
       miniLessonImageUrl: '   ',
+      en: { question: 'Q', hint: '', explanation: '' },
     });
     expect(sent.miniLessonImageUrl).toBeNull();
   });
@@ -231,12 +234,11 @@ describe('English version', () => {
     explanation: 'e',
   };
 
-  it('sends en: null for an all-blank English set', () => {
-    const sent = toUpsertRequest({
-      ...base,
-      en: { question: '   ', hint: 'stray', explanation: '', correctAnswer: 'x' },
-    });
-    expect(sent.en).toBeNull();
+  it('refuses to build a request without an English question', () => {
+    expect(() =>
+      toUpsertRequest({ ...base, en: { question: '   ', hint: 'stray', explanation: '', correctAnswer: 'x' } }),
+    ).toThrow();
+    expect(() => toUpsertRequest({ ...base, en: null })).toThrow();
   });
 
   it('drops English fields the type does not own', () => {

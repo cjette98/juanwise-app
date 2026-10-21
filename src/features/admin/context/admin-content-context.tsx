@@ -83,7 +83,13 @@ type AdminContentContextType = {
   ) => EffectiveCategoryContent;
   getJigsawPieceCount: (packId: string, category: string, level: number, activityNum: number) => ApiJigsawPieceCount;
   setCategoryImageUri: (packId: string, category: string, uri: string, mimeType?: string) => Promise<ActionResult>;
-  setCategoryContext: (packId: string, category: string, text: string) => Promise<ActionResult>;
+  /** Both raw mini-lesson texts, for the editor. `context_tl` falls back to the bundled text. */
+  getCategoryContexts: (packId: string, category: string) => { context_en: string; context_tl: string };
+  setCategoryContext: (
+    packId: string,
+    category: string,
+    texts: { context_en: string; context_tl: string },
+  ) => Promise<ActionResult>;
   resetCategoryImage: (packId: string, category: string) => Promise<ActionResult>;
   uploadQuestionImage: (
     category: string,
@@ -249,6 +255,18 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
     [stateFor],
   );
 
+  const getCategoryContexts: AdminContentContextType['getCategoryContexts'] = useCallback(
+    (packId, category) => {
+      const base = categoryContent[category] || categoryContent.history;
+      const api = stateFor(packId).categories[category];
+      return {
+        context_en: api?.context_en ?? '',
+        context_tl: api?.context_tl ?? base.context_tl,
+      };
+    },
+    [stateFor],
+  );
+
   const getJigsawPieceCount: AdminContentContextType['getJigsawPieceCount'] = useCallback(
     (packId, category, level, activityNum) =>
       resolveJigsawPieceCount(stateFor(packId).categories[category], level, activityNum),
@@ -270,9 +288,9 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
   );
 
   const setCategoryContext: AdminContentContextType['setCategoryContext'] = useCallback(
-    async (packId, category, text) => {
+    async (packId, category, { context_en, context_tl }) => {
       try {
-        const saved = await contentApi.updateCategory(packId, category as ApiCategoryKey, { context_tl: text });
+        const saved = await contentApi.updateCategory(packId, category as ApiCategoryKey, { context_en, context_tl });
         if (mounted.current) storeCategory(packId, saved);
         return { success: true, message: t('miniLessonSavedMsg') };
       } catch (err) {
@@ -336,6 +354,7 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       upsertQuestion,
       deleteQuestionOverride,
       getEffectiveCategoryContent,
+      getCategoryContexts,
       getJigsawPieceCount,
       setCategoryImageUri,
       setCategoryContext,
@@ -345,7 +364,7 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
     }),
     [
       isPackReady, error, ensurePackLoaded, refreshPack, getPack, getEffectiveQuestion, isOverridden,
-      upsertQuestion, deleteQuestionOverride, getEffectiveCategoryContent, getJigsawPieceCount,
+      upsertQuestion, deleteQuestionOverride, getEffectiveCategoryContent, getCategoryContexts, getJigsawPieceCount,
       setCategoryImageUri, setCategoryContext, resetCategoryImage, uploadQuestionImage, setShowMiniLesson,
     ],
   );
