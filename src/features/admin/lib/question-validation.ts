@@ -25,9 +25,22 @@ export type DraftResult =
   | { ok: true; tl: LangDraft; en: LangDraft; requiredAnswers: number }
   | { ok: false; error: DraftError };
 
-/** Case-insensitive; keeps the first spelling of each. */
-const dedupe = (list: string[]) =>
-  Array.from(new Map(list.reverse().map((a) => [a.toLowerCase(), a])).values()).reverse();
+/** The server's answer comparison: trim, collapse inner whitespace, lowercase. */
+const normalizeAnswer = (a: string) => a.trim().replace(/\s+/g, ' ').toLowerCase();
+
+/** The server rejects identification answers longer than this. */
+const MAX_ANSWER_LENGTH = 200;
+
+/** Duplicates by `normalizeAnswer`; keeps the first spelling of each. */
+const dedupe = (list: string[]) => {
+  const seen = new Set<string>();
+  return list.filter((a) => {
+    const key = normalizeAnswer(a);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 const fail = (
   english: boolean,
@@ -70,15 +83,18 @@ function validateLang(
   if (type === 'multiple-choice') {
     const choices = d.choices.map((c) => c.trim()).filter(Boolean);
     if (choices.length < 2) return fail(english, 'needChoicesTitle', 'needChoicesMsg');
-    if (!choices.some((c) => c.toLowerCase() === correctAnswer.toLowerCase())) {
-      return fail(english, 'mismatchTitle', 'mismatchMsg');
-    }
-    return { ok: true, value: { ...base, choices, correctAnswer } };
+    // The server needs the answer to be exactly one of the choices, so send
+    // that choice's own spelling rather than what was typed.
+    const match = choices.find((c) => normalizeAnswer(c) === normalizeAnswer(correctAnswer));
+    if (match === undefined) return fail(english, 'mismatchTitle', 'mismatchMsg');
+    return { ok: true, value: { ...base, choices, correctAnswer: match } };
   }
 
-  const acceptedAnswers = dedupe(d.acceptedAnswers.map((a) => a.trim()).filter(Boolean)).filter(
-    (a) => a.toLowerCase() !== correctAnswer.toLowerCase(),
-  );
+  const accepted = d.acceptedAnswers.map((a) => a.trim()).filter(Boolean);
+  if ([correctAnswer, ...accepted].some((a) => a.length > MAX_ANSWER_LENGTH)) {
+    return fail(english, 'invalidTitle', 'answerTooLongMsg', { max: MAX_ANSWER_LENGTH });
+  }
+  const acceptedAnswers = dedupe(accepted).filter((a) => normalizeAnswer(a) !== normalizeAnswer(correctAnswer));
   return { ok: true, value: { ...base, correctAnswer, acceptedAnswers } };
 }
 

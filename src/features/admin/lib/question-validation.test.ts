@@ -26,6 +26,7 @@ describe('validateQuestionDraft', () => {
       expect(r.tl.explanation).toBe('h');
       expect(r.en.question).toBe('Q');
       expect(r.en.choices).toEqual(['x', 'y']);
+      expect(r.en.correctAnswer).toBe('y');
     }
   });
 
@@ -70,5 +71,29 @@ describe('validateQuestionDraft', () => {
     expect(r.ok && r.en.acceptedAnswers).toEqual(['Andres']);
     const missing = run('identification', i(), i({ correctAnswer: '' }));
     expect(missing.ok === false && missing.error).toMatchObject({ msgKey: 'needCorrectAnswerMsg', english: true });
+  });
+
+  it('sends the matching choice\'s own spelling as the correct answer', () => {
+    const r = run('multiple-choice', mc({ choices: ['Yes', 'No', '', ''], correctAnswer: ' yes ' }), mc({ choices: ['Oo', 'Hindi', '', ''], correctAnswer: 'HINDI' }));
+    expect(r.ok && r.tl.correctAnswer).toBe('Yes');
+    expect(r.ok && r.en.correctAnswer).toBe('Hindi');
+  });
+
+  it('treats inner whitespace differences as duplicates', () => {
+    const i = () => mc({ choices: [], correctAnswer: 'x  y', acceptedAnswers: ['x y', 'a  b', 'a b'] });
+    const r = run('identification', i(), i());
+    expect(r.ok && r.tl.acceptedAnswers).toEqual(['a  b']);
+    const e = () => mc({ choices: [], answerPool: ['a  b', 'a b', 'c'] });
+    expect(run('enumeration', e(), e(), '2').ok).toBe(false);
+  });
+
+  it('rejects identification answers over 200 characters', () => {
+    const long = 'x'.repeat(201);
+    const i = (over: Partial<LangDraft>) => mc({ choices: [], correctAnswer: 'ok', ...over });
+    const a = run('identification', i({ correctAnswer: long }), i({}));
+    expect(a.ok === false && a.error).toMatchObject({ msgKey: 'answerTooLongMsg', english: false, params: { max: 200 } });
+    const b = run('identification', i({}), i({ acceptedAnswers: [long] }));
+    expect(b.ok === false && b.error).toMatchObject({ msgKey: 'answerTooLongMsg', english: true });
+    expect(run('identification', i({ correctAnswer: 'x'.repeat(200) }), i({})).ok).toBe(true);
   });
 });
