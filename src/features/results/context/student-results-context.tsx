@@ -16,6 +16,7 @@ import { Medal } from '@/shared/components/activity-timer';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
 import { computePerformanceScore } from './performance-score';
+import { useLanguage } from '@/shared/i18n/language-context';
 
 export { computePerformanceScore } from './performance-score';
 
@@ -310,6 +311,7 @@ type StudentResultsContextType = {
 const StudentResultsContext = createContext<StudentResultsContextType | undefined>(undefined);
 
 export function StudentResultsProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const { signedIn, ready: userReady, uid, role, name } = useUser();
   const { classId, ready: classReady } = useClass();
 
@@ -349,9 +351,9 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
       setError(null);
     } catch (err) {
       if (!mounted.current) return;
-      setError(errorMessage(err, 'Could not load results.'));
+      setError(errorMessage(err, t('resultsLoadFailedMsg')));
     }
-  }, [signedIn, isTeacher, classId, uid, store]);
+  }, [signedIn, isTeacher, classId, uid, store, t]);
 
   useEffect(() => {
     if (!userReady || !classReady) return;
@@ -416,18 +418,18 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
   );
 
   const clearResults: StudentResultsContextType['clearResults'] = useCallback(async () => {
-    if (!classId) return { success: false, message: 'Walang klaseng napili.' };
+    if (!classId) return { success: false, message: t('noClassSelectedMsg') };
     try {
       const { deleted } = await resultsApi.deleteMany({ classId });
       await refresh();
-      return { success: true, message: `Nabura ang ${deleted} na resulta.` };
+      return { success: true, message: t('resultsDeletedMsg', { count: deleted }) };
     } catch (err) {
       return {
         success: false,
-        message: errorMessage(err, 'Hindi nabura ang mga resulta.'),
+        message: errorMessage(err, t('resultsDeleteFailedMsg')),
       };
     }
-  }, [classId, refresh]);
+  }, [classId, refresh, t]);
 
   const leaderboard = useMemo<StudentSummary[]>(() => summarize(results), [results]);
 

@@ -9,6 +9,7 @@ import {
   type ApiClassMember,
 } from '@/shared/api';
 import { useUser } from '@/features/auth/context/user-context';
+import { useLanguage } from '@/shared/i18n/language-context';
 
 /**
  * The class and its roster — all server-side now.
@@ -73,6 +74,7 @@ type ClassContextType = {
 const ClassContext = createContext<ClassContextType | undefined>(undefined);
 
 export function ClassProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const { signedIn, ready: userReady, role, name, grade, section, refreshProfile } = useUser();
 
   const [currentClass, setCurrentClass] = useState<ApiClass | null>(null);
@@ -116,9 +118,9 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
       await loadRoster(klass);
     } catch (err) {
       if (!mounted.current) return;
-      setError(errorMessage(err, 'Could not load your class.'));
+      setError(errorMessage(err, t('classLoadFailedMsg')));
     }
-  }, [signedIn, loadRoster]);
+  }, [signedIn, loadRoster, t]);
 
   useEffect(() => {
     if (!userReady) return;
@@ -166,7 +168,7 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
       if (!existing) {
         // A brand-new class already comes back with a server-generated code.
         const created = await ensureClass();
-        return { success: true, message: 'Na-generate ang class code.', code: created.code };
+        return { success: true, message: t('classCodeGeneratedMsg'), code: created.code };
       }
       // Rotating means asking the server for another unique code; it only
       // allocates one on create, so make a fresh code and claim it.
@@ -176,11 +178,11 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
         setCurrentClass(updated);
         writeCache(CLASS_CACHE_KEY, updated);
       }
-      return { success: true, message: 'Na-generate ang class code.', code: updated.code };
+      return { success: true, message: t('classCodeGeneratedMsg'), code: updated.code };
     } catch (err) {
-      return { success: false, message: errorMessage(err, 'Hindi na-generate ang class code.') };
+      return { success: false, message: errorMessage(err, t('classCodeGenerateFailedMsg')) };
     }
-  }, [currentClass, ensureClass]);
+  }, [currentClass, ensureClass, t]);
 
   const setCustomCode: ClassContextType['setCustomCode'] = useCallback(
     async (code) => {
@@ -188,7 +190,7 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
       if (!/^[A-Z0-9]{10}$/.test(clean)) {
         return {
           success: false,
-          message: 'Ang class code ay dapat 10 characters (letters at numbers lang).',
+          message: t('classCodeFormatMsg'),
         };
       }
       try {
@@ -198,19 +200,19 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
           setCurrentClass(updated);
           writeCache(CLASS_CACHE_KEY, updated);
         }
-        return { success: true, message: 'Na-save ang class code.' };
+        return { success: true, message: t('classCodeSavedMsg') };
       } catch (err) {
-        return { success: false, message: errorMessage(err, 'Hindi na-save ang class code.') };
+        return { success: false, message: errorMessage(err, t('classCodeSaveFailedMsg')) };
       }
     },
-    [currentClass, ensureClass],
+    [currentClass, ensureClass, t],
   );
 
   const joinClass: ClassContextType['joinClass'] = useCallback(
     async (code) => {
       const clean = code.trim().toUpperCase();
       if (!/^[A-Z0-9]{10}$/.test(clean)) {
-        return { success: false, message: 'Maling class code. Pakisuri at subukan ulit.' };
+        return { success: false, message: t('classCodeInvalidMsg') };
       }
       try {
         const { message, class: joined } = await classesApi.join(clean);
@@ -225,15 +227,15 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
         if (err instanceof ApiError && err.code === 'CONFLICT') {
           return { success: true, message: err.message };
         }
-        return { success: false, message: errorMessage(err, 'Hindi nakasali sa klase.') };
+        return { success: false, message: errorMessage(err, t('classJoinFailedMsg')) };
       }
     },
-    [refreshProfile],
+    [refreshProfile, t],
   );
 
   const removeStudent: ClassContextType['removeStudent'] = useCallback(
     async (uid) => {
-      if (!currentClass) return { success: false, message: 'Wala pang klase.' };
+      if (!currentClass) return { success: false, message: t('noClassYetMsg') };
       try {
         await classesApi.removeMember(currentClass.id, uid);
         if (mounted.current) {
@@ -243,12 +245,12 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
             return next;
           });
         }
-        return { success: true, message: 'Naalis ang mag-aaral sa roster.' };
+        return { success: true, message: t('studentRemovedMsg') };
       } catch (err) {
-        return { success: false, message: errorMessage(err, 'Hindi naalis ang mag-aaral.') };
+        return { success: false, message: errorMessage(err, t('studentRemoveFailedMsg')) };
       }
     },
-    [currentClass],
+    [currentClass, t],
   );
 
   const value = useMemo<ClassContextType>(

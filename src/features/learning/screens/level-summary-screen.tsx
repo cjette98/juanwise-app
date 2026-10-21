@@ -6,6 +6,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum, toBool } from '@/shared/lib/params';
 import { Screen, ScreenHeader, Card, Button, Icon, Pill, StarRow, H3, Body, BodyStrong, Caption, Label } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
+import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
+import { getCategoryMeta } from '@/shared/content/category-meta';
 
 type LevelMedal = 'gold' | 'silver' | 'bronze' | null;
 
@@ -16,11 +18,11 @@ function medalForPoints(points: number): LevelMedal {
   return null;
 }
 
-function medalLabel(medal: LevelMedal) {
-  if (medal === 'gold') return 'Gold Medal';
-  if (medal === 'silver') return 'Silver Medal';
-  if (medal === 'bronze') return 'Bronze Medal';
-  return '— Walang Medal Pa';
+function medalLabelKey(medal: LevelMedal): TranslationKey {
+  if (medal === 'gold') return 'goldMedal';
+  if (medal === 'silver') return 'silverMedal';
+  if (medal === 'bronze') return 'bronzeMedal';
+  return 'noMedalYet';
 }
 
 function medalTint(medal: LevelMedal) {
@@ -41,10 +43,10 @@ function starsForMedal(medal: ActivityResult['medal']) {
 
 // Question format is determined by Level (Level 1 = MC, 2-3 = Identification,
 // 4-5 = Enumeration) — see quizContent.ts getQuizQuestion().
-function formatQuestionType(level: number) {
-  if (level === 1) return 'MC';
-  if (level <= 3) return 'ID';
-  return 'Enum';
+function questionTypeKey(level: number): TranslationKey {
+  if (level === 1) return 'typeMC';
+  if (level <= 3) return 'typeID';
+  return 'enumShort';
 }
 
 // Jigsaw piece count is determined by Activity number within the level
@@ -79,7 +81,9 @@ export default function LevelSummaryScreen() {
     viewStudentName?: string;
     readOnly?: string;
   }>();
-  const { category, label, color, activityType, viewStudentName } = params;
+  const { category, color, activityType, viewStudentName } = params;
+  const { t } = useLanguage();
+  const label = t(getCategoryMeta(category).labelKey) || params.label;
   const level = toNum(params.level, 1);
   const readOnly = toBool(params.readOnly);
   const { name: loggedInName } = useUser();
@@ -123,8 +127,9 @@ export default function LevelSummaryScreen() {
   const firstAttemptCorrectCount = perActivity.filter((a) => a.firstAttemptCorrect).length;
   const firstAttemptWrongCount = 6 - firstAttemptCorrectCount;
 
-  const classification =
-    firstAttemptCorrectCount >= 5 ? 'Fast Learner' : firstAttemptCorrectCount >= 3 ? 'Moderate Learner' : 'Slow Learner';
+  const classification = t(
+    firstAttemptCorrectCount >= 5 ? 'classFast' : firstAttemptCorrectCount >= 3 ? 'classModerate' : 'classSlow',
+  );
   // Same thresholds as `classification` — only the bolt icon's tint changes
   // per tier now, instead of an ⚡ / 🙂 / 🐢 emoji.
   const classificationTint =
@@ -145,18 +150,18 @@ export default function LevelSummaryScreen() {
   return (
     <Screen>
       <ScreenHeader
-        title={`Level ${level} — ${label}`}
-        subtitle={`Student: ${studentName}`}
+        title={t('levelDashLabel', { level, label })}
+        subtitle={t('studentNameLine', { name: studentName })}
         color={tokens.color.success}
-        right={<Pill label={isReadOnly ? 'Summary' : 'Complete'} tone="translucent" />}
+        right={<Pill label={isReadOnly ? t('summaryWord') : t('completeWord')} tone="translucent" />}
       >
         <View style={styles.medalRow}>
           <View style={styles.medalDisc}>
             <Icon name="medal" size={26} color={medalTint(levelMedal)} filled={!!levelMedal} />
           </View>
           <View style={styles.medalTextWrap}>
-            <BodyStrong style={styles.medalLabelText}>{medalLabel(levelMedal)}</BodyStrong>
-            <Caption style={styles.medalPointsText}>{totalPoints} / 90 points</Caption>
+            <BodyStrong style={styles.medalLabelText}>{t(medalLabelKey(levelMedal))}</BodyStrong>
+            <Caption style={styles.medalPointsText}>{t('pointsOutOfNinety', { points: totalPoints })}</Caption>
           </View>
         </View>
       </ScreenHeader>
@@ -166,17 +171,17 @@ export default function LevelSummaryScreen() {
           <Card style={styles.statCard}>
             <Icon name="star" size={20} color={tokens.color.gold} filled />
             <BodyStrong>{totalPoints}</BodyStrong>
-            <Caption>Points / 90</Caption>
+            <Caption>{t('pointsOutOf', { max: 90 })}</Caption>
           </Card>
           <Card style={styles.statCard}>
             <Icon name="clock" size={20} color={tokens.color.inkMuted} />
             <BodyStrong>{totalTime}s</BodyStrong>
-            <Caption>of {totalTimeCap}s</Caption>
+            <Caption>{t('ofSeconds', { seconds: totalTimeCap })}</Caption>
           </Card>
           <Card style={styles.statCard}>
             <Icon name="check" size={20} color={tokens.color.success} strokeWidth={3} />
             <BodyStrong>{firstAttemptCorrectCount}/6</BodyStrong>
-            <Caption>1st-Attempt</Caption>
+            <Caption>{t('firstAttemptStat')}</Caption>
           </Card>
         </View>
 
@@ -185,30 +190,32 @@ export default function LevelSummaryScreen() {
             <Icon name="bolt" size={22} color={classificationTint} filled />
           </View>
           <View style={styles.classificationTextWrap}>
-            <Label>Learner Classification</Label>
+            <Label>{t('learnerClassification')}</Label>
             <H3>{classification}</H3>
             <Caption>
-              First-Attempt Correct: {firstAttemptCorrectCount}/6 · Wrong: {firstAttemptWrongCount}/6
+              {t('firstAttemptBreakdown', { correct: firstAttemptCorrectCount, wrong: firstAttemptWrongCount })}
             </Caption>
           </View>
         </Card>
 
         <View style={styles.activitySection}>
-          <Label style={styles.sectionLabel}>Per-Activity Results</Label>
+          <Label style={styles.sectionLabel}>{t('perActivityResults')}</Label>
           {perActivity.map((a) => {
             const p = a.passingAttempt;
             const typeLabel =
-              activityType === 'jigsaw' ? `Jigsaw (${getJigsawPieceCount(a.num)} pcs)` : formatQuestionType(level);
+              activityType === 'jigsaw'
+                ? t('jigsawPcs', { n: getJigsawPieceCount(a.num) })
+                : t(questionTypeKey(level));
             const statusText = p
               ? typeof p.requiredCount === 'number'
-                ? `Passed (${p.correctCount}/${p.requiredCount})`
-                : 'Passed'
-              : 'Retry';
+                ? t('passedWithCount', { correct: p.correctCount ?? 0, required: p.requiredCount })
+                : t('passedWord')
+              : t('retryWord');
             const statusTint = p ? tokens.color.successInk : tokens.color.dangerInk;
             return (
               <Card key={a.num} style={styles.activityRow}>
                 <View style={styles.activityRowLeft}>
-                  <BodyStrong numberOfLines={1}>Activity {a.num}</BodyStrong>
+                  <BodyStrong numberOfLines={1}>{t('activityNumShort', { num: a.num })}</BodyStrong>
                   <Caption numberOfLines={1}>{typeLabel}</Caption>
                 </View>
                 <View style={styles.activityRowMid}>
@@ -222,7 +229,7 @@ export default function LevelSummaryScreen() {
                       {statusText}
                     </Caption>
                   </View>
-                  <BodyStrong style={styles.activityPoints}>{p ? p.points : 0} pts</BodyStrong>
+                  <BodyStrong style={styles.activityPoints}>{t('pointsSuffixShort', { points: p ? p.points : 0 })}</BodyStrong>
                 </View>
               </Card>
             );
@@ -232,20 +239,17 @@ export default function LevelSummaryScreen() {
         {!allComplete && (
           <Card style={styles.warningCard}>
             <Icon name="flag" size={18} color={tokens.color.dangerInk} />
-            <Body style={styles.warningText}>
-              Ang ibang activities ay hindi pa naka-record ng resulta para sa student na ito. Bumalik sa Activity List
-              para makumpleto.
-            </Body>
+            <Body style={styles.warningText}>{t('incompleteLevelWarning')}</Body>
           </Card>
         )}
       </ScrollView>
 
       <View style={styles.footer}>
         {isReadOnly ? (
-          <Button label="Back to Summary" onPress={handleBack} color={color} icon="chevronLeft" />
+          <Button label={t('backToSummary')} onPress={handleBack} color={color} icon="chevronLeft" />
         ) : (
           <Button
-            label={level < 5 ? `Proceed to Next Level (Unlock Level ${level + 1})` : 'Proceed to Level Map'}
+            label={level < 5 ? t('proceedNextLevelUnlock', { n: level + 1 }) : t('proceedToLevelMap')}
             onPress={handleProceed}
             disabled={!allComplete}
             color={color}

@@ -20,6 +20,7 @@ import {
   type EffectiveCategoryContent,
   type QuestionOverrides,
 } from '@/features/admin/lib/content-resolution';
+import { useLanguage } from '@/shared/i18n/language-context';
 
 /**
  * Student-facing content, resolved through the class the student joined —
@@ -50,6 +51,7 @@ type ClassContentContextType = {
 const ClassContentContext = createContext<ClassContentContextType | undefined>(undefined);
 
 export function ClassContentProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const { classId, currentClass, ready: classReady } = useClass();
 
   const [questions, setQuestions] = useState<QuestionOverrides>({});
@@ -90,9 +92,9 @@ export function ClassContentProvider({ children }: { children: React.ReactNode }
       writeCache(SETTINGS_CACHE_KEY, settings.showMiniLesson);
     } catch (err) {
       if (!mounted.current) return;
-      setError(errorMessage(err, 'Could not load content from the server.'));
+      setError(errorMessage(err, t('contentLoadFailedMsg')));
     }
-  }, [classId, currentClass?.packId]);
+  }, [classId, currentClass?.packId, t]);
 
   useEffect(() => {
     if (!classReady) return;

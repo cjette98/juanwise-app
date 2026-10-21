@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { useStudentResults, ActivityResult } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
+import { useLanguage } from '@/shared/i18n/language-context';
 import { useRouter } from 'expo-router';
 import { Screen, ScreenHeader, Card, Button, Icon, Body, BodyStrong, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
@@ -16,6 +17,7 @@ function medalTint(medal: ActivityResult['medal']) {
 
 export default function JigsawResultsScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { uid } = useUser();
   const { results, ready } = useStudentResults();
 
@@ -34,23 +36,20 @@ export default function JigsawResultsScreen() {
   return (
     <Screen>
       <ScreenHeader
-        title="Jigsaw Puzzle Results"
-        subtitle={`${jigsawResults.length} nabuong puzzle · ${totalPoints} kabuuang puntos`}
+        title={t('jigsawResultsTitle')}
+        subtitle={t('jigsawResultsSubtitle', { count: jigsawResults.length, points: totalPoints })}
         color={tokens.color.navJigsaw}
         onBack={() => router.back()}
       />
 
       <ScrollView contentContainerStyle={styles.list}>
-        {!ready && <Body style={styles.emptyText}>Naglo-load...</Body>}
+        {!ready && <Body style={styles.emptyText}>{t('loading')}</Body>}
         {ready && jigsawResults.length === 0 && (
           <View style={styles.emptyWrap}>
             <Icon name="puzzle" size={40} color={tokens.color.inkFaint} />
-            <Body style={styles.emptyText}>
-              Wala ka pang natatapos na Jigsaw Puzzle. Pumunta sa Categories at buuin ang isang
-              puzzle para makita dito ang resulta mo.
-            </Body>
+            <Body style={styles.emptyText}>{t('noJigsawResultsYet')}</Body>
             <Button
-              label="Pumunta sa Categories"
+              label={t('goToCategories')}
               onPress={() => router.navigate('/categories')}
               color={tokens.color.navJigsaw}
               style={styles.emptyButton}
@@ -65,11 +64,9 @@ export default function JigsawResultsScreen() {
             <Card key={r.id} style={styles.row}>
               <View style={styles.rowLeft}>
                 <BodyStrong style={{ color: categoryColor(r.category).base }} numberOfLines={1}>
-                  {meta.label}
+                  {t(meta.labelKey)}
                 </BodyStrong>
-                <Caption>
-                  Level {r.level} · Activity {r.activityNum}
-                </Caption>
+                <Caption>{t('levelActivityLine', { level: r.level, num: r.activityNum })}</Caption>
               </View>
               <View style={styles.rowStats}>
                 <View style={styles.rowStatLine}>
@@ -79,9 +76,9 @@ export default function JigsawResultsScreen() {
                     <Caption>—</Caption>
                   )}
                   <Icon name="clock" size={13} color={tokens.color.inkMuted} />
-                  <Caption>{r.timeUsed}s</Caption>
+                  <Caption>{t('secondsSuffix', { seconds: r.timeUsed })}</Caption>
                 </View>
-                <BodyStrong style={styles.rowPoints}>{r.points} pts</BodyStrong>
+                <BodyStrong style={styles.rowPoints}>{t('pointsSuffixShort', { points: r.points })}</BodyStrong>
               </View>
             </Card>
           );

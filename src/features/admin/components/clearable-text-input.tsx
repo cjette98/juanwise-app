@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, TextInput, TextInputProps, TouchableOpacity, View } from 'react-native';
 import { Icon } from '@/shared/components/ui';
+import { useLanguage } from '@/shared/i18n/language-context';
 
 /**
  * A TextInput with an inline ✕ that blanks the field, shown only once it has
@@ -8,6 +9,7 @@ import { Icon } from '@/shared/components/ui';
  * the ✕ can be vertically centered against the input's own box.
  */
 export function ClearableTextInput({ value, onChangeText, style, multiline, ...rest }: TextInputProps) {
+  const { t } = useLanguage();
   const hasValue = !!value;
   const flatStyle = StyleSheet.flatten(style) ?? {};
   const { marginBottom, ...inputStyle } = flatStyle;
@@ -26,7 +28,7 @@ export function ClearableTextInput({ value, onChangeText, style, multiline, ...r
           style={[styles.clearButton, multiline && styles.clearButtonMultiline]}
           onPress={() => onChangeText?.('')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel="I-clear ang field"
+          accessibilityLabel={t('clearFieldA11y')}
         >
           <Icon name="close" size={14} color="#8E8E93" />
         </TouchableOpacity>

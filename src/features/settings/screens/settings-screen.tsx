@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLanguage } from '@/shared/i18n/language-context';
+import { useLanguage, LANGUAGES, type Language } from '@/shared/i18n/language-context';
 import { useRouter } from 'expo-router';
 import { Screen, ScreenHeader, Card, Icon, type IconName, BodyStrong } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
@@ -16,8 +16,12 @@ type MenuItem = {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const [soundsOn, setSoundsOn] = useState(true);
+
+  // Onboarding asks once and never again, so this is the only place a user can
+  // change their mind about the language afterwards.
+  const LANGUAGE_LABEL: Record<Language, string> = { en: t('english'), tl: t('tagalog') };
 
   const menuItems: MenuItem[] = [
     {
@@ -62,6 +66,34 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.body}>
         <Card style={styles.settingsCard}>
+          <View style={styles.settingsRow}>
+            <View style={[styles.iconChip, { backgroundColor: tokens.color.navLessons }]}>
+              <Ionicons name="language-outline" size={18} color={tokens.color.onDark} />
+            </View>
+            <BodyStrong style={styles.settingsLabel} numberOfLines={1}>{t('languageLabel')}</BodyStrong>
+            <View style={styles.langRow}>
+              {LANGUAGES.map((lang) => {
+                const active = language === lang;
+                return (
+                  <TouchableOpacity
+                    key={lang}
+                    style={[styles.langChip, active && styles.langChipActive]}
+                    onPress={() => setLanguage(lang)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={LANGUAGE_LABEL[lang]}
+                  >
+                    <BodyStrong style={active ? styles.langChipTextActive : styles.langChipText}>
+                      {LANGUAGE_LABEL[lang]}
+                    </BodyStrong>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </Card>
+
+        <Card style={[styles.settingsCard, styles.menuCard]}>
           <View style={styles.settingsRow}>
             <View style={[styles.iconChip, { backgroundColor: tokens.color.primary }]}>
               {/* Registry has no volume/speaker icon; Ionicons fills that one gap. */}
@@ -114,4 +146,17 @@ const styles = StyleSheet.create({
   settingsRowDivider: { borderBottomWidth: 1, borderBottomColor: tokens.color.divider },
   iconChip: { width: 36, height: 36, borderRadius: tokens.radius.md, alignItems: 'center', justifyContent: 'center' },
   settingsLabel: { flex: 1 },
+
+  langRow: { flexDirection: 'row', gap: tokens.space.xs },
+  langChip: {
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.xs,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 2,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.surface,
+  },
+  langChipActive: { backgroundColor: tokens.color.primary, borderColor: tokens.color.primary },
+  langChipText: { color: tokens.color.inkMuted },
+  langChipTextActive: { color: tokens.color.onDark },
 });

@@ -2,7 +2,7 @@
   "expo": {
     "name": "JuanWise",
     "slug": "juanwise-app",
-    "version": "1.2.1",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/game/icon.jpg",
     "scheme": "juanwise",
@@ -17,7 +17,7 @@
         "foregroundImage": "./assets/images/game/icon.jpg",
         "backgroundColor": "#E8A93D"
       },
-      "versionCode": 4,
+      "versionCode": 5,
       "predictiveBackGestureEnabled": false,
       "package": "com.juanwise.app"
     },

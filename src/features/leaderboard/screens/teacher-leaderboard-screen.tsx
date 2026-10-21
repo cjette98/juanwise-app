@@ -173,7 +173,8 @@ export default function TeacherLeaderboardScreen() {
 
   const toggleFilter = (key: FilterKey) => setOpenFilter((v) => (v === key ? null : key));
 
-  const topicChipLabel = category ? CATEGORY_META.find((c) => c.key === category)?.label ?? category : t('filterTopic');
+  const topicMeta = category ? CATEGORY_META.find((c) => c.key === category) : undefined;
+  const topicChipLabel = category ? (topicMeta ? t(topicMeta.labelKey) : category) : t('filterTopic');
   const typeChipLabel =
     activityType === 'quiz' ? t('gameTypeQuiz') : activityType === 'jigsaw' ? t('gameTypeJigsaw') : t('filterType');
   const levelChipLabel = level ? `${t('level')} ${level}` : t('filterLevel');
@@ -302,7 +303,7 @@ export default function TeacherLeaderboardScreen() {
                   return (
                     <OptionPill
                       key={c.key}
-                      label={c.label}
+                      label={t(c.labelKey)}
                       active={active}
                       color={categoryColor(c.key).base}
                       onPress={() => {

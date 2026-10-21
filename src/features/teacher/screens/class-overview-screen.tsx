@@ -90,7 +90,7 @@ export default function ClassOverviewScreen() {
     if (!classCode) return;
     try {
       await Share.share({
-        message: `JuanWise Class Code: ${classCode}`,
+        message: t('classCodeShareMsg', { code: classCode }),
       });
     } catch (e) {
       // user cancelled or share failed silently

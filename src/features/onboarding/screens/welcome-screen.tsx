@@ -5,23 +5,13 @@ import { images } from '@/shared/assets/images';
 import { useRouter } from 'expo-router';
 import { Card, Button, H1, H2, Body, BodyStrong, Caption, Label } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
+import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 
 type InfoKey = 'privacy' | 'about' | null;
 
-const INFO_CONTENT: Record<Exclude<InfoKey, null>, { title: string; body: string }> = {
-  privacy: {
-    title: 'Privacy Preferences',
-    body:
-      "Kinokolekta lang ng JuanWise ang kailangan para gumana ang app at masubaybayan ang progreso ng pag-aaral — pangalan, grade level, at resulta ng mga activity.\n\n" +
-      'Ang progress dashboard at performance data ay makikita lamang ng estudyante mismo, ng kanyang magulang/guardian, at ng mga awtorisadong guro. Hindi ito ibinebenta o ibinabahagi sa ibang tao.\n\n' +
-      'Para sa buong detalye, tingnan ang Terms and Conditions.',
-  },
-  about: {
-    title: 'About the Game',
-    body:
-      'Ang JuanWise ay isang gamified supplementary learning tool na nagtuturo ng kasaysayan, kultura, at heograpiya ng Pilipinas sa pamamagitan ng quiz at jigsaw puzzle.\n\n' +
-      'Dadaan ang mga estudyante sa 5 level bawat kategorya, kumikita ng points, stars, at trophy sa bawat hakbang. Makikita naman ng mga guro ang live leaderboard at progress dashboard para masubaybayan ang klase.',
-  },
+const INFO_CONTENT: Record<Exclude<InfoKey, null>, { titleKey: TranslationKey; bodyKey: TranslationKey }> = {
+  privacy: { titleKey: 'privacyPreferencesLabel', bodyKey: 'welcomePrivacyBody' },
+  about: { titleKey: 'aboutGameLabel', bodyKey: 'welcomeAboutBody' },
 };
 
 // This screen keeps its own `ImageBackground` + `SafeAreaView` root rather
@@ -29,6 +19,7 @@ const INFO_CONTENT: Record<Exclude<InfoKey, null>, { title: string; body: string
 // content, which would hide the full-bleed welcome artwork entirely.
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [infoModal, setInfoModal] = useState<InfoKey>(null);
 
   const logoAnim = useRef(new Animated.Value(0)).current;
@@ -84,8 +75,8 @@ export default function WelcomeScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <Animated.View style={[styles.logoArea, fadeUp(logoAnim)]}>
             <H1 style={styles.title}>JuanWise</H1>
-            <Label style={styles.subtitle}>Gamified Philippine Knowledge</Label>
-            <BodyStrong style={styles.intro}>Maligayang pagdating! Tara, kilalanin natin ang JuanWise</BodyStrong>
+            <Label style={styles.subtitle}>{t('appTagline')}</Label>
+            <BodyStrong style={styles.intro}>{t('welcomeIntro')}</BodyStrong>
           </Animated.View>
 
           <Animated.View style={[styles.iconClusterWrap, fadeUp(cardsAnim)]}>
@@ -95,39 +86,35 @@ export default function WelcomeScreen() {
                 style={[styles.badgeImage, floatStyle]}
                 resizeMode="contain"
               />
-              <Caption style={styles.iconClusterCaption}>Estudyante · Guro · Paaralan · Araling Panlipunan</Caption>
+              <Caption style={styles.iconClusterCaption}>{t('welcomeAudience')}</Caption>
             </Card>
           </Animated.View>
 
           <Animated.View style={[styles.blurbArea, fadeUp(blurbAnim)]}>
             <Card style={[styles.featureCard, { borderLeftColor: tokens.color.navLeaderboard }]}>
-              <Label style={[styles.blurbTag, { color: tokens.color.navLeaderboard }]}>PARA SA ESTUDYANTE</Label>
-              <Body style={styles.blurbText}>
-                 Ikaw ang player dito! Mag-enjoy sa mga quiz at jigsaw puzzle habang natututo ka tungkol sa kasaysayan, kultura, at heograpiya at ibang angkop sa ating pinakamahal na bayan nating Pilipinas.
-              </Body>
+              <Label style={[styles.blurbTag, { color: tokens.color.navLeaderboard }]}>{t('welcomeForStudents')}</Label>
+              <Body style={styles.blurbText}>{t('welcomeStudentBlurb')}</Body>
             </Card>
             <Card style={[styles.featureCard, { borderLeftColor: tokens.color.success }]}>
-              <Label style={[styles.blurbTag, { color: tokens.color.success }]}>PARA SA GURO / ADMIN</Label>
-              <Body style={styles.blurbText}>
-                Bilang guro o admin, ikaw ang gagabay sa mga estudyante gamit ang JuanWise — isang supplementary tool para mas masaya at epektibo ang pagtuturo.
-              </Body>
+              <Label style={[styles.blurbTag, { color: tokens.color.success }]}>{t('welcomeForTeachers')}</Label>
+              <Body style={styles.blurbText}>{t('welcomeTeacherBlurb')}</Body>
             </Card>
           </Animated.View>
 
           <Animated.View style={[styles.linksRow, fadeUp(linksAnim)]}>
             <TouchableOpacity style={styles.linkTarget} onPress={() => setInfoModal('privacy')}>
-              <Caption style={styles.linkText}>Privacy Preferences</Caption>
+              <Caption style={styles.linkText}>{t('privacyPreferencesLabel')}</Caption>
             </TouchableOpacity>
             <TouchableOpacity style={styles.linkTarget} onPress={() => setInfoModal('about')}>
-              <Caption style={styles.linkText}>About the Game</Caption>
+              <Caption style={styles.linkText}>{t('aboutGameLabel')}</Caption>
             </TouchableOpacity>
             <TouchableOpacity style={styles.linkTarget} onPress={() => router.navigate('/terms')}>
-              <Caption style={styles.linkText}>Terms and Conditions</Caption>
+              <Caption style={styles.linkText}>{t('termsConditionsLabel')}</Caption>
             </TouchableOpacity>
           </Animated.View>
 
           <Animated.View style={fadeUp(buttonAnim)}>
-            <Button label="Sige, tara na!" onPress={handleAccept} variant="gold" />
+            <Button label={t('welcomeCta')} onPress={handleAccept} variant="gold" />
           </Animated.View>
         </ScrollView>
       </SafeAreaView>
@@ -138,13 +125,13 @@ export default function WelcomeScreen() {
           <Card style={styles.modalCard}>
             {infoModal && (
               <>
-                <H2 style={styles.modalTitle}>{INFO_CONTENT[infoModal].title}</H2>
+                <H2 style={styles.modalTitle}>{t(INFO_CONTENT[infoModal].titleKey)}</H2>
                 <ScrollView style={styles.modalScroll}>
-                  <Body style={styles.modalBody}>{INFO_CONTENT[infoModal].body}</Body>
+                  <Body style={styles.modalBody}>{t(INFO_CONTENT[infoModal].bodyKey)}</Body>
                 </ScrollView>
               </>
             )}
-            <Button label="Close" onPress={() => setInfoModal(null)} variant="secondary" />
+            <Button label={t('closeBtn')} onPress={() => setInfoModal(null)} variant="secondary" />
           </Card>
         </View>
       </Modal>

@@ -3,10 +3,12 @@ import { View, Image, StyleSheet, Animated, Text } from 'react-native';
 import { images } from '@/shared/assets/images';
 import { useUser } from '@/features/auth/context/user-context';
 import { useRouter } from 'expo-router';
+import { useLanguage } from '@/shared/i18n/language-context';
 
 export default function SplashScreen() {
   const router = useRouter();
   const { ready, signedIn, role } = useUser();
+  const { t, ready: languageReady } = useLanguage();
   const progress = useRef(new Animated.Value(0)).current;
   const navigated = useRef(false);
 
@@ -22,7 +24,9 @@ export default function SplashScreen() {
   // goes straight back to their dashboard rather than through Welcome → Login.
   // The splash still holds for its full animation before deciding.
   useEffect(() => {
-    if (!ready || navigated.current) return;
+    // Waits on the stored language too, so the first screen after the splash
+    // is already in the user's language rather than flashing English.
+    if (!ready || !languageReady || navigated.current) return;
 
     const timer = setTimeout(() => {
       navigated.current = true;
@@ -34,7 +38,7 @@ export default function SplashScreen() {
     }, 2700);
 
     return () => clearTimeout(timer);
-  }, [ready, signedIn, role, router]);
+  }, [ready, languageReady, signedIn, role, router]);
 
   const barWidth = progress.interpolate({
     inputRange: [0, 1],
@@ -50,7 +54,7 @@ export default function SplashScreen() {
       />
 
       <View style={styles.loadingArea}>
-        <Text style={styles.loadingText}>★ Loading... ★</Text>
+        <Text style={styles.loadingText}>{t('splashLoading')}</Text>
         <View style={styles.barBackground}>
           <Animated.View style={[styles.barFill, { width: barWidth }]} />
         </View>

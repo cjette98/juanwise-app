@@ -11,6 +11,9 @@ import { toNum } from '@/shared/lib/params';
 import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matching';
 import { Screen, ScreenHeader, Card, Button, Icon, StarRow, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
+import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
+import { difficultyLabelKey } from '@/features/learning/lib/activity-list-model';
+import { getCategoryMeta } from '@/shared/content/category-meta';
 
 function shuffleChoices(choices: string[]) {
   const arr = [...choices];
@@ -26,12 +29,11 @@ function formatTime(seconds?: number | null) {
   return `00:${String(s).padStart(2, '0')}`;
 }
 
-function formatQuestionType(type: string) {
-  if (type === 'multiple-choice') return 'Multiple Choice';
-  if (type === 'identification') return 'Identification';
-  if (type === 'enumeration') return 'Enumeration';
-  return type;
-}
+const QUESTION_TYPE_KEYS: Record<string, TranslationKey> = {
+  'multiple-choice': 'typeMultipleChoice',
+  identification: 'typeIdentification',
+  enumeration: 'typeEnumeration',
+};
 
 const CHOICE_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
@@ -48,9 +50,12 @@ export default function ActivityPlayScreen() {
     activityNum: string;
     difficulty: string;
   }>();
-  const { category, label, color, activityType, difficulty } = params;
+  const { category, color, activityType, difficulty } = params;
   const level = toNum(params.level, 1);
   const activityNum = toNum(params.activityNum, 1);
+  const { t } = useLanguage();
+  const label = t(getCategoryMeta(category).labelKey) || params.label;
+  const questionTypeLabel = (type: string) => (QUESTION_TYPE_KEYS[type] ? t(QUESTION_TYPE_KEYS[type]) : type);
   const { completeActivity, failActivity } = useGameProgress();
   const { addResult } = useStudentResults();
   const { name: studentName } = useUser();
@@ -194,7 +199,7 @@ export default function ActivityPlayScreen() {
       // Only a payload the server refuses outright lands here — an outage is
       // queued by addResult instead. Let the student retry rather than
       // silently losing the attempt.
-      Alert.alert('Hindi Naitala', errorMessage(err, 'Hindi naitala ang sagot mo. Subukan ulit.'));
+      Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedAnswerMsg')));
       setPhase('question');
     } finally {
       setSubmitting(false);
@@ -258,8 +263,12 @@ export default function ActivityPlayScreen() {
   return (
     <Screen>
       <ScreenHeader
-        title={`${label} — Level ${level}`}
-        subtitle={`${formatQuestionType(q.type)} · ${difficulty} · Activity ${activityNum}`}
+        title={t('headerLevelTitle', { label, level })}
+        subtitle={t('activityPlaySubtitle', {
+          type: questionTypeLabel(q.type),
+          difficulty: t(difficultyLabelKey(difficulty)),
+          num: activityNum,
+        })}
         color={headerColor}
         right={
           <ActivityTimer
@@ -277,7 +286,7 @@ export default function ActivityPlayScreen() {
         {!adminReady && (
           <Card style={styles.hintCard}>
             <ActivityIndicator color={headerColor} />
-            <Body style={styles.loadingText}>Kinukuha ang pinakabagong tanong...</Body>
+            <Body style={styles.loadingText}>{t('fetchingQuestion')}</Body>
           </Card>
         )}
 
@@ -286,7 +295,7 @@ export default function ActivityPlayScreen() {
             <View style={[styles.hintChip, { backgroundColor: tokens.color.goldSoft }]}>
               <Icon name="lightbulb" size={26} color={tokens.color.goldDark} />
             </View>
-            <Label style={styles.hintLabel}>Mini-Lesson</Label>
+            <Label style={styles.hintLabel}>{t('miniLessonHeading')}</Label>
             {/* The picture an admin uploaded for this exact mini-lesson. Only a
                 quiz question can carry one, and only when somebody illustrated
                 it — an unillustrated question keeps the text-only card it had. */}
@@ -298,7 +307,7 @@ export default function ActivityPlayScreen() {
               />
             )}
             <Body style={styles.hintText}>{q.hint}</Body>
-            <Button label="Simulan ang Tanong" onPress={handleStartQuestion} color={cat.base} shadowColor={cat.dark} style={styles.fullWidthButton} />
+            <Button label={t('startQuestion')} onPress={handleStartQuestion} color={cat.base} shadowColor={cat.dark} style={styles.fullWidthButton} />
           </Card>
         )}
 
@@ -330,11 +339,11 @@ export default function ActivityPlayScreen() {
                   style={styles.textInput}
                   value={textAnswer}
                   onChangeText={setTextAnswer}
-                  placeholder="I-type ang iyong sagot..."
+                  placeholder={t('typeYourAnswer')}
                   placeholderTextColor={tokens.color.inkFaint}
                 />
                 <Button
-                  label="Isumite"
+                  label={t('submitBtn')}
                   onPress={() => handleAnswer(textAnswer)}
                   color={cat.base}
                   shadowColor={cat.dark}
@@ -346,7 +355,7 @@ export default function ActivityPlayScreen() {
             {q.type === 'enumeration' && (
               <View style={styles.identificationWrap}>
                 <Caption style={styles.enumHelper}>
-                  Punuan ang {requiredAnswers} kahon sa ibaba ({filledCount}/{requiredAnswers} napunuan)
+                  {t('enumHelper', { required: requiredAnswers, filled: filledCount })}
                 </Caption>
                 {enumAnswers.map((val, i) => (
                   <View key={i} style={styles.enumRow}>
@@ -357,13 +366,13 @@ export default function ActivityPlayScreen() {
                       style={[styles.textInput, styles.enumInput]}
                       value={val}
                       onChangeText={(text) => updateEnumAnswer(i, text)}
-                      placeholder={`Sagot ${i + 1}...`}
+                      placeholder={t('answerNPlaceholder', { n: i + 1 })}
                       placeholderTextColor={tokens.color.inkFaint}
                     />
                   </View>
                 ))}
                 <Button
-                  label="Isumite ang Kumpletong Sagot"
+                  label={t('submitCompleteAnswer')}
                   onPress={handleSubmitEnumeration}
                   color={cat.base}
                   shadowColor={cat.dark}
@@ -377,7 +386,7 @@ export default function ActivityPlayScreen() {
 
       <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.85}>
         <Icon name="chevronLeft" size={16} color={tokens.color.onDark} strokeWidth={3} />
-        <BodyStrong style={styles.backButtonText}>Back</BodyStrong>
+        <BodyStrong style={styles.backButtonText}>{t('backA11y')}</BodyStrong>
       </TouchableOpacity>
 
       {/* Option A: PASSED */}
@@ -390,28 +399,28 @@ export default function ActivityPlayScreen() {
               <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.successSoft }]}>
                 <Icon name="check" size={22} color={tokens.color.success} strokeWidth={3} />
               </View>
-              <H2 style={styles.successTitle}>Activity Complete!</H2>
+              <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
             <View style={styles.detailBlock}>
-              <Body style={styles.detailLine}>Student: {studentName}</Body>
+              <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
                 <Icon name="clock" size={15} color={tokens.color.inkMuted} />
-                <Body style={styles.detailLine}>Time: {formatTime(result?.timeUsed)}</Body>
+                <Body style={styles.detailLine}>{t('detailTime', { time: formatTime(result?.timeUsed) })}</Body>
               </View>
               <View style={styles.detailRow}>
-                <Body style={styles.detailLine}>Stars Earned:</Body>
+                <Body style={styles.detailLine}>{t('starsEarnedLabel')}</Body>
                 <StarRow earned={result?.stars ?? 0} />
               </View>
-              <Body style={styles.detailLine}>Points: {result?.points ?? 0} pts</Body>
+              <Body style={styles.detailLine}>{t('detailPoints', { points: result?.points ?? 0 })}</Body>
               {q.type === 'enumeration' && (
-                <Body style={styles.detailLine}>Answers: {enumCorrectCount}/{requiredAnswers} correct</Body>
+                <Body style={styles.detailLine}>{t('detailAnswersCorrect', { correct: enumCorrectCount, required: requiredAnswers })}</Body>
               )}
-              <Body style={styles.detailLine}>Category: {label}</Body>
-              <Body style={styles.detailLine}>Activity Type: Quiz ({formatQuestionType(q.type)})</Body>
-              <Body style={styles.detailLine}>Activity #: {activityNum} of 6 · Level {level}/5</Body>
-              {queued && <Caption style={styles.queuedLine}>Offline — ipapadala ang resultang ito pagbalik ng internet.</Caption>}
+              <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
+              <Body style={styles.detailLine}>{t('detailActivityTypeQuiz', { type: questionTypeLabel(q.type) })}</Body>
+              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
-            <Button label="Proceed to Next Activity" onPress={handleContinue} color={cat.base} shadowColor={cat.dark} style={styles.fullWidthButton} />
+            <Button label={t('proceedNextActivity')} onPress={handleContinue} color={cat.base} shadowColor={cat.dark} style={styles.fullWidthButton} />
           </Card>
         </View>
       </Modal>
@@ -426,29 +435,29 @@ export default function ActivityPlayScreen() {
               <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.dangerSoft }]}>
                 <Icon name="close" size={22} color={tokens.color.danger} strokeWidth={3} />
               </View>
-              <H2 style={styles.timeUpTitle}>Activity Complete (Incorrect)</H2>
+              <H2 style={styles.timeUpTitle}>{t('activityCompleteIncorrect')}</H2>
             </View>
             <View style={styles.detailBlock}>
-              <Body style={styles.detailLine}>Student: {studentName}</Body>
+              <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
                 <Icon name="clock" size={15} color={tokens.color.inkMuted} />
-                <Body style={styles.detailLine}>Time: {formatTime(result?.timeUsed)}</Body>
+                <Body style={styles.detailLine}>{t('detailTime', { time: formatTime(result?.timeUsed) })}</Body>
               </View>
               <View style={styles.detailRow}>
                 <Icon name="flag" size={15} color={tokens.color.danger} />
-                <BodyStrong style={styles.flagLine}>Status: Failed / Incorrect (Needs Retry)</BodyStrong>
+                <BodyStrong style={styles.flagLine}>{t('statusFailedIncorrect')}</BodyStrong>
               </View>
-              <Body style={styles.detailLine}>Points: 0 pts</Body>
+              <Body style={styles.detailLine}>{t('pointsZero')}</Body>
               {q.type === 'enumeration' && (
-                <Body style={styles.detailLine}>Answers: {enumCorrectCount}/{requiredAnswers} correct</Body>
+                <Body style={styles.detailLine}>{t('detailAnswersCorrect', { correct: enumCorrectCount, required: requiredAnswers })}</Body>
               )}
-              <Body style={styles.detailLine}>Category: {label}</Body>
-              <Body style={styles.detailLine}>Activity Type: Quiz ({formatQuestionType(q.type)})</Body>
-              <Body style={styles.detailLine}>Activity #: {activityNum} of 6 · Level {level}/5</Body>
-              {queued && <Caption style={styles.queuedLine}>Offline — ipapadala ang resultang ito pagbalik ng internet.</Caption>}
+              <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
+              <Body style={styles.detailLine}>{t('detailActivityTypeQuiz', { type: questionTypeLabel(q.type) })}</Body>
+              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button
-              label="Proceed to other Activity — maybe you can answer it, try it"
+              label={t('proceedOtherActivityAnswer')}
               onPress={handleContinue}
               color={cat.base}
               shadowColor={cat.dark}

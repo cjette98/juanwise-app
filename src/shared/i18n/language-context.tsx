@@ -1,6 +1,10 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-type Language = 'en' | 'tl';
+export type Language = 'en' | 'tl';
+
+/** Where the chosen language survives a restart. */
+const STORAGE_KEY = '@juanwise/language';
 
 const en = {
   chooseLanguage: 'SELECT YOUR LANGUAGE',
@@ -255,6 +259,382 @@ const en = {
   totalTimeSuffix: 'total',
   activityTimeoutStat: '{attempts} activities · {timeouts} timeouts',
   quizCorrectStat: 'Quiz: {correct}/30 correct',
+
+  // --- App chrome / bottom navigation ---
+  navHome: 'Home',
+  navLearn: 'Learn',
+  navRanks: 'Ranks',
+  navMe: 'Me',
+  backA11y: 'Back',
+  loading: 'Loading...',
+  splashLoading: '★ Loading... ★',
+  closeBtn: 'Close',
+  goToCategories: 'Go to Categories',
+  editBtn: 'Edit',
+  deleteBtn: 'Delete',
+  removeBtn: 'Remove',
+  okBtn: 'OK',
+  appTagline: 'Gamified Philippine Knowledge',
+
+  // --- Welcome screen ---
+  welcomeIntro: 'Welcome! Come on, let\'s get to know JuanWise',
+  welcomeAudience: 'Students · Teachers · Schools · Araling Panlipunan',
+  welcomeForStudents: 'FOR STUDENTS',
+  welcomeStudentBlurb: 'You are the player here! Enjoy the quizzes and jigsaw puzzles while you learn about the history, culture, and geography of our beloved Philippines.',
+  welcomeForTeachers: 'FOR TEACHERS / ADMIN',
+  welcomeTeacherBlurb: 'As a teacher or admin, you guide the students through JuanWise — a supplementary tool that makes teaching more fun and effective.',
+  welcomeCta: 'Alright, let\'s go!',
+  welcomePrivacyBody: 'JuanWise only collects what it needs to run the app and track learning progress — name, grade level, and activity results.\n\nThe progress dashboard and performance data are visible only to the student, their parent/guardian, and authorized teachers. They are never sold or shared with anyone else.\n\nFor the full details, see the Terms and Conditions.',
+  welcomeAboutBody: 'JuanWise is a gamified supplementary learning tool that teaches Philippine history, culture, and geography through quizzes and jigsaw puzzles.\n\nStudents move through 5 levels per category, earning points, stars, and trophies at every step. Teachers get a live leaderboard and progress dashboard to follow the class.',
+
+  // --- Coming soon ---
+  comingSoonTitle: 'Coming Soon',
+  comingSoonSubtitle: 'This is still being built. Check back later!',
+
+  // --- Level map ---
+  categoryLabel: 'Category',
+  jigsawPuzzleMode: 'Jigsaw Puzzle Mode',
+  quizMode: 'Quiz Mode',
+  trophyCaps: 'TROPHY',
+  youAreHere: 'YOU ARE HERE',
+  levelNum: 'Level {n}',
+  continueLevel: 'Continue Level {n}',
+
+  // --- Activity list ---
+  jigsawPiecesMeta: 'Jigsaw · {count} pieces',
+  miniLessonQuizMeta: 'Mini lesson · Quiz',
+  levelCompleteLabel: 'Level complete',
+  chooseAnActivity: 'Choose an activity',
+  continueActivity: 'Continue Activity {n}',
+  completeLevel: 'Complete Level {n}',
+  activityNumTitle: 'Activity {num}: {title}',
+
+  // --- Quiz / activity play ---
+  typeMultipleChoice: 'Multiple Choice',
+  typeIdentification: 'Identification',
+  typeEnumeration: 'Enumeration',
+  notRecordedTitle: 'Not Recorded',
+  notRecordedAnswerMsg: 'Your answer was not recorded. Please try again.',
+  notRecordedResultMsg: 'Your result was not recorded. Please try again.',
+  fetchingQuestion: 'Fetching the latest question...',
+  miniLessonHeading: 'Mini-Lesson',
+  startQuestion: 'Start the Question',
+  typeYourAnswer: 'Type your answer...',
+  submitBtn: 'Submit',
+  answerNPlaceholder: 'Answer {n}...',
+  submitCompleteAnswer: 'Submit the Complete Answer',
+  activityCompleteTitle: 'Activity Complete!',
+  starsEarnedLabel: 'Stars Earned:',
+  offlineQueuedNote: 'Offline — this result will be sent once you are back online.',
+  proceedNextActivity: 'Proceed to Next Activity',
+  activityCompleteIncorrect: 'Activity Complete (Incorrect)',
+  statusFailedIncorrect: 'Status: Failed / Incorrect (Needs Retry)',
+  statusFailedIncomplete: 'Status: Failed / Incomplete (Needs Retry)',
+  pointsZero: 'Points: 0 pts',
+  proceedOtherActivityAnswer: 'Proceed to other Activity — maybe you can answer it, try it',
+  proceedOtherActivityForm: 'Proceed to other Activity — maybe you can form it, try it',
+
+  // --- Jigsaw puzzle ---
+  dragPiecesHint: 'Drag the pieces below into the board to complete the picture',
+  pictureComplete: 'Picture Complete!',
+  learnMoreBtn: 'Learn more',
+
+  // --- Level summary ---
+  goldMedal: 'Gold Medal',
+  silverMedal: 'Silver Medal',
+  bronzeMedal: 'Bronze Medal',
+  enumShort: 'Enum',
+  classFast: 'Fast Learner',
+  classModerate: 'Moderate Learner',
+  classSlow: 'Slow Learner',
+  levelDashLabel: 'Level {level} — {label}',
+  studentNameLine: 'Student: {name}',
+  summaryWord: 'Summary',
+  completeWord: 'Complete',
+  pointsOutOf: 'Points / {max}',
+  learnerClassification: 'Learner Classification',
+  perActivityResults: 'Per-Activity Results',
+  jigsawPcs: 'Jigsaw ({n} pcs)',
+  passedWithCount: 'Passed ({correct}/{required})',
+  passedWord: 'Passed',
+  retryWord: 'Retry',
+  backToSummary: 'Back to Summary',
+  proceedNextLevelUnlock: 'Proceed to Next Level (Unlock Level {n})',
+  proceedToLevelMap: 'Proceed to Level Map',
+
+  // --- Mini-lessons and results screens ---
+  miniLessonsTitle: 'Mini-Lessons',
+  quizResultsTitle: 'Quiz Results',
+  jigsawResultsTitle: 'Jigsaw Puzzle Results',
+
+  // --- Student leaderboard ---
+  topRankLabel: 'Top',
+  noTrophyLabel: 'no trophy',
+  trophyGuideIntroNoFilter: 'How to earn a Trophy (Combined Quiz & Jigsaw)',
+  starsExplainShort: 'Stars = average stars earned per activity',
+  myRankLine: 'Your rank: #{rank}. Tap for your full record.',
+  onlyOneWithResults: 'You are the only one with results so far!',
+  beatsPercent: 'You are doing better than {pct}% of the other students!',
+  tapForFullRecord: 'Tap for your full record',
+  rankEntryA11y: 'Rank {rank}: {name}, {points} points, {trophy}',
+  rankEntryPaceA11y: 'Rank {rank}: {name}, {points} points, {trophy}, {pace}',
+  noActivityYetStudent: 'No completed activity yet. Answer a Quiz or Jigsaw Puzzle to show up here.',
+  allOnPodium: 'Everyone with a result is already on the podium.',
+  trophyWord: 'Trophy',
+  tapAnywhereToClose: 'Tap anywhere to close',
+
+  // --- Student summary ---
+  fullRecordTitle: 'Full Record — Summary and History of Every Activity',
+  activitiesDoneLabel: 'Activities Done',
+  totalTimeLabel: 'Total Time',
+  noActivityForStudent: 'This student has not completed an activity yet.',
+  timeoutLabel: 'Timeout',
+  noActivityShort: 'No activity yet',
+
+  // --- Performance progression ---
+  trendImproving: 'Improving',
+  trendSteady: 'Steady',
+  trendNeedsHelp: 'Needs support',
+  trendNotEnoughData: 'Not enough data',
+  trendNotJoined: 'Not joined yet',
+  statPoints: '★ Points',
+  statSpeed: '⏱ Speed',
+  statActivities: 'Activities',
+  noStudentsYetPerf: 'No registered students or results yet.',
+
+  // --- Admin — shared ---
+  adminNoPackSelected: 'No pack selected. Go back to Activity Management.',
+  adminFetchingContent: 'Fetching content from the server...',
+  adminPermissionNeeded: 'Permission Needed',
+  adminSaveFailedTitle: 'Not Saved',
+  adminUploadFailedTitle: 'Not Uploaded',
+  adminRestoreFailedTitle: 'Not Restored',
+  adminRemoveFailedTitle: 'Not Removed',
+  adminSavedTitle: 'Saved!',
+  adminEmptyTitle: 'Empty',
+
+  // --- Admin — content manager ---
+  contentManagerTitle: 'Content Manager',
+  contentManagerSubtitle: 'Editing: {name}',
+  miniLessonBeforeQuiz: 'Mini-Lesson before the Quiz',
+  customBadge: 'Custom',
+  defaultBadge: 'Default',
+  removeCustomQuestionTitle: 'Remove the Custom Question?',
+  removeCustomQuestionMsg: 'This will revert to the default question for Activity {num}.',
+
+  // --- Admin — jigsaw content ---
+  jigsawContentTitle: 'Jigsaw Pictures & Mini-Lessons',
+  jigsawContentSubtitle: 'Choose the puzzle picture and edit the mini-lesson for each category',
+  photoPermissionPuzzleMsg: 'Allow the app to access your photos so you can choose a puzzle picture.',
+  emptyMiniLessonMsg: 'Enter the text for the mini-lesson.',
+  changePictureBtn: 'Change Picture',
+  restoreDefaultBtn: 'Restore Default',
+  typeMiniLesson: 'Type the mini-lesson...',
+  editMiniLessonBtn: '✎ Edit the Mini-Lesson',
+
+  // --- Admin — pack list ---
+  packDraft: 'Draft',
+  packLive: 'Live',
+  packArchived: 'Archived',
+  packListSubtitle: 'Create, copy, or publish your Activity Management',
+  packLoadFailedMsg: 'Could not load Activity Management.',
+  packFetching: 'Fetching the packs from the server...',
+  newPackBtn: 'New Pack',
+  packNamePlaceholder: 'Pack name...',
+  packNameRequiredMsg: 'Enter a name for the new pack.',
+  createBtn: 'Create',
+  packCreateFailedTitle: 'Not Created',
+  packCreateFailedMsg: 'Could not create the new pack.',
+  packCopyFailedTitle: 'Not Copied',
+  packCopyFailedMsg: 'Could not copy the pack.',
+  packPublishFailedTitle: 'Not Published',
+  packPublishFailedMsg: 'Could not publish the pack.',
+  packArchiveFailedTitle: 'Not Archived',
+  packArchiveFailedMsg: 'Could not archive the pack.',
+  packUsedByClasses: 'Used by {count} classes',
+  packUsedByNone: 'Not in use',
+  editQuizBtn: 'Edit the Quiz',
+  editJigsawBtn: 'Edit the Jigsaw',
+  publishBtn: 'Publish',
+  archiveBtn: 'Archive',
+
+  // --- Admin — question editor ---
+  questionTypeLabel: 'Question Type',
+  miniLessonHintLabel: 'Mini-Lesson / Hint',
+  miniLessonHintPlaceholder: 'Short explanation before the question...',
+  questionLabel: 'Question',
+  questionPlaceholder: 'Type the question...',
+  choicesLabel: 'Choices',
+  choicePlaceholder: 'Choice {n}',
+  requiredAnswersLabel: 'How Many Answers the Player Must Give (Required Answers)',
+  requiredAnswersPlaceholder: 'e.g. 3',
+  poolAnswerPlaceholder: 'Pool answer {n}',
+  addPoolAnswerBtn: '+ Add a Pool Answer',
+  correctAnswerLabel: 'Correct Answer',
+  correctAnswerPlaceholder: 'Correct answer...',
+  otherAcceptedLabel: 'Other Accepted Answers',
+  otherAcceptedPlaceholder: 'Other answer {n}',
+  addAcceptedBtn: '+ Add an Accepted Answer',
+  explanationLabel: 'Explanation (after the correct answer)',
+  explanationPlaceholder: 'Why the answer is correct...',
+  lessonImageLabel: 'Lesson Picture',
+  choosePictureBtn: 'Choose a Picture',
+  photoPermissionLessonMsg: 'Allow the app to access your photos so you can choose a lesson picture.',
+  minPoolTitle: 'Minimum Count',
+  minPoolMsg: 'At least {min} possible answers are needed in the pool.',
+  tooManyTitle: 'Too Many',
+  tooManyAcceptedMsg: 'The maximum is {max} accepted answers.',
+  switchTypeTitle: 'Switch to {type}?',
+  switchTypeMsg: 'The question, hint, explanation, and mini-lesson stay. The answers for the current type ({type}) will be cleared. Nothing is saved until you tap Save the Question.',
+  switchAndClearBtn: 'Switch and Clear',
+  saveQuestionBtn: 'Save the Question',
+  needLessonAndQuestionMsg: 'A mini-lesson and a question are required.',
+  needCorrectAnswerMsg: 'A correct answer is required.',
+  needChoicesTitle: 'Not Enough Choices',
+  needChoicesMsg: 'Enter at least 2 choices.',
+  mismatchTitle: 'No Match',
+  mismatchMsg: 'The correct answer must be one of the choices.',
+  poolTooSmallTitle: 'Answer Pool Too Small',
+  poolTooSmallMsg: 'At least {min} (distinct) possible answers are needed. There are only {count} so far.',
+  invalidTitle: 'Invalid',
+  invalidRequiredMsg: 'Enter how many answers the player must give (at least 1).',
+  requiredExceedsPoolMsg: 'The required answers ({required}) cannot exceed the size of the answer pool ({pool}).',
+  clearFieldA11y: 'Clear the field',
+
+  // --- Context alerts ---
+  packLoadErrorMsg: 'Could not load this pack from the server.',
+  questionUpdatedMsg: 'The question was updated for every student.',
+  questionSaveFailedMsg: 'The question was not saved.',
+  questionRevertedMsg: 'Reverted to the default question.',
+  questionRemoveFailedMsg: 'The custom question was not removed.',
+  puzzleImageUpdatedMsg: 'The puzzle picture was updated.',
+  imageUploadFailedMsg: 'The picture was not uploaded.',
+  miniLessonSavedMsg: 'The mini-lesson was saved.',
+  miniLessonSaveFailedMsg: 'The mini-lesson was not saved.',
+  defaultImageRestoredMsg: 'The default picture was restored.',
+  imageRestoreFailedMsg: 'The picture was not restored.',
+  imageUploadedMsg: 'The picture was uploaded.',
+  settingSavedMsg: 'The setting was saved.',
+  settingSaveFailedMsg: 'The setting was not saved.',
+  profileRefreshFailedMsg: 'Could not refresh your profile.',
+  noEmailOnFileMsg: 'No email address on file for this account.',
+  contentLoadFailedMsg: 'Could not load content from the server.',
+  resultsLoadFailedMsg: 'Could not load results.',
+  noClassSelectedMsg: 'No class selected.',
+  resultsDeletedMsg: '{count} results were deleted.',
+  resultsDeleteFailedMsg: 'The results were not deleted.',
+  classLoadFailedMsg: 'Could not load your class.',
+  classCodeGeneratedMsg: 'The class code was generated.',
+  classCodeGenerateFailedMsg: 'Could not generate the class code.',
+  classCodeFormatMsg: 'The class code must be 10 characters (letters and numbers only).',
+  classCodeSavedMsg: 'The class code was saved.',
+  classCodeSaveFailedMsg: 'The class code was not saved.',
+  classCodeInvalidMsg: 'Wrong class code. Please check it and try again.',
+  classJoinFailedMsg: 'Could not join the class.',
+  noClassYetMsg: 'No class yet.',
+  studentRemovedMsg: 'The student was removed from the roster.',
+  studentRemoveFailedMsg: 'The student was not removed.',
+  registerIncompleteMsg: 'Registration could not be completed.',
+  classCodeShareMsg: 'JuanWise Class Code: {code}',
+
+  // --- Network / API errors ---
+  errGeneric: 'Something went wrong. Please try again.',
+  errRequestFailed: 'Request failed ({status}).',
+  errTimeout: 'The server took too long to respond. Check your connection and try again.',
+  errNetwork: 'Could not reach the JuanWise server. Check your internet connection.',
+  errUnauthenticated: 'You are signed out. Please sign in again.',
+  errUploadFailed: 'The image could not be uploaded. Please try again.',
+
+  // --- Level map extras ---
+  doneOfSix: '{done} of 6 done',
+
+  // --- Activity list extras ---
+  picturePuzzleTitle: '{label} Picture Puzzle',
+  doneOfSixShort: '{done} of 6',
+  activityNumShort: 'Activity {num}',
+  activityPlaySubtitle: '{type} · {difficulty} · Activity {num}',
+  levelSubtitle: '{label} · {mode}',
+
+  // --- Result sheet detail lines ---
+  detailStudent: 'Student: {name}',
+  detailTime: 'Time: {time}',
+  detailPoints: 'Points: {points} pts',
+  detailAnswersCorrect: 'Answers: {correct}/{required} correct',
+  detailCategory: 'Category: {label}',
+  detailActivityTypeQuiz: 'Activity Type: Quiz ({type})',
+  detailActivityTypeJigsaw: 'Activity Type: Jigsaw Puzzle',
+  detailActivityCount: 'Activity #: {num} of 6 · Level {level}/5',
+  enumHelper: 'Fill in the {required} boxes below ({filled}/{required} filled)',
+  headerLevelTitle: '{label} — Level {level}',
+  detailPieces: 'Pieces: {count}',
+  detailDifficulty: 'Difficulty: {difficulty}',
+
+  // --- Jigsaw detail lines ---
+  detailActivityTypeJigsawPieces: 'Activity Type: Jigsaw Puzzle ({count} pieces)',
+
+  // --- Level summary extras ---
+  noMedalYet: '— No Medal Yet',
+  pointsOutOfNinety: '{points} / 90 points',
+  ofSeconds: 'of {seconds}s',
+  firstAttemptStat: '1st-Attempt',
+  firstAttemptBreakdown: 'First-Attempt Correct: {correct}/6 · Wrong: {wrong}/6',
+  typeMC: 'MC',
+  typeID: 'ID',
+  pointsSuffixShort: '{points} pts',
+  incompleteLevelWarning: 'Some activities have no recorded result for this student yet. Go back to the Activity List to finish them.',
+
+  // --- Mini-lessons and results lists ---
+  miniLessonsSubtitle: '{count} lessons unlocked from your correct answers in Quiz and Jigsaw Puzzle',
+  noMiniLessonsYet: 'You have not unlocked a mini-lesson yet. Answer a Quiz or Jigsaw Puzzle correctly in Categories to unlock a lesson here.',
+  levelActivityLine: 'Level {level} · Activity {num}',
+  quizResultsSubtitle: '{count} correct answers · {points} total points',
+  jigsawResultsSubtitle: '{count} puzzles solved · {points} total points',
+  noQuizResultsYet: 'You have not finished a Quiz yet. Go to Categories and try a Quiz activity to see your results here.',
+  noJigsawResultsYet: 'You have not finished a Jigsaw Puzzle yet. Go to Categories and solve a puzzle to see your results here.',
+  secondsSuffix: '{seconds}s',
+
+  // --- Student leaderboard extras ---
+  leaderboardSubtitle: '{count} students with results',
+  youSuffix: ' (You)',
+  trophyOfTier: '{tier} trophy',
+  legendMaxPossible: 'Max possible: {points} pts in {seconds} sec (Quiz + Jigsaw, all levels)',
+  rowStatsLine: '{points} pts · {time} · {attempts} activities',
+  legendPointsTimeLabel: '{points}+ pts · {time}',
+
+  // --- Student summary extras ---
+  avgSuffix: '({avg} avg)',
+  viewSummaryToggle: 'Summary (Category/Level)',
+  viewHistoryToggle: 'History (All Activities)',
+  historyRowLine: 'Level {level} · Activity {num} · {date}',
+  categoryTotalsLine: '{points} pts · {attempts} activities',
+  passedOfSix: '{passed}/6',
+
+  // --- Performance progression extras ---
+  performanceSubtitle: 'Compares the earliest answers against the most recent ones to show who is improving.',
+  levelChipShort: 'Lvl {n}',
+  noAttemptsInCategory: 'No activities answered yet in {category}.',
+  noAttemptsAtAll: 'No activities answered yet.',
+
+  // --- Admin content manager extras ---
+  answerLabelShort: 'Answer: {answer}',
+  miniLessonToggleDesc: 'When ON, students see the mini-lesson before answering each question.',
+  miniLessonToggleNote: 'Note: this currently affects only the Global Library — students using another pack do not see it yet.',
+
+  // --- Pack list extras ---
+  packVersionMeta: 'v{version} · {usage}',
+
+  // --- Question editor extras ---
+  questionEditorTitle: '{label} — Level {level}, Activity {num}',
+  requiredAnswersNote: 'This becomes the number of "tabs" / input boxes the player sees. It must not exceed the size of the Answer Pool below.',
+  answerPoolLabel: 'Answer Pool (min. {min} possible answers)',
+  poolFilledCount: '{count} filled',
+  acceptedCount: '{count}/{max}',
+  acceptedAnswersNote: 'Optional. Other ways of writing the same answer (e.g. a different spelling) that will also count as correct.',
+  lessonImageNote: 'This shows up in Mini-Lessons once the student finishes the activity. It never appears while the question is being answered, so it cannot give the answer away.',
+  noLessonImage: 'No picture — the category\'s default picture will be used.',
+
+  // --- Settings language switcher ---
+  languageLabel: 'Language',
 };
 
 export type TranslationKey = keyof typeof en;
@@ -323,11 +703,11 @@ const tl: Record<TranslationKey, string> = {
   miniLessons: 'MAIKLING ARALIN',
   quiz: 'PAGSUSULIT',
   jigsawPuzzle: 'JIGSAW PUZZLE',
-  leaderboard: 'LEADERBOARD',
+  leaderboard: 'TALAAN NG NANGUNGUNA',
 
   teacherEdition: 'Edisyon ng Guro',
   classOverview: 'Buod ng Klase',
-  leaderBoard: 'Leaderboard',
+  leaderBoard: 'Talaan ng Nangunguna',
   classContent: 'Nilalaman ng Klase',
   performanceProgression: 'Progreso ng Performance',
   profileSettings: 'SETTINGS NG PROFILE',
@@ -486,8 +866,8 @@ const tl: Record<TranslationKey, string> = {
   paceSteady: 'Sakto sa Bilis',
   paceNeedsSupport: 'Kailangan ng Tulong',
 
-  trophyGuide: 'Gabay sa Trophy',
-  clearBoardTitle: 'I-clear ang Leaderboard?',
+  trophyGuide: 'Gabay sa Tropeo',
+  clearBoardTitle: 'I-clear ang Talaan ng Nangunguna?',
   clearBoardMsg: 'Buburahin lahat ng naitalang resulta ng klaseng ito.',
   clearAllData: 'I-clear ang Lahat ng Data',
   allFilter: 'Lahat',
@@ -499,51 +879,493 @@ const tl: Record<TranslationKey, string> = {
   activitiesCompleted: 'kabuuang gawaing natapos',
   clearSuccessTitle: 'Tapos na',
   clearFailTitle: 'Hindi Nabura',
-  trophyGuideIntro: 'Paano makakuha ng Trophy (Combined Quiz & Jigsaw, walang filter)',
-  legendPointsAndTime: '{points}+ pts · ≤ {time}',
+  trophyGuideIntro: 'Paano makakuha ng Tropeo (Combined Quiz & Jigsaw, walang filter)',
+  legendPointsAndTime: '{points}+ puntos · ≤ {time}',
   trophyMaxPossible:
-    'Max posible: {points} pts sa {seconds} sec. Trophy ay makikita lamang kapag "Lahat" ang filter sa Kategorya, Uri ng Gawain, at Level.',
-  trophyPaceTitle: 'Trophy = Pace (parehong batayan)',
+    'Max posible: {points} puntos sa {seconds} sec. Ang Tropeo ay makikita lamang kapag "Lahat" ang filter sa Kategorya, Uri ng Gawain, at Level.',
+  trophyPaceTitle: 'Tropeo = Pace (parehong batayan)',
   legendBronzeOrNone: 'Tanso / Wala',
   starsExplain:
-    'Stars = average na bituin kada gawain (3 stars pinakamabilis/tama, 1 star pumasa lang, 0 stars mali/timeout).',
+    'Bituin = katamtamang bituin kada gawain (3 bituin pinakamabilis/tama, 1 bituin pumasa lang, 0 bituin mali/timeout).',
   sortFastest: 'Nangungunang Estudyante',
   sortHighestPoints: 'Pinakamataas na Puntos',
   loadingResults: 'Naglo-load...',
   noResultsForFilter: 'Wala pang natatapos na gawain ang mga estudyante sa napiling filter.',
-  totalTimeSuffix: 'total',
+  totalTimeSuffix: 'kabuuan',
   activityTimeoutStat: '{attempts} gawain · {timeouts} timeout',
   quizCorrectStat: 'Quiz: {correct}/30 tama',
+
+  // --- App chrome / bottom navigation ---
+  navHome: 'Home',
+  navLearn: 'Aral',
+  navRanks: 'Ranggo',
+  navMe: 'Ako',
+  backA11y: 'Bumalik',
+  loading: 'Naglo-load...',
+  splashLoading: '★ Naglo-load... ★',
+  closeBtn: 'Isara',
+  goToCategories: 'Pumunta sa Categories',
+  editBtn: 'I-edit',
+  deleteBtn: 'Burahin',
+  removeBtn: 'Alisin',
+  okBtn: 'OK',
+  appTagline: 'Gamified Philippine Knowledge',
+
+  // --- Welcome screen ---
+  welcomeIntro: 'Maligayang pagdating! Tara, kilalanin natin ang JuanWise',
+  welcomeAudience: 'Estudyante · Guro · Paaralan · Araling Panlipunan',
+  welcomeForStudents: 'PARA SA ESTUDYANTE',
+  welcomeStudentBlurb: 'Ikaw ang player dito! Mag-enjoy sa mga quiz at jigsaw puzzle habang natututo ka tungkol sa kasaysayan, kultura, at heograpiya ng ating pinakamamahal na bayang Pilipinas.',
+  welcomeForTeachers: 'PARA SA GURO / ADMIN',
+  welcomeTeacherBlurb: 'Bilang guro o admin, ikaw ang gagabay sa mga estudyante gamit ang JuanWise — isang supplementary tool para mas masaya at epektibo ang pagtuturo.',
+  welcomeCta: 'Sige, tara na!',
+  welcomePrivacyBody: 'Kinokolekta lang ng JuanWise ang kailangan para gumana ang app at masubaybayan ang progreso ng pag-aaral — pangalan, grade level, at resulta ng mga activity.\n\nAng progress dashboard at performance data ay makikita lamang ng estudyante mismo, ng kanyang magulang/guardian, at ng mga awtorisadong guro. Hindi ito ibinebenta o ibinabahagi sa ibang tao.\n\nPara sa buong detalye, tingnan ang Terms and Conditions.',
+  welcomeAboutBody: 'Ang JuanWise ay isang gamified supplementary learning tool na nagtuturo ng kasaysayan, kultura, at heograpiya ng Pilipinas sa pamamagitan ng quiz at jigsaw puzzle.\n\nDadaan ang mga estudyante sa 5 level bawat kategorya, kumikita ng puntos, bituin, at tropeo sa bawat hakbang. Makikita naman ng mga guro ang live na talaan ng nangunguna at progress dashboard para masubaybayan ang klase.',
+
+  // --- Coming soon ---
+  comingSoonTitle: 'Malapit Na',
+  comingSoonSubtitle: 'Nasa proseso pa ito ng paggawa. Balik ka na lang mamaya!',
+
+  // --- Level map ---
+  categoryLabel: 'Kategorya',
+  jigsawPuzzleMode: 'Mode ng Jigsaw Puzzle',
+  quizMode: 'Mode ng Quiz',
+  trophyCaps: 'TROPEO',
+  youAreHere: 'NANDITO KA',
+  levelNum: 'Level {n}',
+  continueLevel: 'Ituloy ang Level {n}',
+
+  // --- Activity list ---
+  jigsawPiecesMeta: 'Jigsaw · {count} piraso',
+  miniLessonQuizMeta: 'Maikling aralin · Quiz',
+  levelCompleteLabel: 'Tapos na ang level',
+  chooseAnActivity: 'Pumili ng aktibidad',
+  continueActivity: 'Ituloy ang Aktibidad {n}',
+  completeLevel: 'Tapusin ang Level {n}',
+  activityNumTitle: 'Aktibidad {num}: {title}',
+
+  // --- Quiz / activity play ---
+  typeMultipleChoice: 'Multiple Choice',
+  typeIdentification: 'Identification',
+  typeEnumeration: 'Enumeration',
+  notRecordedTitle: 'Hindi Naitala',
+  notRecordedAnswerMsg: 'Hindi naitala ang sagot mo. Subukan ulit.',
+  notRecordedResultMsg: 'Hindi naitala ang resulta mo. Subukan ulit.',
+  fetchingQuestion: 'Kinukuha ang pinakabagong tanong...',
+  miniLessonHeading: 'Maikling Aralin',
+  startQuestion: 'Simulan ang Tanong',
+  typeYourAnswer: 'I-type ang iyong sagot...',
+  submitBtn: 'Isumite',
+  answerNPlaceholder: 'Sagot {n}...',
+  submitCompleteAnswer: 'Isumite ang Kumpletong Sagot',
+  activityCompleteTitle: 'Tapos na ang Aktibidad!',
+  starsEarnedLabel: 'Bituing Nakuha:',
+  offlineQueuedNote: 'Offline — ipapadala ang resultang ito pagbalik ng internet.',
+  proceedNextActivity: 'Tumuloy sa Susunod na Aktibidad',
+  activityCompleteIncorrect: 'Tapos na ang Aktibidad (Mali)',
+  statusFailedIncorrect: 'Status: Bagsak / Mali (Kailangang Ulitin)',
+  statusFailedIncomplete: 'Status: Bagsak / Hindi Tapos (Kailangang Ulitin)',
+  pointsZero: 'Puntos: 0',
+  proceedOtherActivityAnswer: 'Tumuloy sa ibang Aktibidad — baka masagot mo ito, subukan mo',
+  proceedOtherActivityForm: 'Tumuloy sa ibang Aktibidad — baka mabuo mo ito, subukan mo',
+
+  // --- Jigsaw puzzle ---
+  dragPiecesHint: 'I-drag ang mga piraso sa ibaba papunta sa board para mabuo ang larawan',
+  pictureComplete: 'Kumpleto na ang Larawan!',
+  learnMoreBtn: 'Alamin',
+
+  // --- Level summary ---
+  goldMedal: 'Gintong Medalya',
+  silverMedal: 'Pilak na Medalya',
+  bronzeMedal: 'Tansong Medalya',
+  enumShort: 'Enum',
+  classFast: 'Mabilis Matuto',
+  classModerate: 'Katamtamang Matuto',
+  classSlow: 'Mabagal Matuto',
+  levelDashLabel: 'Level {level} — {label}',
+  studentNameLine: 'Estudyante: {name}',
+  summaryWord: 'Buod',
+  completeWord: 'Tapos',
+  pointsOutOf: 'Puntos / {max}',
+  learnerClassification: 'Klasipikasyon ng Mag-aaral',
+  perActivityResults: 'Resulta Bawat Aktibidad',
+  jigsawPcs: 'Jigsaw ({n} piraso)',
+  passedWithCount: 'Pasado ({correct}/{required})',
+  passedWord: 'Pasado',
+  retryWord: 'Ulitin',
+  backToSummary: 'Bumalik sa Buod',
+  proceedNextLevelUnlock: 'Tumuloy sa Susunod na Level (Buksan ang Level {n})',
+  proceedToLevelMap: 'Pumunta sa Mapa ng Level',
+
+  // --- Mini-lessons and results screens ---
+  miniLessonsTitle: 'Maiikling Aralin',
+  quizResultsTitle: 'Resulta ng Quiz',
+  jigsawResultsTitle: 'Resulta ng Jigsaw Puzzle',
+
+  // --- Student leaderboard ---
+  topRankLabel: 'Nangunguna',
+  noTrophyLabel: 'walang tropeo',
+  trophyGuideIntroNoFilter: 'Paano makakuha ng Tropeo (Combined Quiz & Jigsaw)',
+  starsExplainShort: 'Bituin = katamtamang bituin kada gawain',
+  myRankLine: 'Ranggo mo: pang-{rank}. Tap para sa buong record.',
+  onlyOneWithResults: 'Ikaw pa lang ang may resulta sa ngayon!',
+  beatsPercent: 'Mas magaling ka kaysa sa {pct}% ng ibang mag-aaral!',
+  tapForFullRecord: 'Tap para sa buong record mo',
+  rankEntryA11y: 'Pang-{rank}: {name}, {points} puntos, {trophy}',
+  rankEntryPaceA11y: 'Pang-{rank}: {name}, {points} puntos, {trophy}, {pace}',
+  noActivityYetStudent: 'Wala pang natatapos na gawain. Sagutan ang isang Quiz o Jigsaw Puzzle para lumabas dito.',
+  allOnPodium: 'Nasa podium na ang lahat ng may resulta.',
+  trophyWord: 'Tropeo',
+  tapAnywhereToClose: 'Tap kahit saan para isara',
+
+  // --- Student summary ---
+  fullRecordTitle: 'Kompletong Record — Buod at Kasaysayan ng Bawat Gawain',
+  activitiesDoneLabel: 'Gawaing Natapos',
+  totalTimeLabel: 'Kabuuang Oras',
+  noActivityForStudent: 'Wala pang natatapos na gawain ang estudyanteng ito.',
+  timeoutLabel: 'Timeout',
+  noActivityShort: 'Wala pang gawain',
+
+  // --- Performance progression ---
+  trendImproving: 'Umuunlad',
+  trendSteady: 'Pantay-pantay',
+  trendNeedsHelp: 'Kailangan ng Tulong',
+  trendNotEnoughData: 'Kulang ang Datos',
+  trendNotJoined: 'Hindi pa Nakasali',
+  statPoints: '★ Puntos',
+  statSpeed: '⏱ Bilis',
+  statActivities: 'Gawain',
+  noStudentsYetPerf: 'Wala pang estudyanteng nakarehistro o may resulta.',
+
+  // --- Admin — shared ---
+  adminNoPackSelected: 'Walang napiling pack. Bumalik sa Activity Management.',
+  adminFetchingContent: 'Kinukuha ang nilalaman mula sa server...',
+  adminPermissionNeeded: 'Kailangan ng Pahintulot',
+  adminSaveFailedTitle: 'Hindi Na-save',
+  adminUploadFailedTitle: 'Hindi Na-upload',
+  adminRestoreFailedTitle: 'Hindi Naibalik',
+  adminRemoveFailedTitle: 'Hindi Naalis',
+  adminSavedTitle: 'Naka-save!',
+  adminEmptyTitle: 'Walang Laman',
+
+  // --- Admin — content manager ---
+  contentManagerTitle: 'Content Manager',
+  contentManagerSubtitle: 'Ini-edit: {name}',
+  miniLessonBeforeQuiz: 'Mini-Lesson bago ang Quiz',
+  customBadge: 'Custom',
+  defaultBadge: 'Default',
+  removeCustomQuestionTitle: 'Alisin ang Custom na Tanong?',
+  removeCustomQuestionMsg: 'Babalik ito sa default na tanong para sa Activity {num}.',
+
+  // --- Admin — jigsaw content ---
+  jigsawContentTitle: 'Jigsaw Pictures & Mini-Lessons',
+  jigsawContentSubtitle: 'Piliin ang larawan ng puzzle at i-edit ang mini-lesson bawat kategorya',
+  photoPermissionPuzzleMsg: 'Payagan ang app na ma-access ang iyong mga larawan para makapili ng puzzle picture.',
+  emptyMiniLessonMsg: 'Maglagay ng teksto para sa mini-lesson.',
+  changePictureBtn: 'Palitan ang Larawan',
+  restoreDefaultBtn: 'Ibalik sa Default',
+  typeMiniLesson: 'I-type ang mini-lesson...',
+  editMiniLessonBtn: '✎ I-edit ang Mini-Lesson',
+
+  // --- Admin — pack list ---
+  packDraft: 'Draft',
+  packLive: 'Live',
+  packArchived: 'Archived',
+  packListSubtitle: 'Gumawa, kopyahin, o i-publish ang iyong Activity Management',
+  packLoadFailedMsg: 'Hindi na-load ang Activity Management.',
+  packFetching: 'Kinukuha ang mga pack mula sa server...',
+  newPackBtn: 'Bagong Pack',
+  packNamePlaceholder: 'Pangalan ng pack...',
+  packNameRequiredMsg: 'Maglagay ng pangalan para sa bagong pack.',
+  createBtn: 'Gawin',
+  packCreateFailedTitle: 'Hindi Nagawa',
+  packCreateFailedMsg: 'Hindi nagawa ang bagong pack.',
+  packCopyFailedTitle: 'Hindi Nakopya',
+  packCopyFailedMsg: 'Hindi nakopya ang pack.',
+  packPublishFailedTitle: 'Hindi Na-publish',
+  packPublishFailedMsg: 'Hindi na-publish ang pack.',
+  packArchiveFailedTitle: 'Hindi Na-archive',
+  packArchiveFailedMsg: 'Hindi na-archive ang pack.',
+  packUsedByClasses: 'Ginagamit ng {count} klase',
+  packUsedByNone: 'Walang gumagamit',
+  editQuizBtn: 'I-edit ang Quiz',
+  editJigsawBtn: 'I-edit ang Jigsaw',
+  publishBtn: 'I-publish',
+  archiveBtn: 'I-archive',
+
+  // --- Admin — question editor ---
+  questionTypeLabel: 'Uri ng Tanong',
+  miniLessonHintLabel: 'Mini-Lesson / Hint',
+  miniLessonHintPlaceholder: 'Maikling paliwanag bago ang tanong...',
+  questionLabel: 'Tanong',
+  questionPlaceholder: 'I-type ang tanong...',
+  choicesLabel: 'Mga Choices',
+  choicePlaceholder: 'Choice {n}',
+  requiredAnswersLabel: 'Ilang Sagot ang Kailangan ng Player (Required Answers)',
+  requiredAnswersPlaceholder: 'hal. 3',
+  poolAnswerPlaceholder: 'Pool answer {n}',
+  addPoolAnswerBtn: '+ Magdagdag ng Pool Answer',
+  correctAnswerLabel: 'Tamang Sagot',
+  correctAnswerPlaceholder: 'Tamang sagot...',
+  otherAcceptedLabel: 'Iba pang Tinatanggap na Sagot',
+  otherAcceptedPlaceholder: 'Ibang sagot {n}',
+  addAcceptedBtn: '+ Magdagdag ng Tinatanggap na Sagot',
+  explanationLabel: 'Paliwanag (pagkatapos ng tamang sagot)',
+  explanationPlaceholder: 'Bakit tama ang sagot...',
+  lessonImageLabel: 'Larawan ng Aralin',
+  choosePictureBtn: 'Pumili ng Larawan',
+  photoPermissionLessonMsg: 'Payagan ang app na ma-access ang iyong mga larawan para makapili ng larawan sa aralin.',
+  minPoolTitle: 'Minimum na Bilang',
+  minPoolMsg: 'Kailangan ng hindi bababa sa {min} na posibleng sagot sa pool.',
+  tooManyTitle: 'Sobra Na',
+  tooManyAcceptedMsg: 'Pinakamarami ay {max} na tinatanggap na sagot.',
+  switchTypeTitle: 'Palitan sa {type}?',
+  switchTypeMsg: 'Mananatili ang tanong, hint, paliwanag, at mini-lesson. Mabubura ang mga sagot ng kasalukuyang uri ({type}). Wala pang na-se-save hangga\'t hindi mo pinipindot ang I-save ang Tanong.',
+  switchAndClearBtn: 'Palitan at Burahin',
+  saveQuestionBtn: 'I-save ang Tanong',
+  needLessonAndQuestionMsg: 'Kailangan ng mini-lesson at tanong.',
+  needCorrectAnswerMsg: 'Kailangan ng tamang sagot.',
+  needChoicesTitle: 'Kulang na Choices',
+  needChoicesMsg: 'Maglagay ng hindi bababa sa 2 choices.',
+  mismatchTitle: 'Hindi Tugma',
+  mismatchMsg: 'Ang tamang sagot ay dapat isa sa mga choices.',
+  poolTooSmallTitle: 'Kulang ang Answer Pool',
+  poolTooSmallMsg: 'Kailangan ng hindi bababa sa {min} (natatanging) posibleng sagot. Meron pa lang {count}.',
+  invalidTitle: 'Hindi Wasto',
+  invalidRequiredMsg: 'Ilagay kung ilang sagot ang kailangang isagot ng player (hindi bababa sa 1).',
+  requiredExceedsPoolMsg: 'Ang kailangang sagot ({required}) ay hindi maaaring lumampas sa laki ng answer pool ({pool}).',
+  clearFieldA11y: 'I-clear ang field',
+
+  // --- Context alerts ---
+  packLoadErrorMsg: 'Hindi na-load ang pack na ito mula sa server.',
+  questionUpdatedMsg: 'Na-update ang tanong para sa lahat ng mag-aaral.',
+  questionSaveFailedMsg: 'Hindi na-save ang tanong.',
+  questionRevertedMsg: 'Naibalik sa default na tanong.',
+  questionRemoveFailedMsg: 'Hindi naalis ang custom na tanong.',
+  puzzleImageUpdatedMsg: 'Na-update ang larawan ng puzzle.',
+  imageUploadFailedMsg: 'Hindi na-upload ang larawan.',
+  miniLessonSavedMsg: 'Na-save ang mini-lesson.',
+  miniLessonSaveFailedMsg: 'Hindi na-save ang mini-lesson.',
+  defaultImageRestoredMsg: 'Naibalik ang default na larawan.',
+  imageRestoreFailedMsg: 'Hindi naibalik ang larawan.',
+  imageUploadedMsg: 'Na-upload ang larawan.',
+  settingSavedMsg: 'Na-save ang setting.',
+  settingSaveFailedMsg: 'Hindi na-save ang setting.',
+  profileRefreshFailedMsg: 'Hindi na-refresh ang profile mo.',
+  noEmailOnFileMsg: 'Walang nakatalang email address para sa account na ito.',
+  contentLoadFailedMsg: 'Hindi na-load ang nilalaman mula sa server.',
+  resultsLoadFailedMsg: 'Hindi na-load ang mga resulta.',
+  noClassSelectedMsg: 'Walang klaseng napili.',
+  resultsDeletedMsg: 'Nabura ang {count} na resulta.',
+  resultsDeleteFailedMsg: 'Hindi nabura ang mga resulta.',
+  classLoadFailedMsg: 'Hindi na-load ang klase mo.',
+  classCodeGeneratedMsg: 'Na-generate ang class code.',
+  classCodeGenerateFailedMsg: 'Hindi na-generate ang class code.',
+  classCodeFormatMsg: 'Ang class code ay dapat 10 characters (letters at numbers lang).',
+  classCodeSavedMsg: 'Na-save ang class code.',
+  classCodeSaveFailedMsg: 'Hindi na-save ang class code.',
+  classCodeInvalidMsg: 'Maling class code. Pakisuri at subukan ulit.',
+  classJoinFailedMsg: 'Hindi nakasali sa klase.',
+  noClassYetMsg: 'Wala pang klase.',
+  studentRemovedMsg: 'Naalis ang mag-aaral sa roster.',
+  studentRemoveFailedMsg: 'Hindi naalis ang mag-aaral.',
+  registerIncompleteMsg: 'Hindi nakumpleto ang pagpaparehistro.',
+  classCodeShareMsg: 'JuanWise Class Code: {code}',
+
+  // --- Network / API errors ---
+  errGeneric: 'May nangyaring mali. Subukan ulit.',
+  errRequestFailed: 'Nabigo ang request ({status}).',
+  errTimeout: 'Masyadong matagal sumagot ang server. Suriin ang koneksyon mo at subukan ulit.',
+  errNetwork: 'Hindi maabot ang JuanWise server. Suriin ang koneksyon mo sa internet.',
+  errUnauthenticated: 'Naka-sign out ka na. Mag-sign in ulit.',
+  errUploadFailed: 'Hindi na-upload ang larawan. Subukan ulit.',
+
+  // --- Level map extras ---
+  doneOfSix: '{done} sa 6 tapos na',
+
+  // --- Activity list extras ---
+  picturePuzzleTitle: 'Picture Puzzle ng {label}',
+  doneOfSixShort: '{done} sa 6',
+  activityNumShort: 'Aktibidad {num}',
+  activityPlaySubtitle: '{type} · {difficulty} · Aktibidad {num}',
+  levelSubtitle: '{label} · {mode}',
+
+  // --- Result sheet detail lines ---
+  detailStudent: 'Estudyante: {name}',
+  detailTime: 'Oras: {time}',
+  detailPoints: 'Puntos: {points}',
+  detailAnswersCorrect: 'Sagot: {correct}/{required} tama',
+  detailCategory: 'Kategorya: {label}',
+  detailActivityTypeQuiz: 'Uri ng Gawain: Quiz ({type})',
+  detailActivityTypeJigsaw: 'Uri ng Gawain: Jigsaw Puzzle',
+  detailActivityCount: 'Aktibidad #: {num} sa 6 · Level {level}/5',
+  enumHelper: 'Punuan ang {required} kahon sa ibaba ({filled}/{required} napunuan)',
+  headerLevelTitle: '{label} — Level {level}',
+  detailPieces: 'Piraso: {count}',
+  detailDifficulty: 'Hirap: {difficulty}',
+
+  // --- Jigsaw detail lines ---
+  detailActivityTypeJigsawPieces: 'Uri ng Gawain: Jigsaw Puzzle ({count} piraso)',
+
+  // --- Level summary extras ---
+  noMedalYet: '— Walang Medal Pa',
+  pointsOutOfNinety: '{points} / 90 puntos',
+  ofSeconds: 'sa {seconds}s',
+  firstAttemptStat: 'Unang Subok',
+  firstAttemptBreakdown: 'Tamang Unang Subok: {correct}/6 · Mali: {wrong}/6',
+  typeMC: 'MC',
+  typeID: 'ID',
+  pointsSuffixShort: '{points} puntos',
+  incompleteLevelWarning: 'May mga aktibidad na wala pang naitalang resulta para sa estudyanteng ito. Bumalik sa Activity List para makumpleto.',
+
+  // --- Mini-lessons and results lists ---
+  miniLessonsSubtitle: '{count} aralin ang na-unlock mula sa tamang sagot mo sa Quiz at Jigsaw Puzzle',
+  noMiniLessonsYet: 'Wala ka pang na-unlock na mini-lesson. Sagutan nang tama ang isang Quiz o Jigsaw Puzzle sa Categories para makapag-unlock ng aralin dito.',
+  levelActivityLine: 'Level {level} · Aktibidad {num}',
+  quizResultsSubtitle: '{count} tamang sagot · {points} kabuuang puntos',
+  jigsawResultsSubtitle: '{count} nabuong puzzle · {points} kabuuang puntos',
+  noQuizResultsYet: 'Wala ka pang natatapos na Quiz. Pumunta sa Categories at subukan ang isang Quiz activity para makita dito ang resulta mo.',
+  noJigsawResultsYet: 'Wala ka pang natatapos na Jigsaw Puzzle. Pumunta sa Categories at buuin ang isang puzzle para makita dito ang resulta mo.',
+  secondsSuffix: '{seconds}s',
+
+  // --- Student leaderboard extras ---
+  leaderboardSubtitle: '{count} estudyanteng may resulta',
+  youSuffix: ' (Ikaw)',
+  trophyOfTier: 'tropeong {tier}',
+  legendMaxPossible: 'Max posible: {points} puntos sa {seconds} sec (Quiz + Jigsaw, lahat ng level)',
+  rowStatsLine: '{points} puntos · {time} · {attempts} gawain',
+  legendPointsTimeLabel: '{points}+ puntos · {time}',
+
+  // --- Student summary extras ---
+  avgSuffix: '({avg} avg)',
+  viewSummaryToggle: 'Buod (Category/Level)',
+  viewHistoryToggle: 'Kasaysayan (Lahat ng Gawain)',
+  historyRowLine: 'Level {level} · Aktibidad {num} · {date}',
+  categoryTotalsLine: '{points} puntos · {attempts} gawain',
+  passedOfSix: '{passed}/6',
+
+  // --- Performance progression extras ---
+  performanceSubtitle: 'Hinahambing ang unang mga sagot laban sa pinakabagong mga sagot para makita kung sino ang umuunlad.',
+  levelChipShort: 'Lvl {n}',
+  noAttemptsInCategory: 'Wala pang sinagutang gawain sa {category}.',
+  noAttemptsAtAll: 'Wala pang sinagutang gawain.',
+
+  // --- Admin content manager extras ---
+  answerLabelShort: 'Sagot: {answer}',
+  miniLessonToggleDesc: 'Kapag naka-ON, makikita ng mag-aaral ang mini-lesson bago sumagot sa bawat tanong.',
+  miniLessonToggleNote: 'Tandaan: kasalukuyang naaapektuhan lang nito ang Global Library — hindi pa ito nakikita ng mga estudyanteng gumagamit ng ibang pack.',
+
+  // --- Pack list extras ---
+  packVersionMeta: 'v{version} · {usage}',
+
+  // --- Question editor extras ---
+  questionEditorTitle: '{label} — Level {level}, Aktibidad {num}',
+  requiredAnswersNote: 'Ito ang magiging bilang ng "tabs" / input boxes na makikita ng player. Dapat hindi lumampas sa laki ng Answer Pool sa ibaba.',
+  answerPoolLabel: 'Answer Pool (min. {min} posibleng sagot)',
+  poolFilledCount: '{count} napunuan',
+  acceptedCount: '{count}/{max}',
+  acceptedAnswersNote: 'Opsyonal. Ibang paraan ng pagsulat ng parehong sagot (hal. ibang baybay) na ituturing ding tama.',
+  lessonImageNote: 'Makikita ito sa Mini-Lessons kapag natapos na ng mag-aaral ang gawain. Hindi ito lumalabas habang sinasagot ang tanong, para hindi maibigay ang sagot.',
+  noLessonImage: 'Walang larawan — gagamitin ang default na larawan ng kategorya.',
+
+  // --- Settings language switcher ---
+  languageLabel: 'Wika',
 };
 
 const translations = { en, tl };
 
+export const LANGUAGES: Language[] = ['en', 'tl'];
+
+/**
+ * The language the provider last rendered, mirrored outside React so modules
+ * that cannot hold a hook — the API client, which throws from inside `fetch`
+ * — can still resolve a key. The provider is the only writer.
+ */
+let activeLanguage: Language = 'en';
+
+/** `t()` for non-React callers. Prefer `useLanguage().t` inside components. */
+export function translate(key: TranslationKey, vars?: Record<string, string | number>): string {
+  let text: string = translations[activeLanguage][key] ?? en[key] ?? key;
+  if (vars) {
+    for (const k of Object.keys(vars)) {
+      text = text.split(`{${k}}`).join(String(vars[k]));
+    }
+  }
+  return text;
+}
+
+function isLanguage(value: unknown): value is Language {
+  return value === 'en' || value === 'tl';
+}
+
 type LanguageContextType = {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: TranslationKey, vars?: Record<string, string>) => string;
+  /** False until the stored choice has been read back from AsyncStorage. */
+  ready: boolean;
+  t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>('en');
+  const [ready, setReady] = useState(false);
 
-  const t = (key: TranslationKey, vars?: Record<string, string>) => {
-    let text: string = translations[language][key] || key;
-    if (vars) {
-      Object.keys(vars).forEach((k) => {
-        text = text.replace(`{${k}}`, vars[k]);
+  // Hydrate the previous choice. Until this resolves the app renders in
+  // English, so screens that care (the splash gate) wait on `ready`.
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((stored) => {
+        if (cancelled) return;
+        if (isLanguage(stored)) {
+          activeLanguage = stored;
+          setLanguageState(stored);
+        }
+      })
+      .catch(() => {
+        // A storage read that fails just means we start in English.
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true);
       });
-    }
-    return text;
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
-      {children}
-    </LanguageContext.Provider>
-  );
+  // Mirrors the rendered language for `translate()`. `setLanguage` already
+  // updates it eagerly; this keeps the two in step for any other path that
+  // changes `language`, and stays out of render so it is not a render side effect.
+  useEffect(() => {
+    activeLanguage = language;
+  }, [language]);
+
+  const value = useMemo<LanguageContextType>(() => {
+    const setLanguage = (lang: Language) => {
+      activeLanguage = lang;
+      setLanguageState(lang);
+      AsyncStorage.setItem(STORAGE_KEY, lang).catch(() => {
+        // Persisting is best-effort; the in-memory choice still applies.
+      });
+    };
+
+    // Reads `language` (not `activeLanguage`) so React re-renders drive it.
+    const t = (key: TranslationKey, vars?: Record<string, string | number>) => {
+      let text: string = translations[language][key] ?? en[key] ?? key;
+      if (vars) {
+        for (const k of Object.keys(vars)) {
+          text = text.split(`{${k}}`).join(String(vars[k]));
+        }
+      }
+      return text;
+    };
+
+    return { language, setLanguage, ready, t };
+  }, [language, ready]);
+
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
 export function useLanguage() {
