@@ -84,6 +84,7 @@ export default function ActivityPlayScreen() {
     q.requiredAnswers ?? '',
     q.correctAnswer,
     (q.acceptedAnswers ?? []).join('~'),
+    (q.answerPool ?? []).join('~'),
   ].join('|');
 
   // Number of input "tabs" to show for Enumeration — the Admin's required

@@ -85,11 +85,8 @@ export default function JigsawContentScreen() {
   const saveLesson = async (categoryKey: string) => {
     const context_en = draftEn.trim();
     const context_tl = draftTl.trim();
-    if (!context_en && !context_tl) {
-      Alert.alert(t('adminEmptyTitle'), t('emptyMiniLessonMsg'));
-      return;
-    }
-    if (!context_en || !context_tl) {
+    // Optional text: both empty is allowed, one filled needs the other.
+    if (!context_en !== !context_tl) {
       Alert.alert(t('adminEmptyTitle'), t('bothLanguagesRequired'));
       return;
     }

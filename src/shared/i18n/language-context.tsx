@@ -432,6 +432,7 @@ const en = {
   changePictureBtn: 'Change Picture',
   restoreDefaultBtn: 'Restore Default',
   typeMiniLesson: 'Type the mini-lesson...',
+  miniLessonLabel: 'Mini-Lesson',
   editMiniLessonBtn: '✎ Edit the Mini-Lesson',
 
   // --- Admin — pack list ---
@@ -1081,6 +1082,7 @@ const tl: Record<TranslationKey, string> = {
   changePictureBtn: 'Palitan ang Larawan',
   restoreDefaultBtn: 'Ibalik sa Default',
   typeMiniLesson: 'I-type ang mini-lesson...',
+  miniLessonLabel: 'Mini-Lesson',
   editMiniLessonBtn: '✎ I-edit ang Mini-Lesson',
 
   // --- Admin — pack list ---

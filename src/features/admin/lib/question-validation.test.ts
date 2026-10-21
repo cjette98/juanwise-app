@@ -5,6 +5,7 @@ const MIN = 3;
 
 const mc = (over: Partial<LangDraft> = {}): LangDraft => ({
   hint: 'h',
+  miniLesson: '',
   question: 'q',
   choices: ['a', 'b', '', ''],
   correctAnswer: 'a',
@@ -47,8 +48,23 @@ describe('validateQuestionDraft', () => {
     expect(r.ok === false && r.error).toMatchObject({ msgKey: 'mismatchMsg', english: true });
     const r2 = run('multiple-choice', mc(), mc({ choices: ['only', '', '', ''], correctAnswer: 'only' }));
     expect(r2.ok === false && r2.error).toMatchObject({ msgKey: 'needChoicesMsg', english: true });
-    const r3 = run('multiple-choice', mc(), mc({ hint: '' }));
-    expect(r3.ok === false && r3.error).toMatchObject({ msgKey: 'needLessonAndQuestionMsg', english: true });
+  });
+
+  it('treats hint and mini-lesson as optional: both empty is fine, one filled needs the other', () => {
+    const none = run('multiple-choice', mc({ hint: '' }), mc({ hint: ' ' }));
+    expect(none.ok).toBe(true);
+    if (none.ok) expect([none.tl.hint, none.en.hint, none.tl.miniLesson, none.en.miniLesson]).toEqual(['', '', '', '']);
+    for (const field of ['hint', 'miniLesson'] as const) {
+      const a = run('multiple-choice', mc({ [field]: 'x' }), mc({ [field]: '  ' }));
+      expect(a).toEqual({ ok: false, error: { titleKey: 'missingInfo', msgKey: 'bothLanguagesRequired', english: false } });
+      const b = run('multiple-choice', mc({ [field]: '' }), mc({ [field]: 'x' }));
+      expect(b.ok === false && b.error.msgKey).toBe('bothLanguagesRequired');
+    }
+  });
+
+  it('returns trimmed mini-lessons for both languages', () => {
+    const r = run('multiple-choice', mc({ miniLesson: ' T ' }), mc({ miniLesson: ' E ' }));
+    expect(r.ok && [r.tl.miniLesson, r.en.miniLesson]).toEqual(['T', 'E']);
   });
 
   it('checks the enumeration pool in each language against the shared required count', () => {

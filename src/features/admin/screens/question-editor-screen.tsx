@@ -71,6 +71,7 @@ function initialDrafts(q: QuizQuestion): { tl: LangDraft; en: LangDraft } {
   return {
     tl: {
       hint: q.hint,
+      miniLesson: q.miniLesson ?? '',
       question: q.question,
       choices: pad(q.choices ?? [], choiceLen),
       correctAnswer: q.correctAnswer,
@@ -80,6 +81,7 @@ function initialDrafts(q: QuizQuestion): { tl: LangDraft; en: LangDraft } {
     },
     en: {
       hint: en?.hint ?? '',
+      miniLesson: en?.miniLesson ?? '',
       question: en?.question ?? '',
       choices: pad(en?.choices ?? [], choiceLen),
       correctAnswer: en?.correctAnswer ?? '',
@@ -290,7 +292,6 @@ export default function QuestionEditorScreen() {
       // Both are sent on every save: the PUT is a full overwrite, so a payload
       // that omitted them would clear the write-up and the picture the
       // Mini-Lessons screen shows.
-      miniLesson: existing.miniLesson,
       miniLessonImageUrl,
     };
     const ownFields = (d: LangDraft) =>
@@ -303,6 +304,7 @@ export default function QuestionEditorScreen() {
     await save({
       ...shared,
       hint: tlOut.hint,
+      miniLesson: tlOut.miniLesson,
       question: tlOut.question,
       explanation: tlOut.explanation,
       ...ownFields(tlOut),
@@ -311,7 +313,7 @@ export default function QuestionEditorScreen() {
         question: enOut.question,
         hint: enOut.hint,
         explanation: enOut.explanation,
-        miniLesson: existing.en?.miniLesson,
+        miniLesson: enOut.miniLesson,
         ...ownFields(enOut),
       },
     });
@@ -487,6 +489,16 @@ export default function QuestionEditorScreen() {
           onEn={(v) => setField('en', { explanation: v })}
           onTl={(v) => setField('tl', { explanation: v })}
           placeholder={t('explanationPlaceholder')}
+          multiline
+        />
+
+        <BilingualInput
+          label={t('miniLessonLabel')}
+          enValue={en.miniLesson}
+          tlValue={tl.miniLesson}
+          onEn={(v) => setField('en', { miniLesson: v })}
+          onTl={(v) => setField('tl', { miniLesson: v })}
+          placeholder={t('typeMiniLesson')}
           multiline
         />
 

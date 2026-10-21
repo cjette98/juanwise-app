@@ -5,6 +5,8 @@ export type DraftQuizType = 'multiple-choice' | 'identification' | 'enumeration'
 /** The text of one language's version of a question, as the editor holds it. */
 export interface LangDraft {
   hint: string;
+  /** The long mini-lesson write-up; optional, but filled in both languages or neither. */
+  miniLesson: string;
   question: string;
   choices: string[];
   correctAnswer: string;
@@ -61,9 +63,10 @@ function validateLang(
 ): LangResult {
   const hint = d.hint.trim();
   const question = d.question.trim();
-  if (!question || !hint) return fail(english, 'missingInfo', 'needLessonAndQuestionMsg');
+  if (!question) return fail(english, 'missingInfo', 'needLessonAndQuestionMsg');
+  const miniLesson = d.miniLesson.trim();
   const explanation = d.explanation.trim() || hint;
-  const base = { hint, question, explanation, choices: [], acceptedAnswers: [], answerPool: [], correctAnswer: '' };
+  const base = { hint, miniLesson, question, explanation, choices: [], acceptedAnswers: [], answerPool: [], correctAnswer: '' };
 
   if (type === 'enumeration') {
     const pool = dedupe(d.answerPool.map((a) => a.trim()).filter(Boolean));
@@ -115,6 +118,11 @@ export function validateQuestionDraft(input: {
   // Exactly one version written: say so, rather than a generic "missing" error.
   if (!!tl.question.trim() !== !!en.question.trim()) {
     return fail(false, 'missingInfo', 'bothLanguagesRequired');
+  }
+
+  // Optional text is all-or-nothing across the two languages.
+  for (const field of ['hint', 'miniLesson'] as const) {
+    if (!!tl[field].trim() !== !!en[field].trim()) return fail(false, 'missingInfo', 'bothLanguagesRequired');
   }
 
   const tlResult = validateLang(type, tl, required, minPool, false);
