@@ -10,6 +10,7 @@ import { starsForMedal, useStudentResults } from '@/features/results/context/stu
 import { useUser } from '@/features/auth/context/user-context';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
+import { useSound } from '@/shared/audio/sound-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 import { errorMessage } from '@/shared/api';
 import { generateEdgeMap, getPieceEdges, piecePathD } from '@/features/jigsaw/lib/jigsaw-shapes';
@@ -131,6 +132,7 @@ export default function JigsawPuzzleScreen() {
   const [dragPieceId, setDragPieceId] = useState<number | null>(null);
   const dragXY = useRef(new Animated.ValueXY()).current;
 
+  const { playSfx } = useSound();
   const [phase, setPhase] = useState<Phase>('playing');
   const phaseRef = useRef(phase);
   useEffect(() => {
@@ -218,9 +220,11 @@ export default function JigsawPuzzleScreen() {
 
       if (recorded.medal) {
         recordOutcome(category, 'jigsaw', level, activityNum, true, recorded.attemptSeq, { queued });
+        playSfx('complete');
         setTimeout(() => setPhase('success'), 250);
       } else {
         recordOutcome(category, 'jigsaw', level, activityNum, false, recorded.attemptSeq, { queued });
+        playSfx('wrong');
         setPhase('failed');
       }
     } catch (err) {
@@ -307,6 +311,8 @@ export default function JigsawPuzzleScreen() {
             next.add(pieceId);
             placedRef.current = next;
             setPlacedIds(next);
+            // The last piece is answered by `complete` once the result lands.
+            if (next.size < pieceCount) playSfx('snap');
             setDragPieceId(null);
             dragXY.setValue({ x: 0, y: 0 });
             handleWin(next);

@@ -14,6 +14,7 @@ import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { difficultyLabelKey } from '@/features/learning/lib/activity-list-model';
+import { useSound } from '@/shared/audio/sound-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 
 function shuffleChoices(choices: string[]) {
@@ -89,6 +90,7 @@ export default function ActivityPlayScreen() {
   // count (falls back to the pool size, or 1, if somehow unset).
   const requiredAnswers = q.type === 'enumeration' ? Math.max(1, q.requiredAnswers || q.answerPool?.length || 1) : 0;
 
+  const { playSfx } = useSound();
   const [phase, setPhase] = useState<Phase>('hint');
   const [choices, setChoices] = useState<string[]>([]);
   const [textAnswer, setTextAnswer] = useState('');
@@ -156,7 +158,10 @@ export default function ActivityPlayScreen() {
     return { correctCount, passed };
   };
 
-  const handleStartQuestion = () => setPhase('question');
+  const handleStartQuestion = () => {
+    playSfx('tap');
+    setPhase('question');
+  };
 
   /**
    * One shot per attempt. What the screen reports is only what it observed —
@@ -200,9 +205,11 @@ export default function ActivityPlayScreen() {
 
       if (recorded.medal) {
         recordOutcome(category, activityType, level, activityNum, true, recorded.attemptSeq, { queued: wasQueued });
+        playSfx('correct');
         setPhase('success');
       } else {
         recordOutcome(category, activityType, level, activityNum, false, recorded.attemptSeq, { queued: wasQueued });
+        playSfx('wrong');
         setPhase('incorrect');
       }
     } catch (err) {
@@ -218,6 +225,7 @@ export default function ActivityPlayScreen() {
 
   const handleAnswer = (given: string) => {
     if (phase !== 'question' || submitting) return;
+    playSfx('tap');
     const timerResult = timerRef.current?.stop();
     if (!timerResult) return;
     void recordAttempt(timerResult, isCorrect(given), false);
@@ -226,6 +234,7 @@ export default function ActivityPlayScreen() {
   // Enumeration: submits all filled tabs at once.
   const handleSubmitEnumeration = () => {
     if (phase !== 'question' || submitting) return;
+    playSfx('tap');
     const timerResult = timerRef.current?.stop();
     if (!timerResult) return;
 

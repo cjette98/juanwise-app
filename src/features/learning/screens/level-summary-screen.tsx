@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useStudentResults, ActivityResult } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
@@ -8,6 +8,7 @@ import { Screen, ScreenHeader, Card, Button, Icon, Pill, StarRow, H3, Body, Body
 import { MAX_ATTEMPTS } from '@/features/learning/lib/attempt-rules';
 import { tokens } from '@/shared/theme/tokens';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
+import { useSound } from '@/shared/audio/sound-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 
 type LevelMedal = 'gold' | 'silver' | 'bronze' | null;
@@ -120,6 +121,17 @@ export default function LevelSummaryScreen() {
   }, [attempts]);
 
   const allComplete = perActivity.every((a) => !!a.passingAttempt || a.exhausted);
+
+  // Fanfare once when the summary opens with all 6 finished — the ref keeps
+  // later re-renders (results refreshing) from replaying it.
+  const { playSfx } = useSound();
+  const completeSoundPlayed = useRef(false);
+  useEffect(() => {
+    if (allComplete && !completeSoundPlayed.current) {
+      completeSoundPlayed.current = true;
+      playSfx('complete');
+    }
+  }, [allComplete, playSfx]);
 
   const totalPoints = perActivity.reduce((sum, a) => sum + (a.passingAttempt?.points ?? 0), 0);
   const totalTime = perActivity.reduce((sum, a) => sum + (a.passingAttempt?.timeUsed ?? 0), 0);
