@@ -35,6 +35,7 @@ const apiQuestionCommon = {
   answerPool: null,
   requiredAnswers: null,
   acceptedAnswers: null,
+  en: null,
   updatedBy: null,
   updatedAt: null,
 };

@@ -35,6 +35,7 @@ const identification: ApiQuestion = {
   answerPool: null,
   requiredAnswers: null,
   acceptedAnswers: ['Andres Bonifacio', 'Bonifacio'],
+  en: null,
 };
 
 describe('toQuizQuestion', () => {
@@ -47,6 +48,7 @@ describe('toQuizQuestion', () => {
       acceptedAnswers: ['Andres Bonifacio', 'Bonifacio'],
       explanation: 'Andrés Bonifacio founded it.',
       miniLessonImageUrl: null,
+      en: null,
     });
   });
 
@@ -190,5 +192,65 @@ describe('mini-lesson image mapping', () => {
       miniLessonImageUrl: '   ',
     });
     expect(sent.miniLessonImageUrl).toBeNull();
+  });
+});
+
+describe('English version', () => {
+  const apiEn = {
+    question: 'Who founded the Katipunan?',
+    hint: null,
+    explanation: 'He did.',
+    miniLesson: null,
+    choices: null,
+    correctAnswer: 'Andres Bonifacio',
+    answerPool: null,
+    acceptedAnswers: ['Bonifacio'],
+  };
+
+  it('maps api.en onto the question', () => {
+    const mapped = toQuizQuestion({ ...identification, en: apiEn }, fallback);
+    expect(mapped.en).toEqual({
+      question: 'Who founded the Katipunan?',
+      hint: '',
+      explanation: 'He did.',
+      miniLesson: '',
+      correctAnswer: 'Andres Bonifacio',
+      acceptedAnswers: ['Bonifacio'],
+    });
+  });
+
+  it('maps a missing English version to null', () => {
+    expect(toQuizQuestion({ ...identification, en: null }, fallback).en).toBeNull();
+  });
+
+  const base: QuizQuestion = {
+    hint: 'h',
+    type: 'identification',
+    question: 'q',
+    correctAnswer: 'a',
+    explanation: 'e',
+  };
+
+  it('sends en: null for an all-blank English set', () => {
+    const sent = toUpsertRequest({
+      ...base,
+      en: { question: '   ', hint: 'stray', explanation: '', correctAnswer: 'x' },
+    });
+    expect(sent.en).toBeNull();
+  });
+
+  it('drops English fields the type does not own', () => {
+    const sent = toUpsertRequest({
+      ...base,
+      en: { question: 'Q', hint: '', explanation: '', choices: ['a', 'b'], correctAnswer: ' A ', acceptedAnswers: [' x ', ''] },
+    });
+    expect(sent.en).toEqual({
+      question: 'Q',
+      hint: null,
+      explanation: null,
+      miniLesson: null,
+      correctAnswer: 'A',
+      acceptedAnswers: ['x'],
+    });
   });
 });

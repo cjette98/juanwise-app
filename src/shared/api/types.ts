@@ -243,6 +243,18 @@ export interface UpdateCategoryRequest {
   definition_tl?: string | null;
 }
 
+/** The English version of a question; the main fields are the Tagalog one. */
+export interface ApiQuestionEn {
+  question: string;
+  hint: string | null;
+  explanation: string | null;
+  miniLesson: string | null;
+  choices: string[] | null;
+  correctAnswer: string | null;
+  answerPool: string[] | null;
+  acceptedAnswers: string[] | null;
+}
+
 export interface ApiQuestion {
   /** `{category}_{level}_{activityNum}` */
   id: string;
@@ -277,10 +289,20 @@ export interface ApiQuestion {
    * existed, which reads as "no alternatives".
    */
   acceptedAnswers: string[] | null;
+  /** English version. Null when none was written, and on older documents. */
+  en: ApiQuestionEn | null;
   /** `false` when this is the seeded default rather than an admin edit. */
   isOverride: boolean;
   updatedBy: string | null;
   updatedAt: string | null;
+}
+
+/** Text every English version carries, whatever the type. */
+interface UpsertEnCommon {
+  question: string;
+  hint?: string | null;
+  explanation?: string | null;
+  miniLesson?: string | null;
 }
 
 export type UpsertQuestionRequest =
@@ -293,6 +315,7 @@ export type UpsertQuestionRequest =
       miniLessonImageUrl?: string | null;
       choices: string[];
       correctAnswer: string;
+      en?: (UpsertEnCommon & { choices: string[]; correctAnswer: string }) | null;
     }
   | {
       type: 'enumeration';
@@ -304,6 +327,8 @@ export type UpsertQuestionRequest =
       /** At least 10 entries — enforced server-side. */
       answerPool: string[];
       requiredAnswers: number;
+      /** Its pool must also hold at least `requiredAnswers` entries. */
+      en?: (UpsertEnCommon & { answerPool: string[] }) | null;
     }
   | {
       type: 'identification';
@@ -320,6 +345,7 @@ export type UpsertQuestionRequest =
        * `correctAnswer` after trim/collapse/lowercase — enforced server-side.
        */
       acceptedAnswers?: string[];
+      en?: (UpsertEnCommon & { correctAnswer: string; acceptedAnswers?: string[] }) | null;
     };
 
 export interface ApiContentSettings {
