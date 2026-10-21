@@ -207,10 +207,10 @@ export default function JigsawPuzzleScreen() {
       });
 
       if (recorded.medal) {
-        recordOutcome(category, 'jigsaw', level, activityNum, true, recorded.attemptSeq);
+        recordOutcome(category, 'jigsaw', level, activityNum, true, recorded.attemptSeq, { queued });
         setTimeout(() => setPhase('success'), 250);
       } else {
-        recordOutcome(category, 'jigsaw', level, activityNum, false, recorded.attemptSeq);
+        recordOutcome(category, 'jigsaw', level, activityNum, false, recorded.attemptSeq, { queued });
         setPhase('failed');
       }
     } catch (err) {

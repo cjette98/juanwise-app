@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyAttemptToTrack,
+  nextAttemptSeq,
   pointsForAttempt,
   slotStatus,
   triesLeft,
@@ -63,5 +64,29 @@ describe('applyAttemptToTrack', () => {
     const track: LocalTrack = { ...empty, unlockedLevel: 5, completed: [25, 26, 27, 28, 29] };
     const next = applyAttemptToTrack(track, 5, 6, true, 1);
     expect(next.unlockedLevel).toBe(5);
+  });
+});
+
+describe('nextAttemptSeq', () => {
+  const slot = { category: 'math', activityType: 'quiz', level: 1, activityNum: 2 };
+
+  it('is 1 when there are no rows', () => {
+    expect(nextAttemptSeq([], slot)).toBe(1);
+  });
+
+  it('counts matching rows, including pending ones, plus one', () => {
+    const rows = [slot, { ...slot, pending: true }];
+    expect(nextAttemptSeq(rows, slot)).toBe(3);
+  });
+
+  it('ignores rows for other slots', () => {
+    const rows = [
+      { ...slot, activityNum: 3 },
+      { ...slot, level: 2 },
+      { ...slot, activityType: 'jigsaw' },
+      { ...slot, category: 'science' },
+      slot,
+    ];
+    expect(nextAttemptSeq(rows, slot)).toBe(2);
   });
 });

@@ -76,6 +76,7 @@ type GameProgressContextType = {
     activityNum: number,
     passed: boolean,
     attemptSeq: number,
+    options?: { queued?: boolean },
   ) => void;
   refresh: () => Promise<void>;
 };
@@ -168,7 +169,7 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
    * mirrors the rule locally for an instant Activity List, then refreshes.
    */
   const recordOutcome: GameProgressContextType['recordOutcome'] = useCallback(
-    (categoryKey, activityType, level, activityNum, passed, attemptSeq) => {
+    (categoryKey, activityType, level, activityNum, passed, attemptSeq, options) => {
       const key = makeKey(categoryKey, activityType);
       setTracks((prev) => {
         const next = {
@@ -178,7 +179,9 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
         writeCache(`${PROGRESS_CACHE_KEY}:${uid}`, next);
         return next;
       });
-      void refresh();
+      // A queued attempt is not on the server yet; a refresh that beat the
+      // outbox would replace the optimistic track with state missing it.
+      if (!options?.queued) void refresh();
     },
     [uid, refresh],
   );

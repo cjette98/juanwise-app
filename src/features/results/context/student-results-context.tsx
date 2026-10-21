@@ -15,6 +15,7 @@ import {
 import { Medal } from '@/shared/components/activity-timer';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
+import { nextAttemptSeq, pointsForAttempt } from '@/features/learning/lib/attempt-rules';
 import { computePerformanceScore } from './performance-score';
 import { useLanguage } from '@/shared/i18n/language-context';
 
@@ -402,8 +403,8 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
         if (uid) await enqueueResult(uid, payload);
 
         // Mirror the server's rule so the student still sees the right outcome
-        // offline: a pass is worth full marks, medal by fraction of the budget.
-        const optimistic = scoreLocally(attempt, uid, name);
+        // offline: a pass is worth the attempt's share (15/10/6), medal by fraction of the budget.
+        const optimistic = scoreLocally(attempt, uid, name, nextAttemptSeq(results, attempt));
         if (mounted.current) {
           setResults((prev) => {
             const next = [...prev, optimistic];
@@ -414,7 +415,7 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
         return { result: optimistic, queued: true };
       }
     },
-    [uid, name, scopeKey],
+    [uid, name, scopeKey, results],
   );
 
   const clearResults: StudentResultsContextType['clearResults'] = useCallback(async () => {
@@ -541,7 +542,7 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
  * has to agree with the server, because the queued attempt will be re-scored
  * there and the local row replaced on the next refresh.
  */
-function scoreLocally(attempt: AttemptInput, uid: string, studentName: string): ActivityResult {
+function scoreLocally(attempt: AttemptInput, uid: string, studentName: string, attemptSeq: number): ActivityResult {
   const budget = attempt.activityType === 'jigsaw' ? JIGSAW_TIME_BUDGET_SECONDS : QUIZ_TIME_BUDGET_SECONDS;
   const timeUsed = Math.max(0, Math.min(Math.round(attempt.timeUsed), budget));
   const passed = !attempt.timedOut && attempt.requiredCount > 0 && attempt.correctCount >= attempt.requiredCount;
@@ -558,13 +559,13 @@ function scoreLocally(attempt: AttemptInput, uid: string, studentName: string): 
     level: attempt.level,
     activityNum: attempt.activityNum,
     medal,
-    points: passed ? POINTS_PER_ACTIVITY : 0,
+    points: passed ? pointsForAttempt(attemptSeq) : 0,
     timeUsed,
     timedOut: attempt.timedOut,
     timestamp: Date.now(),
     correctCount: attempt.correctCount,
     requiredCount: attempt.requiredCount,
-    attemptSeq: 1,
+    attemptSeq,
     pending: true,
   };
 }

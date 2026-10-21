@@ -189,10 +189,10 @@ export default function ActivityPlayScreen() {
       });
 
       if (recorded.medal) {
-        recordOutcome(category, activityType, level, activityNum, true, recorded.attemptSeq);
+        recordOutcome(category, activityType, level, activityNum, true, recorded.attemptSeq, { queued: wasQueued });
         setPhase('success');
       } else {
-        recordOutcome(category, activityType, level, activityNum, false, recorded.attemptSeq);
+        recordOutcome(category, activityType, level, activityNum, false, recorded.attemptSeq, { queued: wasQueued });
         setPhase('incorrect');
       }
     } catch (err) {

@@ -27,6 +27,25 @@ export function triesLeft(attemptsUsed: number): number {
   return Math.max(0, MAX_ATTEMPTS - attemptsUsed);
 }
 
+interface SlotKey {
+  category: string;
+  activityType: string;
+  level: number;
+  activityNum: number;
+}
+
+/** The attempt number the next try on `slot` will be: matching rows (cached or pending) + 1. */
+export function nextAttemptSeq(existing: SlotKey[], slot: SlotKey): number {
+  const used = existing.filter(
+    (r) =>
+      r.category === slot.category &&
+      r.activityType === slot.activityType &&
+      r.level === slot.level &&
+      r.activityNum === slot.activityNum,
+  ).length;
+  return used + 1;
+}
+
 export interface LocalTrack {
   unlockedLevel: number;
   /** Global activity ids: `(level - 1) * 6 + activityNum`. */
