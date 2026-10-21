@@ -16,7 +16,7 @@ import { Medal } from '@/shared/components/activity-timer';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
 import { nextAttemptSeq, pointsForAttempt } from '@/features/learning/lib/attempt-rules';
-import { computePerformanceScore } from './performance-score';
+import { averageTriesToPass, computePerformanceScore } from './performance-score';
 import { useLanguage } from '@/shared/i18n/language-context';
 
 export { computePerformanceScore } from './performance-score';
@@ -152,6 +152,8 @@ export interface StudentSummary {
    * only one or two quickly — see PERFORMANCE_POINTS_WEIGHT below.
    */
   performanceScore: number;
+  /** Mean attempt number of passing activities, 1 decimal; null with no passes. */
+  avgTriesToPass: number | null;
 }
 
 
@@ -248,6 +250,7 @@ function summarize(entries: ActivityResult[]): StudentSummary[] {
         quizCorrect,
         quizWrongOutOf30,
         performanceScore,
+        avgTriesToPass: averageTriesToPass(list),
       };
     }
   );

@@ -408,6 +408,11 @@ export default function TeacherLeaderboardScreen() {
                       <Caption style={styles.rowSubStat}>
                         {t('activityTimeoutStat', { attempts: String(s.attempts), timeouts: String(s.timeOuts) })}
                       </Caption>
+                      {s.avgTriesToPass !== null && (
+                        <Caption style={styles.rowSubStat}>
+                          {t('avgTriesStat', { n: String(s.avgTriesToPass) })}
+                        </Caption>
+                      )}
                       {isUnfiltered && (
                         <Caption style={styles.rowSubStat}>
                           {t('quizCorrectStat', { correct: String(s.quizCorrect) })}

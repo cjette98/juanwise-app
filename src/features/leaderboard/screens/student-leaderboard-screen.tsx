@@ -69,6 +69,7 @@ function toStudentSummary(item: ApiStudentSummary): StudentSummary {
     avgStars: item.activitiesCompleted > 0 ? totalStars / item.activitiesCompleted : 0,
     quizCorrect: 0,
     quizWrongOutOf30: 0,
+    avgTriesToPass: null,
     performanceScore: computePerformanceScore(item.totalPoints, avgTimeUsed, COMBINED_MAX_POINTS, JIGSAW_TIME_BUDGET_SECONDS),
   };
 }

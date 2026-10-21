@@ -258,6 +258,7 @@ const en = {
   noResultsForFilter: 'No students have completed an activity under the selected filter yet.',
   totalTimeSuffix: 'total',
   activityTimeoutStat: '{attempts} activities · {timeouts} timeouts',
+  avgTriesStat: '{n} avg tries to pass',
   quizCorrectStat: 'Quiz: {correct}/30 correct',
 
   // --- App chrome / bottom navigation ---
@@ -900,6 +901,7 @@ const tl: Record<TranslationKey, string> = {
   noResultsForFilter: 'Wala pang natatapos na gawain ang mga estudyante sa napiling filter.',
   totalTimeSuffix: 'kabuuan',
   activityTimeoutStat: '{attempts} gawain · {timeouts} timeout',
+  avgTriesStat: '{n} karaniwang subok bago pumasa',
   quizCorrectStat: 'Quiz: {correct}/30 tama',
 
   // --- App chrome / bottom navigation ---
