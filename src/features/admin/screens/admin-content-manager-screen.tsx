@@ -148,7 +148,7 @@ export default function AdminContentManagerScreen() {
           return (
             <View key={num} style={styles.card}>
               <View style={styles.cardTop}>
-                <Text style={styles.cardTitle}>{t('activityNumShort', { num })}</Text>
+                <Text style={styles.cardTitle}>{t('questionNumShort', { num })}</Text>
                 {custom ? (
                   <View style={styles.customBadge}>
                     <Text style={styles.customBadgeText}>{t('customBadge')}</Text>

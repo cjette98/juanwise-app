@@ -66,7 +66,7 @@ export default function JigsawResultsScreen() {
                 <BodyStrong style={{ color: categoryColor(r.category).base }} numberOfLines={1}>
                   {t(meta.labelKey)}
                 </BodyStrong>
-                <Caption>{t('levelActivityLine', { level: r.level, num: r.activityNum })}</Caption>
+                <Caption>{t('levelPuzzleLine', { level: r.level, num: r.activityNum })}</Caption>
               </View>
               <View style={styles.rowStats}>
                 <View style={styles.rowStatLine}>

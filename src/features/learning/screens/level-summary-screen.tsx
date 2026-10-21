@@ -10,6 +10,7 @@ import { tokens } from '@/shared/theme/tokens';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useSound } from '@/shared/audio/sound-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
+import { activityNaming } from '@/features/learning/lib/activity-naming';
 
 type LevelMedal = 'gold' | 'silver' | 'bronze' | null;
 
@@ -232,7 +233,7 @@ export default function LevelSummaryScreen() {
             return (
               <Card key={a.num} style={styles.activityRow}>
                 <View style={styles.activityRowLeft}>
-                  <BodyStrong numberOfLines={1}>{t('activityNumShort', { num: a.num })}</BodyStrong>
+                  <BodyStrong numberOfLines={1}>{t(activityNaming(activityType).numShort, { num: a.num })}</BodyStrong>
                   <Caption numberOfLines={1}>{typeLabel}</Caption>
                 </View>
                 <View style={styles.activityRowMid}>

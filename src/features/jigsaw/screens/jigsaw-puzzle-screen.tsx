@@ -617,7 +617,7 @@ export default function JigsawPuzzleScreen() {
               <Body style={styles.detailLine}>{t('detailPoints', { points: result?.points ?? 0 })}</Body>
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
-              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              <Body style={styles.detailLine}>{t('detailPuzzleCount', { num: activityNum, level })}</Body>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button
@@ -656,7 +656,7 @@ export default function JigsawPuzzleScreen() {
               <Body style={styles.detailLine}>{triesLine(attemptSeq)}</Body>
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
-              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              <Body style={styles.detailLine}>{t('detailPuzzleCount', { num: activityNum, level })}</Body>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button

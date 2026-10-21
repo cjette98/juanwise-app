@@ -6,6 +6,7 @@ import { useStudentResults } from '@/features/results/context/student-results-co
 import { useUser } from '@/features/auth/context/user-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
+import { activityNaming } from '@/features/learning/lib/activity-naming';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { quizLessonText } from '@/features/admin/lib/question-mapping';
 import { useRouter } from 'expo-router';
@@ -106,7 +107,7 @@ export default function MiniLessonsScreen() {
                 style={{ backgroundColor: categoryColor(featured.category).base, borderColor: 'transparent' }}
               />
               <H2 style={styles.bannerTitle}>
-                {t('levelActivityLine', { level: featured.level, num: featured.activityNum })}
+                {t(activityNaming(featured.source).levelLine, { level: featured.level, num: featured.activityNum })}
               </H2>
               <View style={styles.sourceRow}>
                 <Icon name={featured.source === 'quiz' ? 'quiz' : 'puzzle'} size={14} color={tokens.color.inkMuted} />
@@ -127,7 +128,7 @@ export default function MiniLessonsScreen() {
                 style={{ backgroundColor: categoryColor(lesson.category).base, borderColor: 'transparent' }}
               />
               <BodyStrong numberOfLines={1}>
-                {t('levelActivityLine', { level: lesson.level, num: lesson.activityNum })}
+                {t(activityNaming(lesson.source).levelLine, { level: lesson.level, num: lesson.activityNum })}
               </BodyStrong>
               <View style={styles.sourceRow}>
                 <Icon name={lesson.source === 'quiz' ? 'quiz' : 'puzzle'} size={12} color={tokens.color.inkMuted} />

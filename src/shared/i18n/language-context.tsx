@@ -307,9 +307,11 @@ const en = {
   miniLessonQuizMeta: 'Mini lesson · Quiz',
   levelCompleteLabel: 'Level complete',
   chooseAnActivity: 'Choose an activity',
-  continueActivity: 'Continue Activity {n}',
+  continueQuestion: 'Continue Question {n}',
+  continuePuzzle: 'Continue Puzzle {n}',
   completeLevel: 'Complete Level {n}',
-  activityNumTitle: 'Activity {num}: {title}',
+  questionNumTitle: 'Question {num}: {title}',
+  puzzleNumTitle: 'Puzzle {num}: {title}',
 
   // --- Quiz / activity play ---
   typeMultipleChoice: 'Multiple Choice',
@@ -566,8 +568,9 @@ const en = {
   tryWordMany: 'tries',
   triesLeftAfterFail: 'You have {n} more {tries} for this activity.',
   activityFinishedNoTries: 'You used all 3 tries for this activity.',
-  activityNumShort: 'Activity {num}',
-  activityPlaySubtitle: '{type} · {difficulty} · Activity {num}',
+  questionNumShort: 'Question {num}',
+  puzzleNumShort: 'Puzzle {num}',
+  quizPlaySubtitle: '{type} · {difficulty} · Question {num}',
   levelSubtitle: '{label} · {mode}',
 
   // --- Result sheet detail lines ---
@@ -578,7 +581,8 @@ const en = {
   detailCategory: 'Category: {label}',
   detailActivityTypeQuiz: 'Activity Type: Quiz ({type})',
   detailActivityTypeJigsaw: 'Activity Type: Jigsaw Puzzle',
-  detailActivityCount: 'Activity #: {num} of 6 · Level {level}/5',
+  detailQuestionCount: 'Question #: {num} of 6 · Level {level}/5',
+  detailPuzzleCount: 'Puzzle #: {num} of 6 · Level {level}/5',
   enumHelper: 'Fill in the {required} boxes below ({filled}/{required} filled)',
   headerLevelTitle: '{label} — Level {level}',
   detailPieces: 'Pieces: {count}',
@@ -601,7 +605,8 @@ const en = {
   // --- Mini-lessons and results lists ---
   miniLessonsSubtitle: '{count} lessons unlocked from your correct answers in Quiz and Jigsaw Puzzle',
   noMiniLessonsYet: 'You have not unlocked a mini-lesson yet. Answer a Quiz or Jigsaw Puzzle correctly in Categories to unlock a lesson here.',
-  levelActivityLine: 'Level {level} · Activity {num}',
+  levelQuestionLine: 'Level {level} · Question {num}',
+  levelPuzzleLine: 'Level {level} · Puzzle {num}',
   quizResultsSubtitle: '{count} correct answers · {points} total points',
   jigsawResultsSubtitle: '{count} puzzles solved · {points} total points',
   noQuizResultsYet: 'You have not finished a Quiz yet. Go to Categories and try a Quiz activity to see your results here.',
@@ -620,7 +625,8 @@ const en = {
   avgSuffix: '({avg} avg)',
   viewSummaryToggle: 'Summary (Category/Level)',
   viewHistoryToggle: 'History (All Activities)',
-  historyRowLine: 'Level {level} · Activity {num} · {date}',
+  historyRowQuestion: 'Level {level} · Question {num} · {date}',
+  historyRowPuzzle: 'Level {level} · Puzzle {num} · {date}',
   categoryTotalsLine: '{points} pts · {attempts} activities',
   passedOfSix: '{passed}/6',
 
@@ -957,9 +963,11 @@ const tl: Record<TranslationKey, string> = {
   miniLessonQuizMeta: 'Maikling aralin · Quiz',
   levelCompleteLabel: 'Tapos na ang level',
   chooseAnActivity: 'Pumili ng aktibidad',
-  continueActivity: 'Ituloy ang Aktibidad {n}',
+  continueQuestion: 'Ituloy ang Tanong {n}',
+  continuePuzzle: 'Ituloy ang Puzzle {n}',
   completeLevel: 'Tapusin ang Level {n}',
-  activityNumTitle: 'Aktibidad {num}: {title}',
+  questionNumTitle: 'Tanong {num}: {title}',
+  puzzleNumTitle: 'Puzzle {num}: {title}',
 
   // --- Quiz / activity play ---
   typeMultipleChoice: 'Multiple Choice',
@@ -1216,8 +1224,9 @@ const tl: Record<TranslationKey, string> = {
   tryWordMany: 'subok',
   triesLeftAfterFail: 'May {n} {tries} ka pa sa aktibidad na ito.',
   activityFinishedNoTries: 'Nagamit mo na ang 3 subok sa aktibidad na ito.',
-  activityNumShort: 'Aktibidad {num}',
-  activityPlaySubtitle: '{type} · {difficulty} · Aktibidad {num}',
+  questionNumShort: 'Tanong {num}',
+  puzzleNumShort: 'Puzzle {num}',
+  quizPlaySubtitle: '{type} · {difficulty} · Tanong {num}',
   levelSubtitle: '{label} · {mode}',
 
   // --- Result sheet detail lines ---
@@ -1228,7 +1237,8 @@ const tl: Record<TranslationKey, string> = {
   detailCategory: 'Kategorya: {label}',
   detailActivityTypeQuiz: 'Uri ng Gawain: Quiz ({type})',
   detailActivityTypeJigsaw: 'Uri ng Gawain: Jigsaw Puzzle',
-  detailActivityCount: 'Aktibidad #: {num} sa 6 · Level {level}/5',
+  detailQuestionCount: 'Tanong #: {num} sa 6 · Level {level}/5',
+  detailPuzzleCount: 'Puzzle #: {num} sa 6 · Level {level}/5',
   enumHelper: 'Punuan ang {required} kahon sa ibaba ({filled}/{required} napunuan)',
   headerLevelTitle: '{label} — Level {level}',
   detailPieces: 'Piraso: {count}',
@@ -1251,7 +1261,8 @@ const tl: Record<TranslationKey, string> = {
   // --- Mini-lessons and results lists ---
   miniLessonsSubtitle: '{count} aralin ang na-unlock mula sa tamang sagot mo sa Quiz at Jigsaw Puzzle',
   noMiniLessonsYet: 'Wala ka pang na-unlock na mini-lesson. Sagutan nang tama ang isang Quiz o Jigsaw Puzzle sa Categories para makapag-unlock ng aralin dito.',
-  levelActivityLine: 'Level {level} · Aktibidad {num}',
+  levelQuestionLine: 'Level {level} · Tanong {num}',
+  levelPuzzleLine: 'Level {level} · Puzzle {num}',
   quizResultsSubtitle: '{count} tamang sagot · {points} kabuuang puntos',
   jigsawResultsSubtitle: '{count} nabuong puzzle · {points} kabuuang puntos',
   noQuizResultsYet: 'Wala ka pang natatapos na Quiz. Pumunta sa Categories at subukan ang isang Quiz activity para makita dito ang resulta mo.',
@@ -1270,7 +1281,8 @@ const tl: Record<TranslationKey, string> = {
   avgSuffix: '({avg} avg)',
   viewSummaryToggle: 'Buod (Category/Level)',
   viewHistoryToggle: 'Kasaysayan (Lahat ng Gawain)',
-  historyRowLine: 'Level {level} · Aktibidad {num} · {date}',
+  historyRowQuestion: 'Level {level} · Tanong {num} · {date}',
+  historyRowPuzzle: 'Level {level} · Puzzle {num} · {date}',
   categoryTotalsLine: '{points} puntos · {attempts} gawain',
   passedOfSix: '{passed}/6',
 

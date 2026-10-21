@@ -18,6 +18,7 @@ import { useStudentResults, ActivityResult, getCanonicalAttempts, TROPHY_TIERS, 
 import { CATEGORY_META } from '@/shared/content/category-meta';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { activityNaming } from '@/features/learning/lib/activity-naming';
 
 const LEVELS = [1, 2, 3, 4, 5];
 const ACTIVITY_TYPES: { key: 'quiz' | 'jigsaw'; labelKey: TranslationKey; icon: IconName }[] = [
@@ -251,7 +252,7 @@ export default function StudentSummaryScreen() {
                       </BodyStrong>
                     </View>
                     <Caption numberOfLines={1}>
-                      {t('historyRowLine', {
+                      {t(activityNaming(r.activityType).historyRow, {
                         level: r.level,
                         num: r.activityNum,
                         date: formatDate(r.timestamp),

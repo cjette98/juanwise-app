@@ -12,6 +12,7 @@ import {
 import { Screen, ScreenHeader, Card, Button, Pill, ProgressBar, Icon, BodyStrong, Caption, Label } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { slotStatus, triesLeft } from '@/features/learning/lib/attempt-rules';
+import { activityNaming } from '@/features/learning/lib/activity-naming';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 
@@ -46,6 +47,8 @@ export default function ActivityListScreen() {
   const diffLabel = t(difficultyLabelKey(diffKey));
   const diffColor = difficultyColor(level);
   const label = t(getCategoryMeta(category).labelKey) || params.label;
+  // Quiz cards read "Question 1-6", jigsaw cards "Puzzle 1-6" (item 4.4).
+  const naming = activityNaming(activityType);
 
   const activities = [1, 2, 3, 4, 5, 6].map((num) => {
     const globalId = (level - 1) * 6 + num;
@@ -109,6 +112,7 @@ export default function ActivityListScreen() {
   const primaryAction = getPrimaryActivityAction(
     activities.filter((activity) => activity.isDone || activity.isExhausted).map((activity) => activity.num),
     level,
+    activityType,
   );
 
   const handlePrimaryAction = () => {
@@ -176,7 +180,7 @@ export default function ActivityListScreen() {
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: closed }}
-                accessibilityLabel={t('activityNumTitle', { num: act.num, title: act.title })}
+                accessibilityLabel={t(naming.numTitle, { num: act.num, title: act.title })}
               >
                 <Card style={cardStyle}>
                   <View style={styles.thumbnailWrap}>
@@ -189,7 +193,7 @@ export default function ActivityListScreen() {
                   </View>
 
                   <View style={styles.activityCopy}>
-                    <Caption style={[styles.activityNumber, { color: headerColor }]}>{t('activityNumShort', { num: act.num })}</Caption>
+                    <Caption style={[styles.activityNumber, { color: headerColor }]}>{t(naming.numShort, { num: act.num })}</Caption>
                     <BodyStrong numberOfLines={2}>{act.title}</BodyStrong>
                     <Caption numberOfLines={1}>{act.meta}</Caption>
                     {act.isExhausted ? (

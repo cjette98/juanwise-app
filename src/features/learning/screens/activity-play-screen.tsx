@@ -293,7 +293,7 @@ export default function ActivityPlayScreen() {
     <Screen>
       <ScreenHeader
         title={t('headerLevelTitle', { label, level })}
-        subtitle={t('activityPlaySubtitle', {
+        subtitle={t('quizPlaySubtitle', {
           type: questionTypeLabel(q.type),
           difficulty: t(difficultyLabelKey(difficulty)),
           num: activityNum,
@@ -446,7 +446,7 @@ export default function ActivityPlayScreen() {
               )}
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeQuiz', { type: questionTypeLabel(q.type) })}</Body>
-              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              <Body style={styles.detailLine}>{t('detailQuestionCount', { num: activityNum, level })}</Body>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button label={t('proceedNextActivity')} onPress={handleContinue} color={cat.base} shadowColor={cat.dark} style={styles.fullWidthButton} />
@@ -483,7 +483,7 @@ export default function ActivityPlayScreen() {
               )}
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeQuiz', { type: questionTypeLabel(q.type) })}</Body>
-              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              <Body style={styles.detailLine}>{t('detailQuestionCount', { num: activityNum, level })}</Body>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button

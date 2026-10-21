@@ -1,4 +1,5 @@
 import type { TranslationKey } from '@/shared/i18n/language-context';
+import { activityNaming } from './activity-naming';
 
 /**
  * The primary footer action, described rather than rendered: the screen holds
@@ -13,6 +14,8 @@ export type PrimaryActivityAction =
 export function getPrimaryActivityAction(
   finishedActivityNumbers: number[],
   level: number,
+  /** Quiz or jigsaw: the button says "Continue Question 3" or "Continue Puzzle 3". */
+  activityType?: string,
 ): PrimaryActivityAction {
   const nextActivity = [1, 2, 3, 4, 5, 6].find(
     (activityNum) => !finishedActivityNumbers.includes(activityNum),
@@ -22,7 +25,7 @@ export function getPrimaryActivityAction(
     return {
       kind: 'activity',
       activityNum: nextActivity,
-      labelKey: 'continueActivity',
+      labelKey: activityNaming(activityType).continueLabel,
       labelVars: { n: nextActivity },
     };
   }
