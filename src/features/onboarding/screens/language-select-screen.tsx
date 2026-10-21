@@ -30,21 +30,21 @@ export default function LanguageSelectScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.logoArea}>
           <H1 style={styles.title}>JuanWise</H1>
-          <Label style={styles.subtitle}>Gamified Philippine Knowledge</Label>
+          <Label style={styles.subtitle}>{t('appTagline')}</Label>
         </View>
 
         <View style={styles.buttonArea}>
           <H3 style={styles.prompt}>{t('chooseLanguage')}</H3>
 
           <Button
-            label="TAGALOG"
+            label={t('tagalog')}
             onPress={() => selectLanguage('tl')}
             variant="gold"
             style={styles.langButton}
           />
 
           <Button
-            label="ENGLISH"
+            label={t('english')}
             onPress={() => selectLanguage('en')}
             variant="gold"
             style={styles.langButton}

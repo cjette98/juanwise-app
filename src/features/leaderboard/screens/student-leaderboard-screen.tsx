@@ -19,6 +19,7 @@ import {
   type SegmentedOption,
 } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
+import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { beatsPercent } from '@/features/leaderboard/percentile';
 import {
   TROPHY_TIERS,
@@ -68,25 +69,33 @@ function toStudentSummary(item: ApiStudentSummary): StudentSummary {
     avgStars: item.activitiesCompleted > 0 ? totalStars / item.activitiesCompleted : 0,
     quizCorrect: 0,
     quizWrongOutOf30: 0,
+    avgTriesToPass: null,
     performanceScore: computePerformanceScore(item.totalPoints, avgTimeUsed, COMBINED_MAX_POINTS, JIGSAW_TIME_BUDGET_SECONDS),
   };
 }
 
 type SortMode = 'points' | 'speed';
 
-const SORT_OPTIONS: SegmentedOption<SortMode>[] = [
-  { value: 'points', label: 'Puntos', icon: 'star' },
-  { value: 'speed', label: 'Nangunguna', icon: 'clock' },
+const SORT_OPTION_KEYS: { value: SortMode; labelKey: TranslationKey; icon: 'star' | 'clock' }[] = [
+  { value: 'points', labelKey: 'points', icon: 'star' },
+  { value: 'speed', labelKey: 'topRankLabel', icon: 'clock' },
 ];
+
+/** The tier's own name, so the legend never renders `TROPHY_TIERS.label` (emoji + English). */
+const TIER_NAME_KEY: Record<'gold' | 'silver' | 'bronze', TranslationKey> = {
+  gold: 'medalGold',
+  silver: 'medalSilver',
+  bronze: 'medalBronze',
+};
 
 // Pace and trophy tier share the same three-way split (gold/silver/bronze),
 // so the pace badge reuses the medal tokens instead of inventing a fourth
 // palette — same colour family as before (warm gold / cool grey / warm
 // bronze), now as tokens instead of the old bespoke hex triplet.
-const PACE_META: Record<LearnerPace, { label: string; color: string }> = {
-  fast: { label: 'Mabilis Matuto', color: tokens.color.medalGold },
-  steady: { label: 'Sakto sa Bilis', color: tokens.color.medalSilver },
-  'needs-support': { label: 'Kailangan ng Tulong', color: tokens.color.medalBronze },
+const PACE_META: Record<LearnerPace, { labelKey: TranslationKey; color: string }> = {
+  fast: { labelKey: 'paceFast', color: tokens.color.medalGold },
+  steady: { labelKey: 'paceSteady', color: tokens.color.medalSilver },
+  'needs-support': { labelKey: 'paceNeedsSupport', color: tokens.color.medalBronze },
 };
 
 const PACE_ICON: Record<LearnerPace, IconName> = {
@@ -116,10 +125,11 @@ function formatSeconds(total: number) {
 }
 
 function PacePill({ pace }: { pace: LearnerPace }) {
+  const { t } = useLanguage();
   const meta = PACE_META[pace];
   return (
     <Pill
-      label={meta.label}
+      label={t(meta.labelKey)}
       icon={PACE_ICON[pace]}
       tone="neutral"
       style={{ backgroundColor: meta.color, borderColor: 'transparent' }}
@@ -132,9 +142,10 @@ function PacePill({ pace }: { pace: LearnerPace }) {
  * is what has to say which trophy — otherwise the badge is invisible to a
  * screen reader.
  */
-function trophyLabel(trophy: Trophy): string {
-  if (!trophy) return 'walang trophy';
-  return `${trophy} trophy`;
+function useTrophyLabel() {
+  const { t } = useLanguage();
+  return (trophy: Trophy): string =>
+    trophy ? t('trophyOfTier', { tier: t(TIER_NAME_KEY[trophy]) }) : t('noTrophyLabel');
 }
 
 /** `null` renders the dash the legend needs for "no trophy yet". */
@@ -148,6 +159,9 @@ const PODIUM_AVATAR: Record<1 | 2 | 3, number> = { 1: 64, 2: 52, 3: 52 };
 
 export default function StudentLeaderboardScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
+  const trophyLabel = useTrophyLabel();
+  const paceLabel = (pace: LearnerPace) => t(PACE_META[pace].labelKey);
   const { name } = useUser();
   const { classId, ready: classReady } = useClass();
   const [leaderboard, setLeaderboard] = useState<StudentSummary[]>([]);
@@ -186,6 +200,12 @@ export default function StudentLeaderboardScreen() {
     };
   }, [classId, classReady]);
 
+  const sortOptions: SegmentedOption<SortMode>[] = SORT_OPTION_KEYS.map((o) => ({
+    value: o.value,
+    label: t(o.labelKey),
+    icon: o.icon,
+  }));
+
   const sorted = useMemo(() => {
     const list = [...leaderboard];
     if (sortMode === 'points') list.sort((a, b) => b.totalPoints - a.totalPoints);
@@ -223,8 +243,8 @@ export default function StudentLeaderboardScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
-          title="Leaderboard"
-          subtitle={`${leaderboard.length} estudyanteng may resulta`}
+          title={t('leaderboard')}
+          subtitle={t('leaderboardSubtitle', { count: leaderboard.length })}
           color={tokens.color.navLeaderboard}
           onBack={() => router.back()}
           right={
@@ -234,12 +254,12 @@ export default function StudentLeaderboardScreen() {
               accessibilityRole="button"
               accessibilityState={{ expanded: showLegend }}
             >
-              <Pill label="Trophy Guide" icon="trophy" tone="translucent" />
+              <Pill label={t('trophyGuide')} icon="trophy" tone="translucent" />
             </TouchableOpacity>
           }
         >
           <Segmented
-            options={SORT_OPTIONS}
+            options={sortOptions}
             value={sortMode}
             onChange={setSortMode}
             tone="onDark"
@@ -248,15 +268,20 @@ export default function StudentLeaderboardScreen() {
 
           {showLegend && (
             <Card style={styles.legendCard}>
-              <BodyStrong style={styles.legendTitle}>Paano makakuha ng Trophy (Combined Quiz & Jigsaw)</BodyStrong>
-              {TROPHY_TIERS.map((t) => (
-                <View key={t.trophy} style={styles.legendRow}>
-                  <Caption style={styles.legendRowDetailStrong}>{t.label}</Caption>
-                  <Caption style={styles.legendRowDetail}>{t.minPoints}+ pts · {t.timeLabel}</Caption>
+              <BodyStrong style={styles.legendTitle}>{t('trophyGuideIntroNoFilter')}</BodyStrong>
+              {TROPHY_TIERS.map((tier) => (
+                <View key={tier.trophy} style={styles.legendRow}>
+                  <Caption style={styles.legendRowDetailStrong}>{t(TIER_NAME_KEY[tier.trophy])}</Caption>
+                  <Caption style={styles.legendRowDetail}>
+                    {t('legendPointsTimeLabel', { points: tier.minPoints, time: tier.timeLabel })}
+                  </Caption>
                 </View>
               ))}
               <Caption style={styles.legendFoot}>
-                Max posible: {COMBINED_MAX_POINTS} pts sa {COMBINED_MAX_TIME_SECONDS.toLocaleString()} sec (Quiz + Jigsaw, lahat ng level)
+                {t('legendMaxPossible', {
+                  points: COMBINED_MAX_POINTS,
+                  seconds: COMBINED_MAX_TIME_SECONDS.toLocaleString(),
+                })}
               </Caption>
 
               <View style={styles.legendDivider} />
@@ -265,7 +290,7 @@ export default function StudentLeaderboardScreen() {
                   <View style={styles.legendRowLabelWrap}>
                     <LegendMedal tier={tier} />
                     <BodyStrong style={styles.legendRowLabel}>
-                      {tier === 'gold' ? 'Gold' : tier === 'silver' ? 'Silver' : 'Bronze / Wala'}
+                      {tier === 'bronze' ? t('legendBronzeOrNone') : t(TIER_NAME_KEY[tier])}
                     </BodyStrong>
                   </View>
                   <View style={styles.legendPaceRow}>
@@ -276,14 +301,14 @@ export default function StudentLeaderboardScreen() {
                       color={tokens.color.inkMuted}
                     />
                     <Caption style={styles.legendRowDetail}>
-                      {PACE_META[tier === 'gold' ? 'fast' : tier === 'silver' ? 'steady' : 'needs-support'].label}
+                      {paceLabel(tier === 'gold' ? 'fast' : tier === 'silver' ? 'steady' : 'needs-support')}
                     </Caption>
                   </View>
                 </View>
               ))}
               <View style={styles.legendFootRow}>
                 <Icon name="star" size={13} color={tokens.color.gold} filled />
-                <Caption style={styles.legendFootText}>Stars = average na bituin kada gawain</Caption>
+                <Caption style={styles.legendFootText}>{t('starsExplainShort')}</Caption>
               </View>
             </Card>
           )}
@@ -293,7 +318,7 @@ export default function StudentLeaderboardScreen() {
               style={styles.bannerTouchable}
               onPress={() => router.navigate({ pathname: '/student-summary', params: { studentName: name } })}
               accessibilityRole="button"
-              accessibilityLabel={`Ranggo mo: pang-${myRank}. Tap para sa buong record.`}
+              accessibilityLabel={t('myRankLine', { rank: myRank ?? 0 })}
             >
               <View style={styles.banner}>
                 <View style={styles.bannerRankChip}>
@@ -301,11 +326,9 @@ export default function StudentLeaderboardScreen() {
                 </View>
                 <View style={styles.bannerCopy}>
                   <BodyStrong style={styles.bannerHeadline}>
-                    {beats === null
-                      ? 'Ikaw pa lang ang may resulta sa ngayon!'
-                      : `Mas magaling ka kaysa sa ${beats}% ng ibang mag-aaral!`}
+                    {beats === null ? t('onlyOneWithResults') : t('beatsPercent', { pct: beats })}
                   </BodyStrong>
-                  <Caption style={styles.bannerSub}>Tap para sa buong record mo</Caption>
+                  <Caption style={styles.bannerSub}>{t('tapForFullRecord')}</Caption>
                 </View>
               </View>
             </TouchableOpacity>
@@ -319,7 +342,12 @@ export default function StudentLeaderboardScreen() {
                   style={styles.podiumColumn}
                   onPress={() => handleRowPress(entry.studentName)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Pang-${entry.rank}: ${entry.studentName}, ${entry.totalPoints} puntos, ${trophyLabel(entry.trophy)}`}
+                  accessibilityLabel={t('rankEntryA11y', {
+                    rank: entry.rank,
+                    name: entry.studentName,
+                    points: entry.totalPoints,
+                    trophy: trophyLabel(entry.trophy),
+                  })}
                 >
                   <View style={styles.podiumAvatarWrap}>
                     <Avatar
@@ -331,9 +359,9 @@ export default function StudentLeaderboardScreen() {
                     <MedalBadge tier={entry.trophy} size={26} style={styles.podiumBadge} />
                   </View>
                   <BodyStrong numberOfLines={1} style={styles.podiumName}>
-                    {entry.studentName}{entry.studentName === name ? ' (Ikaw)' : ''}
+                    {entry.studentName}{entry.studentName === name ? t('youSuffix') : ''}
                   </BodyStrong>
-                  <Pill label={`${entry.totalPoints} pts`} tone="translucent" style={styles.podiumPoints} />
+                  <Pill label={t('pointsSuffixShort', { points: entry.totalPoints })} tone="translucent" style={styles.podiumPoints} />
                   <View
                     style={[
                       styles.podiumPlinth,
@@ -357,12 +385,12 @@ export default function StudentLeaderboardScreen() {
         <View style={styles.sheet}>
           <View style={styles.sheetNotch} />
 
-          {!ready && <Body style={styles.emptyText}>Naglo-load...</Body>}
+          {!ready && <Body style={styles.emptyText}>{t('loading')}</Body>}
           {ready && sorted.length === 0 && (
-            <Body style={styles.emptyText}>Wala pang natatapos na gawain. Sagutan ang isang Quiz o Jigsaw Puzzle para lumabas dito.</Body>
+            <Body style={styles.emptyText}>{t('noActivityYetStudent')}</Body>
           )}
           {ready && sorted.length > 0 && listEntries.length === 0 && (
-            <Caption style={styles.sheetHint}>Nasa podium na ang lahat ng may resulta.</Caption>
+            <Caption style={styles.sheetHint}>{t('allOnPodium')}</Caption>
           )}
 
           <View style={styles.list}>
@@ -375,7 +403,13 @@ export default function StudentLeaderboardScreen() {
                   style={styles.rowTouchable}
                   onPress={() => handleRowPress(s.studentName)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Pang-${rank}: ${s.studentName}, ${s.totalPoints} puntos, ${trophyLabel(s.trophy)}, ${PACE_META[s.pace].label}`}
+                  accessibilityLabel={t('rankEntryPaceA11y', {
+                    rank,
+                    name: s.studentName,
+                    points: s.totalPoints,
+                    trophy: trophyLabel(s.trophy),
+                    pace: paceLabel(s.pace),
+                  })}
                 >
                   <Card raised={isMe} style={isMe ? [styles.row, styles.rowMine] : styles.row}>
                     <View style={styles.rankCircle}>
@@ -384,10 +418,14 @@ export default function StudentLeaderboardScreen() {
                     <Avatar name={s.studentName} size={44} />
                     <View style={styles.rowMain}>
                       <BodyStrong numberOfLines={1}>
-                        {s.studentName}{isMe ? ' (Ikaw)' : ''}
+                        {s.studentName}{isMe ? t('youSuffix') : ''}
                       </BodyStrong>
                       <Caption style={styles.rowStats} numberOfLines={1}>
-                        {s.totalPoints} pts · {formatSeconds(s.totalTimeUsed)} · {s.attempts} gawain
+                        {t('rowStatsLine', {
+                          points: s.totalPoints,
+                          time: formatSeconds(s.totalTimeUsed),
+                          attempts: s.attempts,
+                        })}
                       </Caption>
                       <View style={styles.rowMetaRow}>
                         <PacePill pace={s.pace} />
@@ -421,9 +459,9 @@ export default function StudentLeaderboardScreen() {
                   <View style={styles.peekStatsRow}>
                     <View style={styles.statLineRow}>
                       <LegendMedal tier={peekSummary.trophy} />
-                      <BodyStrong style={styles.peekStat}>Trophy</BodyStrong>
+                      <BodyStrong style={styles.peekStat}>{t('trophyWord')}</BodyStrong>
                     </View>
-                    <BodyStrong style={styles.peekStat}>{peekSummary.totalPoints} pts</BodyStrong>
+                    <BodyStrong style={styles.peekStat}>{t('pointsSuffixShort', { points: peekSummary.totalPoints })}</BodyStrong>
                     <View style={styles.statLineRow}>
                       <Icon name="clock" size={13} color={tokens.color.inkMuted} />
                       <BodyStrong style={styles.peekStat}>{formatSeconds(peekSummary.totalTimeUsed)}</BodyStrong>
@@ -434,7 +472,7 @@ export default function StudentLeaderboardScreen() {
                   </View>
                 </>
               )}
-              <Caption style={styles.peekHint}>Tap kahit saan para isara</Caption>
+              <Caption style={styles.peekHint}>{t('tapAnywhereToClose')}</Caption>
             </Card>
           </TouchableOpacity>
         </View>

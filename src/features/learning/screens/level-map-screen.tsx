@@ -5,6 +5,8 @@ import { useGameProgress } from '@/features/learning/context/game-progress-conte
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Screen, ScreenHeader, Button, Pill, Icon, Display, H2, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
+import { useLanguage } from '@/shared/i18n/language-context';
+import { getCategoryMeta } from '@/shared/content/category-meta';
 
 const LEVELS = [1, 2, 3, 4, 5] as const;
 
@@ -54,6 +56,7 @@ function lightenHex(hex: string, amount: number): string {
 
 export default function LevelMapScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{
     category: string;
     label?: string;
@@ -61,16 +64,20 @@ export default function LevelMapScreen() {
     activityType: string;
   }>();
   const { category, activityType } = params;
-  const label = params.label || 'Category';
+  const label = t(getCategoryMeta(category).labelKey) || params.label || t('categoryLabel');
   const color = params.color || tokens.color.primary;
-  const { isLevelUnlocked, getProgress } = useGameProgress();
+  const { isLevelUnlocked, getProgress, getExhausted } = useGameProgress();
 
   // isLevelUnlocked is the only gate; the "current" node is simply the
   // highest level it reports unlocked, and everything unlocked below that
   // reads as completed.
   const nodes = LEVELS.map((lvl) => ({ lvl, unlocked: isLevelUnlocked(category, activityType, lvl) }));
   const currentLevel = [...nodes].reverse().find((n) => n.unlocked)?.lvl ?? 1;
-  const doneInCurrent = getProgress(category, activityType, currentLevel).length;
+  // Finished = passed or out of tries, the same count the Activity List shows.
+  const doneInCurrent = new Set([
+    ...getProgress(category, activityType, currentLevel),
+    ...getExhausted(category, activityType, currentLevel),
+  ]).size;
 
   const cat = categoryColor(category);
   const trailTint = lightenHex(cat.base, 0.55);
@@ -83,7 +90,7 @@ export default function LevelMapScreen() {
     <Screen>
       <ScreenHeader
         title={label}
-        subtitle={activityType === 'jigsaw' ? 'Jigsaw Puzzle Mode' : 'Quiz Mode'}
+        subtitle={activityType === 'jigsaw' ? t('jigsawPuzzleMode') : t('quizMode')}
         color={color}
         onBack={() => router.back()}
       />
@@ -99,7 +106,7 @@ export default function LevelMapScreen() {
 
           <View style={styles.trophy} pointerEvents="none">
             <Icon name="trophy" size={40} color={tokens.color.locked} strokeWidth={1.8} />
-            <Caption style={styles.trophyLabel}>TROPHY</Caption>
+            <Caption style={styles.trophyLabel}>{t('trophyCaps')}</Caption>
           </View>
 
           {nodes.map(({ lvl, unlocked }) => {
@@ -108,7 +115,7 @@ export default function LevelMapScreen() {
 
             return (
               <View key={lvl} style={[styles.nodeWrap, { left: layout.left, top: layout.top, width: layout.width }]}>
-                {isCurrent && <Pill label="NANDITO KA" tone="gold" style={styles.currentPill} />}
+                {isCurrent && <Pill label={t('youAreHere')} tone="gold" style={styles.currentPill} />}
 
                 <TouchableOpacity
                   disabled={!unlocked}
@@ -148,9 +155,9 @@ export default function LevelMapScreen() {
                 </TouchableOpacity>
 
                 {isCurrent ? (
-                  <Caption style={[styles.currentCaption, { color: cat.base }]}>{`${doneInCurrent} of 6 done`}</Caption>
+                  <Caption style={[styles.currentCaption, { color: cat.base }]}>{t('doneOfSix', { done: doneInCurrent })}</Caption>
                 ) : (
-                  <Caption style={unlocked ? styles.nodeLabel : styles.nodeLabelLocked}>{`Level ${lvl}`}</Caption>
+                  <Caption style={unlocked ? styles.nodeLabel : styles.nodeLabelLocked}>{t('levelNum', { n: lvl })}</Caption>
                 )}
               </View>
             );
@@ -159,7 +166,7 @@ export default function LevelMapScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Button label={`Continue Level ${currentLevel}`} onPress={() => goToLevel(currentLevel)} color={cat.base} shadowColor={cat.dark} />
+        <Button label={t('continueLevel', { n: currentLevel })} onPress={() => goToLevel(currentLevel)} color={cat.base} shadowColor={cat.dark} />
       </View>
     </Screen>
   );

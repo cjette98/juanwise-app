@@ -5,6 +5,7 @@ import { Icon } from './icon';
 import { SunRays } from './sun-rays';
 import { Caption, H1 } from './text';
 import { tokens } from '@/shared/theme/tokens';
+import { useLanguage } from '@/shared/i18n/language-context';
 
 export function ScreenHeader({
   title,
@@ -21,12 +22,13 @@ export function ScreenHeader({
   right?: React.ReactNode;
   children?: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <View style={[styles.header, { backgroundColor: color }]}>
       <SunRays />
       <View style={styles.row}>
         {onBack && (
-          <TouchableOpacity onPress={onBack} style={styles.back} accessibilityRole="button" accessibilityLabel="Bumalik">
+          <TouchableOpacity onPress={onBack} style={styles.back} accessibilityRole="button" accessibilityLabel={t('backA11y')}>
             <Icon name="chevronLeft" size={21} color={tokens.color.onDark} strokeWidth={3} />
           </TouchableOpacity>
         )}

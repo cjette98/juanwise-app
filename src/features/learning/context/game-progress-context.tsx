@@ -1,19 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  progressApi,
-  readCache,
-  writeCache,
-  type ApiActivityType,
-  type ApiCategoryKey,
-  type ApiProgressTrack,
-} from '@/shared/api';
+import { progressApi, readCache, writeCache, type ApiProgressTrack } from '@/shared/api';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
+import { useStudentResults } from '@/features/results/context/student-results-context';
+import { applyAttemptToTrack, type LocalTrack } from '../lib/attempt-rules';
 
 /**
  * Unlock state, now owned by the server.
  *
- * The unlock rule — all 6 activities in a level open the next, capped at 5 —
+ * The unlock rule — all 6 activities in a level, passed or out of attempts, open the next, capped at 5 —
  * lives in juanwise-be `progress.repository.ts`, so it cannot be tampered with
  * client-side, and progress survives a reinstall or a change of device.
  *
@@ -22,17 +17,9 @@ import { useClass } from '@/features/teacher/context/class-context';
  * this was in-memory React state.
  */
 const ACTIVITIES_PER_LEVEL = 6;
-const MAX_LEVEL = 5;
 const PROGRESS_CACHE_KEY = 'progress';
 
 type TrackKey = string; // `${category}_${activityType}`
-
-interface LocalTrack {
-  unlockedLevel: number;
-  /** Global activity ids: `(level - 1) * 6 + activityNum`. */
-  completed: number[];
-  failed: number[];
-}
 
 type TrackMap = Record<TrackKey, LocalTrack>;
 
@@ -45,6 +32,15 @@ function toGlobalId(slot: string): number | null {
   return (level - 1) * ACTIVITIES_PER_LEVEL + activityNum;
 }
 
+function toAttempts(raw: Record<string, number>): Record<number, number> {
+  const out: Record<number, number> = {};
+  for (const [slot, used] of Object.entries(raw)) {
+    const id = toGlobalId(slot);
+    if (id !== null) out[id] = used;
+  }
+  return out;
+}
+
 function toLocal(tracks: ApiProgressTrack[]): TrackMap {
   const out: TrackMap = {};
   for (const track of tracks) {
@@ -52,12 +48,14 @@ function toLocal(tracks: ApiProgressTrack[]): TrackMap {
       unlockedLevel: track.unlockedLevel,
       completed: track.completedActivities.map(toGlobalId).filter((id): id is number => id !== null),
       failed: track.failedActivities.map(toGlobalId).filter((id): id is number => id !== null),
+      exhausted: (track.exhaustedActivities ?? []).map(toGlobalId).filter((id): id is number => id !== null),
+      attempts: toAttempts(track.attempts ?? {}),
     };
   }
   return out;
 }
 
-const EMPTY_TRACK: LocalTrack = { unlockedLevel: 1, completed: [], failed: [] };
+const EMPTY_TRACK: LocalTrack = { unlockedLevel: 1, completed: [], failed: [], exhausted: [], attempts: {} };
 
 type GameProgressContextType = {
   ready: boolean;
@@ -65,10 +63,22 @@ type GameProgressContextType = {
   getProgress: (categoryKey: string, activityType: string, level: number) => number[];
   /** Attempted-but-not-yet-passed ids within `level` — the red cards. */
   getFailed: (categoryKey: string, activityType: string, level: number) => number[];
+  /** Out-of-attempts ids within `level` — locked cards that still count toward the 6. */
+  getExhausted: (categoryKey: string, activityType: string, level: number) => number[];
+  /** Attempts already used on one activity (0-3). */
+  getAttemptsUsed: (categoryKey: string, activityType: string, level: number, activityNum: number) => number;
   isLevelUnlocked: (categoryKey: string, activityType: string, level: number) => boolean;
   unlockedLevel: (categoryKey: string, activityType: string) => number;
-  completeActivity: (categoryKey: string, activityType: string, level: number, activityNum: number) => Promise<void>;
-  failActivity: (categoryKey: string, activityType: string, level: number, activityNum: number) => Promise<void>;
+  /** Applies a finished attempt locally, then reconciles with the server in the background. */
+  recordOutcome: (
+    categoryKey: string,
+    activityType: string,
+    level: number,
+    activityNum: number,
+    passed: boolean,
+    attemptSeq: number,
+    options?: { queued?: boolean },
+  ) => void;
   refresh: () => Promise<void>;
 };
 
@@ -116,6 +126,14 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
     })();
   }, [userReady, signedIn, uid, refresh]);
 
+  // Queued offline attempts reached the server (or were refused) and nothing is
+  // still queued, so server progress is now complete — adopt it. Skipped while
+  // anything is queued, since that refresh would wipe the optimistic attempts.
+  const { outboxSettledVersion } = useStudentResults();
+  useEffect(() => {
+    if (outboxSettledVersion) void refresh();
+  }, [outboxSettledVersion, refresh]);
+
   const trackFor = useCallback(
     (categoryKey: string, activityType: string) => tracks[makeKey(categoryKey, activityType)] ?? EMPTY_TRACK,
     [tracks],
@@ -144,87 +162,37 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
     [trackFor],
   );
 
+  const getExhausted: GameProgressContextType['getExhausted'] = useCallback(
+    (categoryKey, activityType, level) => inLevel(trackFor(categoryKey, activityType).exhausted, level),
+    [trackFor],
+  );
+
+  const getAttemptsUsed: GameProgressContextType['getAttemptsUsed'] = useCallback(
+    (categoryKey, activityType, level, activityNum) =>
+      trackFor(categoryKey, activityType).attempts[(level - 1) * ACTIVITIES_PER_LEVEL + activityNum] ?? 0,
+    [trackFor],
+  );
+
   /**
-   * Applies the server's unlock rule locally so the Activity List updates the
-   * instant an activity is finished, then reconciles with the server response.
+   * `POST /results` already advanced progress on the server, so this only
+   * mirrors the rule locally for an instant Activity List, then refreshes.
    */
-  const applyLocally = useCallback(
-    (categoryKey: string, activityType: string, level: number, activityNum: number, outcome: 'completed' | 'failed') => {
+  const recordOutcome: GameProgressContextType['recordOutcome'] = useCallback(
+    (categoryKey, activityType, level, activityNum, passed, attemptSeq, options) => {
       const key = makeKey(categoryKey, activityType);
       setTracks((prev) => {
-        const entry = prev[key] ?? EMPTY_TRACK;
-        const globalId = (level - 1) * ACTIVITIES_PER_LEVEL + activityNum;
-
-        if (outcome === 'failed') {
-          // A failed retry never revokes an unlock that was already earned.
-          if (entry.completed.includes(globalId)) return prev;
-          if (entry.failed.includes(globalId)) return prev;
-          return { ...prev, [key]: { ...entry, failed: [...entry.failed, globalId] } };
-        }
-
-        const completed = entry.completed.includes(globalId)
-          ? entry.completed
-          : [...entry.completed, globalId];
-        const failed = entry.failed.filter((id) => id !== globalId);
-        const doneInLevel = inLevel(completed, level).length;
-        const unlocked =
-          doneInLevel >= ACTIVITIES_PER_LEVEL && level >= entry.unlockedLevel
-            ? Math.min(level + 1, MAX_LEVEL)
-            : entry.unlockedLevel;
-
-        return { ...prev, [key]: { unlockedLevel: unlocked, completed, failed } };
+        const next = {
+          ...prev,
+          [key]: applyAttemptToTrack(prev[key] ?? EMPTY_TRACK, level, activityNum, passed, attemptSeq),
+        };
+        writeCache(`${PROGRESS_CACHE_KEY}:${uid}`, next);
+        return next;
       });
+      // A queued attempt is not on the server yet; a refresh that beat the
+      // outbox would replace the optimistic track with state missing it.
+      if (!options?.queued) void refresh();
     },
-    [],
-  );
-
-  const mark = useCallback(
-    async (
-      categoryKey: string,
-      activityType: string,
-      level: number,
-      activityNum: number,
-      outcome: 'completed' | 'failed',
-    ) => {
-      applyLocally(categoryKey, activityType, level, activityNum, outcome);
-
-      const payload = {
-        category: categoryKey as ApiCategoryKey,
-        activityType: activityType as ApiActivityType,
-        level,
-        activityNum,
-        classId: classId ?? undefined,
-      };
-
-      try {
-        const track = outcome === 'completed'
-          ? await progressApi.complete(payload)
-          : await progressApi.fail(payload);
-        if (!mounted.current) return;
-        setTracks((prev) => {
-          const next = { ...prev, ...toLocal([track]) };
-          writeCache(`${PROGRESS_CACHE_KEY}:${uid}`, next);
-          return next;
-        });
-      } catch (e) {
-        // Safe to swallow: `POST /results` advances progress server-side too, and
-        // a queued result replays that write when the connection comes back.
-        console.warn('progress: mark failed, will reconcile on next refresh', e);
-      }
-    },
-    [applyLocally, uid, classId],
-  );
-
-  const completeActivity: GameProgressContextType['completeActivity'] = useCallback(
-    (categoryKey, activityType, level, activityNum) =>
-      mark(categoryKey, activityType, level, activityNum, 'completed'),
-    [mark],
-  );
-
-  const failActivity: GameProgressContextType['failActivity'] = useCallback(
-    (categoryKey, activityType, level, activityNum) =>
-      mark(categoryKey, activityType, level, activityNum, 'failed'),
-    [mark],
+    [uid, refresh],
   );
 
   const value = useMemo<GameProgressContextType>(
@@ -233,12 +201,13 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
       getProgress,
       getFailed,
       isLevelUnlocked,
+      getExhausted,
+      getAttemptsUsed,
       unlockedLevel,
-      completeActivity,
-      failActivity,
+      recordOutcome,
       refresh,
     }),
-    [ready, getProgress, getFailed, isLevelUnlocked, unlockedLevel, completeActivity, failActivity, refresh],
+    [ready, getProgress, getFailed, getExhausted, getAttemptsUsed, isLevelUnlocked, unlockedLevel, recordOutcome, refresh],
   );
 
   return <GameProgressContext.Provider value={value}>{children}</GameProgressContext.Provider>;

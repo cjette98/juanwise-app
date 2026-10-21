@@ -339,6 +339,10 @@ export interface ApiProgressTrack {
   /** `{level}_{activityNum}` entries. */
   completedActivities: string[];
   failedActivities: string[];
+  /** 3 failed attempts, never passed. Absent on an older API. */
+  exhaustedActivities?: string[];
+  /** `{level}_{activityNum}` -> attempts used. Absent on an older API. */
+  attempts?: Record<string, number>;
   updatedAt: string | null;
 }
 

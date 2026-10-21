@@ -26,6 +26,7 @@ import {
   type EffectiveCategoryContent,
   type QuestionOverrides,
 } from '@/features/admin/lib/content-resolution';
+import { useLanguage } from '@/shared/i18n/language-context';
 
 /**
  * Admin-authored content, scoped to whichever content pack the caller is
@@ -97,6 +98,7 @@ type AdminContentContextType = {
 const AdminContentContext = createContext<AdminContentContextType | undefined>(undefined);
 
 export function AdminContentProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const { signedIn, ready: userReady } = useUser();
 
   const [packs, setPacks] = useState<Record<string, PackState>>({});
@@ -138,14 +140,14 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       setReadyPacks((prev) => ({ ...prev, [packId]: true }));
     } catch (err) {
       if (!mounted.current) return;
-      setError(errorMessage(err, 'Could not load this pack from the server.'));
+      setError(errorMessage(err, t('packLoadErrorMsg')));
       // Still mark ready so the screen shows the (possibly cached) state
       // instead of spinning forever on a transient failure.
       setReadyPacks((prev) => ({ ...prev, [packId]: true }));
     } finally {
       if (mounted.current) setLoadingPacks((prev) => ({ ...prev, [packId]: false }));
     }
-  }, [signedIn, storePackState]);
+  }, [signedIn, storePackState, t]);
 
   const ensurePackLoaded = useCallback(async (packId: string) => {
     if (!userReady || !signedIn) return;
@@ -217,12 +219,12 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
           toUpsertRequest(question),
         );
         if (mounted.current) storeQuestion(packId, saved);
-        return { success: true, message: 'Na-update ang tanong para sa lahat ng mag-aaral.' };
+        return { success: true, message: t('questionUpdatedMsg') };
       } catch (err) {
-        return { success: false, message: errorMessage(err, 'Hindi na-save ang tanong.') };
+        return { success: false, message: errorMessage(err, t('questionSaveFailedMsg')) };
       }
     },
-    [storeQuestion],
+    [storeQuestion, t],
   );
 
   const deleteQuestionOverride: AdminContentContextType['deleteQuestionOverride'] = useCallback(
@@ -230,12 +232,12 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       try {
         const reverted = await contentApi.revertQuestion(packId, category as ApiCategoryKey, level, activityNum);
         if (mounted.current) storeQuestion(packId, reverted);
-        return { success: true, message: 'Naibalik sa default na tanong.' };
+        return { success: true, message: t('questionRevertedMsg') };
       } catch (err) {
-        return { success: false, message: errorMessage(err, 'Hindi naalis ang custom na tanong.') };
+        return { success: false, message: errorMessage(err, t('questionRemoveFailedMsg')) };
       }
     },
-    [storeQuestion],
+    [storeQuestion, t],
   );
 
   const getEffectiveCategoryContent: AdminContentContextType['getEffectiveCategoryContent'] = useCallback(
@@ -259,12 +261,12 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
         const publicUrl = await mediaApi.upload(uri, 'category-image', { categoryKey: category, mimeType });
         const saved = await contentApi.updateCategory(packId, category as ApiCategoryKey, { imageUrl: publicUrl });
         if (mounted.current) storeCategory(packId, saved);
-        return { success: true, message: 'Na-update ang larawan ng puzzle.' };
+        return { success: true, message: t('puzzleImageUpdatedMsg') };
       } catch (err) {
-        return { success: false, message: errorMessage(err, 'Hindi na-upload ang larawan.') };
+        return { success: false, message: errorMessage(err, t('imageUploadFailedMsg')) };
       }
     },
-    [storeCategory],
+    [storeCategory, t],
   );
 
   const setCategoryContext: AdminContentContextType['setCategoryContext'] = useCallback(
@@ -272,12 +274,12 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       try {
         const saved = await contentApi.updateCategory(packId, category as ApiCategoryKey, { context_tl: text });
         if (mounted.current) storeCategory(packId, saved);
-        return { success: true, message: 'Na-save ang mini-lesson.' };
+        return { success: true, message: t('miniLessonSavedMsg') };
       } catch (err) {
-        return { success: false, message: errorMessage(err, 'Hindi na-save ang mini-lesson.') };
+        return { success: false, message: errorMessage(err, t('miniLessonSaveFailedMsg')) };
       }
     },
-    [storeCategory],
+    [storeCategory, t],
   );
 
   const resetCategoryImage: AdminContentContextType['resetCategoryImage'] = useCallback(
@@ -285,24 +287,24 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       try {
         const saved = await contentApi.updateCategory(packId, category as ApiCategoryKey, { imageUrl: null });
         if (mounted.current) storeCategory(packId, saved);
-        return { success: true, message: 'Naibalik ang default na larawan.' };
+        return { success: true, message: t('defaultImageRestoredMsg') };
       } catch (err) {
-        return { success: false, message: errorMessage(err, 'Hindi naibalik ang larawan.') };
+        return { success: false, message: errorMessage(err, t('imageRestoreFailedMsg')) };
       }
     },
-    [storeCategory],
+    [storeCategory, t],
   );
 
   const uploadQuestionImage: AdminContentContextType['uploadQuestionImage'] = useCallback(
     async (category, uri, mimeType) => {
       try {
         const url = await mediaApi.upload(uri, 'question-image', { categoryKey: category, mimeType });
-        return { success: true, message: 'Na-upload ang larawan.', url };
+        return { success: true, message: t('imageUploadedMsg'), url };
       } catch (err) {
-        return { success: false, message: errorMessage(err, 'Hindi na-upload ang larawan.') };
+        return { success: false, message: errorMessage(err, t('imageUploadFailedMsg')) };
       }
     },
-    [],
+    [t],
   );
 
   const setShowMiniLesson: AdminContentContextType['setShowMiniLesson'] = useCallback(
@@ -313,13 +315,13 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       try {
         const saved = await packsApi.patch(packId, { showMiniLesson: value });
         if (mounted.current) storePackMeta(packId, saved);
-        return { success: true, message: 'Na-save ang setting.' };
+        return { success: true, message: t('settingSavedMsg') };
       } catch (err) {
         if (mounted.current && previous) storePackMeta(packId, previous);
-        return { success: false, message: errorMessage(err, 'Hindi na-save ang setting.') };
+        return { success: false, message: errorMessage(err, t('settingSaveFailedMsg')) };
       }
     },
-    [stateFor, storePackMeta],
+    [stateFor, storePackMeta, t],
   );
 
   const value = useMemo<AdminContentContextType>(

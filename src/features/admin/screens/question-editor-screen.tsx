@@ -7,11 +7,12 @@ import { ClearableTextInput } from '@/features/admin/components/clearable-text-i
 import { QuizType, MIN_ENUMERATION_POOL } from '@/shared/content/quiz-content';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
+import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 
-const TYPE_LABELS: Record<QuizType, string> = {
-  'multiple-choice': 'Multiple Choice',
-  identification: 'Identification',
-  enumeration: 'Enumeration',
+const TYPE_LABEL_KEYS: Record<QuizType, TranslationKey> = {
+  'multiple-choice': 'typeMultipleChoice',
+  identification: 'typeIdentification',
+  enumeration: 'typeEnumeration',
 };
 const QUESTION_TYPES: QuizType[] = ['multiple-choice', 'identification', 'enumeration'];
 
@@ -20,6 +21,7 @@ const MAX_ACCEPTED_ANSWERS = 20;
 
 export default function QuestionEditorScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{
     packId: string;
     category: string;
@@ -63,7 +65,7 @@ export default function QuestionEditorScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Walang napiling pack</Text>
+          <Text style={styles.headerTitle}>{t('adminNoPackSelected')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -79,8 +81,8 @@ export default function QuestionEditorScreen() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
-        'Kailangan ng Pahintulot',
-        'Payagan ang app na ma-access ang iyong mga larawan para makapili ng larawan sa aralin.',
+        t('adminPermissionNeeded'),
+        t('photoPermissionLessonMsg'),
       );
       return;
     }
@@ -97,7 +99,7 @@ export default function QuestionEditorScreen() {
     try {
       const result = await uploadQuestionImage(category, asset.uri, asset.mimeType ?? undefined);
       if (!result.success || !result.url) {
-        Alert.alert('Hindi Na-upload', result.message);
+        Alert.alert(t('adminUploadFailedTitle'), result.message);
         return;
       }
       setMiniLessonImageUrl(result.url);
@@ -122,7 +124,7 @@ export default function QuestionEditorScreen() {
 
   const removePoolSlot = (i: number) => {
     if (answerPool.length <= MIN_ENUMERATION_POOL) {
-      Alert.alert('Minimum na Bilang', `Kailangan ng hindi bababa sa ${MIN_ENUMERATION_POOL} na posibleng sagot sa pool.`);
+      Alert.alert(t('minPoolTitle'), t('minPoolMsg', { min: MIN_ENUMERATION_POOL }));
       return;
     }
     setAnswerPool((prev) => prev.filter((_, idx) => idx !== i));
@@ -136,7 +138,7 @@ export default function QuestionEditorScreen() {
 
   const addAcceptedAnswer = () => {
     if (acceptedAnswers.length >= MAX_ACCEPTED_ANSWERS) {
-      Alert.alert('Sobra na', `Pinakamarami ay ${MAX_ACCEPTED_ANSWERS} na tinatanggap na sagot.`);
+      Alert.alert(t('tooManyTitle'), t('tooManyAcceptedMsg', { max: MAX_ACCEPTED_ANSWERS }));
       return;
     }
     setAcceptedAnswers((prev) => [...prev, '']);
@@ -171,11 +173,11 @@ export default function QuestionEditorScreen() {
       return;
     }
     Alert.alert(
-      `Palitan sa ${TYPE_LABELS[nextType]}?`,
-      `Mananatili ang tanong, hint, paliwanag, at mini-lesson. Mabubura ang mga sagot ng kasalukuyang uri (${TYPE_LABELS[type]}). Wala pang na-se-save hangga't hindi pinipindot ang "I-save ang Tanong".`,
+      t('switchTypeTitle', { type: t(TYPE_LABEL_KEYS[nextType]) }),
+      t('switchTypeMsg', { type: t(TYPE_LABEL_KEYS[type]) }),
       [
-        { text: 'Kanselahin', style: 'cancel' },
-        { text: 'Palitan at Burahin', style: 'destructive', onPress: () => applyTypeChange(nextType) },
+        { text: t('cancelBtn'), style: 'cancel' },
+        { text: t('switchAndClearBtn'), style: 'destructive', onPress: () => applyTypeChange(nextType) },
       ],
     );
   };
@@ -188,10 +190,10 @@ export default function QuestionEditorScreen() {
     try {
       const result = await upsertQuestion(packId, category, level, activityNum, payload);
       if (!result.success) {
-        Alert.alert('Hindi Na-save', result.message);
+        Alert.alert(t('adminSaveFailedTitle'), result.message);
         return;
       }
-      Alert.alert('Naka-save!', result.message, [{ text: 'OK', onPress: () => router.back() }]);
+      Alert.alert(t('adminSavedTitle'), result.message, [{ text: t('okBtn'), onPress: () => router.back() }]);
     } finally {
       setSaving(false);
     }
@@ -200,21 +202,21 @@ export default function QuestionEditorScreen() {
   const handleSave = async () => {
     if (saving) return;
     if (!question.trim() || !hint.trim()) {
-      Alert.alert('Kulang na Impormasyon', 'Kailangan ng mini-lesson at tanong.');
+      Alert.alert(t('missingInfo'), t('needLessonAndQuestionMsg'));
       return;
     }
     if (type !== 'enumeration' && !correctAnswer.trim()) {
-      Alert.alert('Kulang na Impormasyon', 'Kailangan ng tamang sagot.');
+      Alert.alert(t('missingInfo'), t('needCorrectAnswerMsg'));
       return;
     }
     if (type === 'multiple-choice') {
       const filled = choices.map((c) => c.trim()).filter(Boolean);
       if (filled.length < 2) {
-        Alert.alert('Kulang na Choices', 'Maglagay ng hindi bababa sa 2 choices.');
+        Alert.alert(t('needChoicesTitle'), t('needChoicesMsg'));
         return;
       }
       if (!filled.map((c) => c.toLowerCase()).includes(correctAnswer.trim().toLowerCase())) {
-        Alert.alert('Hindi Tugma', 'Ang tamang sagot ay dapat isa sa mga choices.');
+        Alert.alert(t('mismatchTitle'), t('mismatchMsg'));
         return;
       }
     }
@@ -226,20 +228,20 @@ export default function QuestionEditorScreen() {
       const uniquePool = Array.from(new Map(filledPool.map((a) => [a.toLowerCase(), a])).values());
       if (uniquePool.length < MIN_ENUMERATION_POOL) {
         Alert.alert(
-          'Kulang ang Answer Pool',
-          `Kailangan ng hindi bababa sa ${MIN_ENUMERATION_POOL} (natatanging) posibleng sagot. Meron pa lang ${uniquePool.length}.`
+          t('poolTooSmallTitle'),
+          t('poolTooSmallMsg', { min: MIN_ENUMERATION_POOL, count: uniquePool.length })
         );
         return;
       }
       const requiredNum = parseInt(requiredAnswers, 10);
       if (!requiredNum || requiredNum < 1) {
-        Alert.alert('Hindi Wasto', 'Ilagay kung ilang sagot ang kailangang isagot ng player (hindi bababa sa 1).');
+        Alert.alert(t('invalidTitle'), t('invalidRequiredMsg'));
         return;
       }
       if (requiredNum > uniquePool.length) {
         Alert.alert(
-          'Hindi Wasto',
-          `Ang kailangang sagot (${requiredNum}) ay hindi maaaring lumampas sa laki ng answer pool (${uniquePool.length}).`
+          t('invalidTitle'),
+          t('requiredExceedsPoolMsg', { required: requiredNum, pool: uniquePool.length })
         );
         return;
       }
@@ -299,11 +301,13 @@ export default function QuestionEditorScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { backgroundColor: categoryColor || '#3B7DD8' }]}>
-        <Text style={styles.headerTitle}>{categoryLabel} — Level {level}, Activity {activityNum}</Text>
+        <Text style={styles.headerTitle}>
+          {t('questionEditorTitle', { label: categoryLabel, level, num: activityNum })}
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.form}>
-        <Text style={styles.label}>Uri ng Tanong</Text>
+        <Text style={styles.label}>{t('questionTypeLabel')}</Text>
         <View style={styles.typeRow}>
           {QUESTION_TYPES.map((key) => (
             <TouchableOpacity
@@ -312,28 +316,28 @@ export default function QuestionEditorScreen() {
               onPress={() => requestTypeChange(key)}
             >
               <Text style={[styles.typeChipText, type === key && styles.typeChipTextActive]}>
-                {TYPE_LABELS[key]}
+                {t(TYPE_LABEL_KEYS[key])}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={styles.label}>Mini-Lesson / Hint</Text>
-        <ClearableTextInput style={[styles.input, styles.multiline]} value={hint} onChangeText={setHint} multiline placeholder="Maikling paliwanag bago ang tanong..." />
+        <Text style={styles.label}>{t('miniLessonHintLabel')}</Text>
+        <ClearableTextInput style={[styles.input, styles.multiline]} value={hint} onChangeText={setHint} multiline placeholder={t('miniLessonHintPlaceholder')} />
 
-        <Text style={styles.label}>Tanong</Text>
-        <ClearableTextInput style={styles.input} value={question} onChangeText={setQuestion} placeholder="I-type ang tanong..." />
+        <Text style={styles.label}>{t('questionLabel')}</Text>
+        <ClearableTextInput style={styles.input} value={question} onChangeText={setQuestion} placeholder={t('questionPlaceholder')} />
 
         {type === 'multiple-choice' && (
           <>
-            <Text style={styles.label}>Mga Choices</Text>
+            <Text style={styles.label}>{t('choicesLabel')}</Text>
             {choices.map((c, i) => (
               <ClearableTextInput
                 key={i}
                 style={styles.input}
                 value={c}
                 onChangeText={(val) => updateChoice(i, val)}
-                placeholder={`Choice ${i + 1}`}
+                placeholder={t('choicePlaceholder', { n: i + 1 })}
               />
             ))}
           </>
@@ -341,21 +345,21 @@ export default function QuestionEditorScreen() {
 
         {type === 'enumeration' && (
           <>
-            <Text style={styles.label}>Ilang Sagot ang Kailangan ng Player (Required Answers)</Text>
+            <Text style={styles.label}>{t('requiredAnswersLabel')}</Text>
             <ClearableTextInput
               style={styles.input}
               value={requiredAnswers}
               onChangeText={setRequiredAnswers}
-              placeholder="hal. 3"
+              placeholder={t('requiredAnswersPlaceholder')}
               keyboardType="number-pad"
             />
-            <Text style={styles.helperNote}>
-              Ito ang magiging bilang ng "tabs" / input boxes na makikita ng player. Dapat hindi lumampas sa laki ng Answer Pool sa ibaba.
-            </Text>
+            <Text style={styles.helperNote}>{t('requiredAnswersNote')}</Text>
 
             <View style={styles.poolHeaderRow}>
-              <Text style={styles.label}>Answer Pool (min. {MIN_ENUMERATION_POOL} posibleng sagot)</Text>
-              <Text style={styles.poolCount}>{answerPool.filter((a) => a.trim()).length} filled</Text>
+              <Text style={styles.label}>{t('answerPoolLabel', { min: MIN_ENUMERATION_POOL })}</Text>
+              <Text style={styles.poolCount}>
+                {t('poolFilledCount', { count: answerPool.filter((a) => a.trim()).length })}
+              </Text>
             </View>
             {answerPool.map((val, i) => (
               <View key={i} style={styles.poolRow}>
@@ -363,7 +367,7 @@ export default function QuestionEditorScreen() {
                   style={[styles.input, styles.poolInput]}
                   value={val}
                   onChangeText={(text) => updatePoolAnswer(i, text)}
-                  placeholder={`Pool answer ${i + 1}`}
+                  placeholder={t('poolAnswerPlaceholder', { n: i + 1 })}
                 />
                 <TouchableOpacity style={styles.removePoolButton} onPress={() => removePoolSlot(i)}>
                   <Text style={styles.removePoolButtonText}>✕</Text>
@@ -371,34 +375,37 @@ export default function QuestionEditorScreen() {
               </View>
             ))}
             <TouchableOpacity style={styles.addPoolButton} onPress={addPoolSlot}>
-              <Text style={styles.addPoolButtonText}>+ Magdagdag ng Pool Answer</Text>
+              <Text style={styles.addPoolButtonText}>{t('addPoolAnswerBtn')}</Text>
             </TouchableOpacity>
           </>
         )}
 
         {type !== 'enumeration' && (
           <>
-            <Text style={styles.label}>Tamang Sagot</Text>
-            <ClearableTextInput style={styles.input} value={correctAnswer} onChangeText={setCorrectAnswer} placeholder="Tamang sagot..." />
+            <Text style={styles.label}>{t('correctAnswerLabel')}</Text>
+            <ClearableTextInput style={styles.input} value={correctAnswer} onChangeText={setCorrectAnswer} placeholder={t('correctAnswerPlaceholder')} />
           </>
         )}
 
         {type === 'identification' && (
           <>
             <View style={styles.poolHeaderRow}>
-              <Text style={styles.label}>Iba pang Tinatanggap na Sagot</Text>
-              <Text style={styles.poolCount}>{acceptedAnswers.filter((a) => a.trim()).length}/{MAX_ACCEPTED_ANSWERS}</Text>
+              <Text style={styles.label}>{t('otherAcceptedLabel')}</Text>
+              <Text style={styles.poolCount}>
+                {t('acceptedCount', {
+                  count: acceptedAnswers.filter((a) => a.trim()).length,
+                  max: MAX_ACCEPTED_ANSWERS,
+                })}
+              </Text>
             </View>
-            <Text style={styles.helperNote}>
-              Opsyonal. Ibang paraan ng pagsulat ng parehong sagot (hal. ibang baybay) na ituturing ding tama.
-            </Text>
+            <Text style={styles.helperNote}>{t('acceptedAnswersNote')}</Text>
             {acceptedAnswers.map((val, i) => (
               <View key={i} style={styles.poolRow}>
                 <TextInput
                   style={[styles.input, styles.poolInput]}
                   value={val}
                   onChangeText={(text) => updateAcceptedAnswer(i, text)}
-                  placeholder={`Ibang sagot ${i + 1}`}
+                  placeholder={t('otherAcceptedPlaceholder', { n: i + 1 })}
                 />
                 <TouchableOpacity style={styles.removePoolButton} onPress={() => removeAcceptedAnswer(i)}>
                   <Text style={styles.removePoolButtonText}>✕</Text>
@@ -406,26 +413,21 @@ export default function QuestionEditorScreen() {
               </View>
             ))}
             <TouchableOpacity style={styles.addPoolButton} onPress={addAcceptedAnswer}>
-              <Text style={styles.addPoolButtonText}>+ Magdagdag ng Tinatanggap na Sagot</Text>
+              <Text style={styles.addPoolButtonText}>{t('addAcceptedBtn')}</Text>
             </TouchableOpacity>
           </>
         )}
 
-        <Text style={styles.label}>Paliwanag (pagkatapos ng tamang sagot)</Text>
-        <ClearableTextInput style={[styles.input, styles.multiline]} value={explanation} onChangeText={setExplanation} multiline placeholder="Bakit tama ang sagot..." />
+        <Text style={styles.label}>{t('explanationLabel')}</Text>
+        <ClearableTextInput style={[styles.input, styles.multiline]} value={explanation} onChangeText={setExplanation} multiline placeholder={t('explanationPlaceholder')} />
 
-        <Text style={styles.label}>Larawan ng Aralin</Text>
-        <Text style={styles.helperNote}>
-          Makikita ito sa Mini-Lessons kapag natapos na ng mag-aaral ang gawain. Hindi ito lumalabas
-          habang sinasagot ang tanong, para hindi maibigay ang sagot.
-        </Text>
+        <Text style={styles.label}>{t('lessonImageLabel')}</Text>
+        <Text style={styles.helperNote}>{t('lessonImageNote')}</Text>
         {miniLessonImageUrl ? (
           <Image source={{ uri: miniLessonImageUrl }} style={styles.imagePreview} />
         ) : (
           <View style={styles.imageEmpty}>
-            <Text style={styles.imageEmptyText}>
-              Walang larawan — gagamitin ang default na larawan ng kategorya.
-            </Text>
+            <Text style={styles.imageEmptyText}>{t('noLessonImage')}</Text>
           </View>
         )}
         <View style={styles.imageRow}>
@@ -438,13 +440,13 @@ export default function QuestionEditorScreen() {
               <ActivityIndicator color="#FFF" size="small" />
             ) : (
               <Text style={styles.imageButtonText}>
-                {miniLessonImageUrl ? 'Palitan ang Larawan' : 'Pumili ng Larawan'}
+                {miniLessonImageUrl ? t('changePictureBtn') : t('choosePictureBtn')}
               </Text>
             )}
           </TouchableOpacity>
           {!!miniLessonImageUrl && !uploadingImage && (
             <TouchableOpacity style={styles.imageRemoveButton} onPress={() => setMiniLessonImageUrl(null)}>
-              <Text style={styles.imageRemoveButtonText}>Alisin</Text>
+              <Text style={styles.imageRemoveButtonText}>{t('removeBtn')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -457,11 +459,11 @@ export default function QuestionEditorScreen() {
           {saving ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.saveButtonText}>I-save ang Tanong</Text>
+            <Text style={styles.saveButtonText}>{t('saveQuestionBtn')}</Text>
           )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()} disabled={saving}>
-          <Text style={styles.cancelButtonText}>Kanselahin</Text>
+          <Text style={styles.cancelButtonText}>{t('cancelBtn')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

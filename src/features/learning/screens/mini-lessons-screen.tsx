@@ -6,6 +6,7 @@ import { useStudentResults } from '@/features/results/context/student-results-co
 import { useUser } from '@/features/auth/context/user-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
+import { useLanguage } from '@/shared/i18n/language-context';
 import { quizLessonText } from '@/features/admin/lib/question-mapping';
 import { useRouter } from 'expo-router';
 
@@ -23,6 +24,7 @@ interface LessonCard {
 
 export default function MiniLessonsScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { uid } = useUser();
   const { results, ready } = useStudentResults();
   // Mini-lessons and category write-ups come from the content module, so an
@@ -77,23 +79,20 @@ export default function MiniLessonsScreen() {
   return (
     <Screen>
       <ScreenHeader
-        title="Mini-Lessons"
-        subtitle={`${lessons.length} aralin ang na-unlock mula sa tamang sagot mo sa Quiz at Jigsaw Puzzle`}
+        title={t('miniLessonsTitle')}
+        subtitle={t('miniLessonsSubtitle', { count: lessons.length })}
         color={tokens.color.navLessons}
         onBack={() => router.back()}
       />
 
       <ScrollView contentContainerStyle={styles.list}>
-        {!ready && <Body style={styles.emptyText}>Naglo-load...</Body>}
+        {!ready && <Body style={styles.emptyText}>{t('loading')}</Body>}
 
         {ready && lessons.length === 0 && (
           <View style={styles.emptyWrap}>
             <Icon name="book" size={40} color={tokens.color.inkFaint} />
-            <Body style={styles.emptyText}>
-              Wala ka pang na-unlock na mini-lesson. Sagutan nang tama ang isang Quiz o Jigsaw
-              Puzzle sa Categories para makapag-unlock ng aralin dito.
-            </Body>
-            <Button label="Pumunta sa Categories" onPress={() => router.navigate('/categories')} color={tokens.color.navLessons} shadowColor={tokens.color.successDark} />
+            <Body style={styles.emptyText}>{t('noMiniLessonsYet')}</Body>
+            <Button label={t('goToCategories')} onPress={() => router.navigate('/categories')} color={tokens.color.navLessons} shadowColor={tokens.color.successDark} />
           </View>
         )}
 
@@ -102,16 +101,16 @@ export default function MiniLessonsScreen() {
             <Image source={featured.image} style={styles.bannerImage} />
             <View style={styles.bannerBody}>
               <Pill
-                label={getCategoryMeta(featured.category).label}
+                label={t(getCategoryMeta(featured.category).labelKey)}
                 tone="translucent"
                 style={{ backgroundColor: categoryColor(featured.category).base, borderColor: 'transparent' }}
               />
               <H2 style={styles.bannerTitle}>
-                Level {featured.level} · Activity {featured.activityNum}
+                {t('levelActivityLine', { level: featured.level, num: featured.activityNum })}
               </H2>
               <View style={styles.sourceRow}>
                 <Icon name={featured.source === 'quiz' ? 'quiz' : 'puzzle'} size={14} color={tokens.color.inkMuted} />
-                <Caption style={styles.sourceLabel}>{featured.source === 'quiz' ? 'Quiz' : 'Jigsaw'}</Caption>
+                <Caption style={styles.sourceLabel}>{featured.source === 'quiz' ? t('gameTypeQuiz') : t('gameTypeJigsaw')}</Caption>
               </View>
               <Body style={styles.bannerText}>{featured.text}</Body>
             </View>
@@ -123,16 +122,16 @@ export default function MiniLessonsScreen() {
             <Image source={lesson.image} style={styles.rowImage} />
             <View style={styles.rowBody}>
               <Pill
-                label={getCategoryMeta(lesson.category).label}
+                label={t(getCategoryMeta(lesson.category).labelKey)}
                 tone="translucent"
                 style={{ backgroundColor: categoryColor(lesson.category).base, borderColor: 'transparent' }}
               />
               <BodyStrong numberOfLines={1}>
-                Level {lesson.level} · Activity {lesson.activityNum}
+                {t('levelActivityLine', { level: lesson.level, num: lesson.activityNum })}
               </BodyStrong>
               <View style={styles.sourceRow}>
                 <Icon name={lesson.source === 'quiz' ? 'quiz' : 'puzzle'} size={12} color={tokens.color.inkMuted} />
-                <Caption style={styles.sourceLabel}>{lesson.source === 'quiz' ? 'Quiz' : 'Jigsaw'}</Caption>
+                <Caption style={styles.sourceLabel}>{lesson.source === 'quiz' ? t('gameTypeQuiz') : t('gameTypeJigsaw')}</Caption>
               </View>
               <Body numberOfLines={2} style={styles.rowText}>{lesson.text}</Body>
             </View>

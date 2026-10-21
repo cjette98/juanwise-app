@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useLanguage } from '@/shared/i18n/language-context';
+import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useClass } from '@/features/teacher/context/class-context';
 import {
   useStudentResults,
@@ -18,13 +18,13 @@ const LEVELS = [1, 2, 3, 4, 5];
 
 const TREND_META: Record<
   ProgressionTrend,
-  { label: string; color: string; icon: string; order: number }
+  { labelKey: TranslationKey; color: string; icon: string; order: number }
 > = {
-  improving: { label: 'Umuunlad', color: '#2E9E5B', icon: 'trending-up', order: 0 },
-  steady: { label: 'Pantay-pantay', color: '#3B7DD8', icon: 'remove-circle', order: 1 },
-  'needs-support': { label: 'Kailangan ng Tulong', color: '#C4304A', icon: 'trending-down', order: 2 },
-  'not-enough-data': { label: 'Kulang ang Datos', color: '#C9631D', icon: 'time', order: 3 },
-  'not-started': { label: 'Hindi pa Nakasali', color: '#8E8E93', icon: 'ellipse-outline', order: 4 },
+  improving: { labelKey: 'trendImproving', color: '#2E9E5B', icon: 'trending-up', order: 0 },
+  steady: { labelKey: 'trendSteady', color: '#3B7DD8', icon: 'remove-circle', order: 1 },
+  'needs-support': { labelKey: 'trendNeedsHelp', color: '#C4304A', icon: 'trending-down', order: 2 },
+  'not-enough-data': { labelKey: 'trendNotEnoughData', color: '#C9631D', icon: 'time', order: 3 },
+  'not-started': { labelKey: 'trendNotJoined', color: '#8E8E93', icon: 'ellipse-outline', order: 4 },
 };
 
 const MEDAL_DOT_COLOR: Record<string, string> = {
@@ -88,9 +88,7 @@ export default function PerformanceProgressionScreen() {
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('performanceProgression').toUpperCase()}</Text>
-        <Text style={styles.headerSubtitle}>
-          Hinahambing ang unang mga sagot laban sa pinakabagong mga sagot para makita kung sino ang umuunlad.
-        </Text>
+        <Text style={styles.headerSubtitle}>{t('performanceSubtitle')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -109,13 +107,13 @@ export default function PerformanceProgressionScreen() {
 
         {/* FILTERS */}
         <View style={styles.filterCard}>
-          <Text style={styles.filterLabel}>Kategorya</Text>
+          <Text style={styles.filterLabel}>{t('topicLabel')}</Text>
           <View style={styles.chipRow}>
             <TouchableOpacity
               style={[styles.chip, !category && styles.chipActiveNeutral]}
               onPress={() => setCategory(null)}
             >
-              <Text style={[styles.chipText, !category && styles.chipTextActive]}>Lahat</Text>
+              <Text style={[styles.chipText, !category && styles.chipTextActive]}>{t('allFilter')}</Text>
             </TouchableOpacity>
             {CATEGORY_META.map((c) => {
               const active = category === c.key;
@@ -125,19 +123,19 @@ export default function PerformanceProgressionScreen() {
                   style={[styles.chip, { borderColor: c.color }, active && { backgroundColor: c.color }]}
                   onPress={() => setCategory(active ? null : c.key)}
                 >
-                  <Text style={[styles.chipText, { color: active ? '#FFF' : c.color }]}>{c.label}</Text>
+                  <Text style={[styles.chipText, { color: active ? '#FFF' : c.color }]}>{t(c.labelKey)}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          <Text style={styles.filterLabel}>Uri ng Gawain</Text>
+          <Text style={styles.filterLabel}>{t('activityTypeLabel')}</Text>
           <View style={styles.chipRow}>
             <TouchableOpacity
               style={[styles.chip, !activityType && styles.chipActiveNeutral]}
               onPress={() => setActivityType(null)}
             >
-              <Text style={[styles.chipText, !activityType && styles.chipTextActive]}>Lahat</Text>
+              <Text style={[styles.chipText, !activityType && styles.chipTextActive]}>{t('allFilter')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.chip, styles.gameChip, activityType === 'quiz' && styles.gameChipActive]}
@@ -153,13 +151,13 @@ export default function PerformanceProgressionScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.filterLabel}>Level</Text>
+          <Text style={styles.filterLabel}>{t('level')}</Text>
           <View style={styles.chipRow}>
             <TouchableOpacity
               style={[styles.chip, !level && styles.chipActiveNeutral]}
               onPress={() => setLevel(null)}
             >
-              <Text style={[styles.chipText, !level && styles.chipTextActive]}>Lahat</Text>
+              <Text style={[styles.chipText, !level && styles.chipTextActive]}>{t('allFilter')}</Text>
             </TouchableOpacity>
             {LEVELS.map((lvl) => {
               const active = level === lvl;
@@ -169,7 +167,7 @@ export default function PerformanceProgressionScreen() {
                   style={[styles.chip, styles.gameChip, active && styles.gameChipActive]}
                   onPress={() => setLevel(active ? null : lvl)}
                 >
-                  <Text style={[styles.chipText, active && { color: '#FFF' }]}>Lvl {lvl}</Text>
+                  <Text style={[styles.chipText, active && { color: '#FFF' }]}>{t('levelChipShort', { n: lvl })}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -177,9 +175,9 @@ export default function PerformanceProgressionScreen() {
         </View>
 
         {/* STUDENT LIST */}
-        {!ready && <Text style={styles.emptyText}>Naglo-load...</Text>}
+        {!ready && <Text style={styles.emptyText}>{t('loading')}</Text>}
         {ready && progression.length === 0 && (
-          <Text style={styles.emptyText}>Wala pang estudyanteng nakarehistro o may resulta.</Text>
+          <Text style={styles.emptyText}>{t('noStudentsYetPerf')}</Text>
         )}
 
         {progression.map((p) => {
@@ -192,7 +190,7 @@ export default function PerformanceProgressionScreen() {
                 <Text style={styles.studentName}>{p.studentName}</Text>
                 <View style={[styles.trendBadge, { backgroundColor: meta.color }]}>
                   <Ionicons name={meta.icon as any} size={12} color="#FFF" />
-                  <Text style={styles.trendBadgeText}>{meta.label}</Text>
+                  <Text style={styles.trendBadgeText}>{t(meta.labelKey)}</Text>
                 </View>
               </View>
 
@@ -200,7 +198,7 @@ export default function PerformanceProgressionScreen() {
                 <>
                   <View style={styles.deltaRow}>
                     <View style={styles.deltaBlock}>
-                      <Text style={styles.deltaLabel}>★ Puntos</Text>
+                      <Text style={styles.deltaLabel}>{t('statPoints')}</Text>
                       <Text
                         style={[
                           styles.deltaValue,
@@ -214,7 +212,7 @@ export default function PerformanceProgressionScreen() {
                       </Text>
                     </View>
                     <View style={styles.deltaBlock}>
-                      <Text style={styles.deltaLabel}>⏱ Bilis</Text>
+                      <Text style={styles.deltaLabel}>{t('statSpeed')}</Text>
                       <Text
                         style={[
                           styles.deltaValue,
@@ -228,7 +226,7 @@ export default function PerformanceProgressionScreen() {
                       </Text>
                     </View>
                     <View style={styles.deltaBlock}>
-                      <Text style={styles.deltaLabel}>Gawain</Text>
+                      <Text style={styles.deltaLabel}>{t('statActivities')}</Text>
                       <Text style={styles.deltaValue}>{p.attempts.length}</Text>
                     </View>
                   </View>
@@ -246,7 +244,9 @@ export default function PerformanceProgressionScreen() {
                   </View>
                 </>
               ) : (
-                <Text style={styles.noAttemptsText}>Wala pang sinagutang gawain{catMeta ? ` sa ${catMeta.label}` : ''}.</Text>
+                <Text style={styles.noAttemptsText}>
+                  {catMeta ? t('noAttemptsInCategory', { category: t(catMeta.labelKey) }) : t('noAttemptsAtAll')}
+                </Text>
               )}
             </View>
           );

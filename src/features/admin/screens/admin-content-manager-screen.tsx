@@ -4,21 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-
-const CATEGORIES = [
-  { key: 'history', label: 'History', color: '#2E6FB8' },
-  { key: 'culture', label: 'Culture & Tradition', color: '#C9631D' },
-  { key: 'geography', label: 'Geography', color: '#3E9E4F' },
-  { key: 'festival', label: 'Festival Arts', color: '#B84FA0' },
-  { key: 'national', label: 'National Symbols', color: '#C4304A' },
-  { key: 'heroes', label: 'Filipino Heroes', color: '#8A5A2B' },
-];
+import { useLanguage } from '@/shared/i18n/language-context';
+import { CATEGORY_META as CATEGORIES } from '@/shared/content/category-meta';
 
 const LEVELS = [1, 2, 3, 4, 5];
 const ACTIVITIES = [1, 2, 3, 4, 5, 6];
 
 export default function AdminContentManagerScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { packId } = useLocalSearchParams<{ packId: string }>();
   const [category, setCategory] = useState(CATEGORIES[0].key);
   const [level, setLevel] = useState(1);
@@ -43,7 +37,7 @@ export default function AdminContentManagerScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>Walang napiling pack. Bumalik sa Activity Management.</Text>
+          <Text style={styles.errorBannerText}>{t('adminNoPackSelected')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -56,16 +50,16 @@ export default function AdminContentManagerScreen() {
 
   const handleDelete = (activityNum: number) => {
     Alert.alert(
-      'Alisin ang Custom na Tanong?',
-      `Babalik ito sa default na tanong para sa Activity ${activityNum}.`,
+      t('removeCustomQuestionTitle'),
+      t('removeCustomQuestionMsg', { num: activityNum }),
       [
-        { text: 'Kanselahin', style: 'cancel' },
+        { text: t('cancelBtn'), style: 'cancel' },
         {
-          text: 'Alisin',
+          text: t('removeBtn'),
           style: 'destructive',
           onPress: async () => {
             const result = await deleteQuestionOverride(packId, category, level, activityNum);
-            if (!result.success) Alert.alert('Hindi Naalis', result.message);
+            if (!result.success) Alert.alert(t('adminRemoveFailedTitle'), result.message);
           },
         },
       ]
@@ -74,7 +68,7 @@ export default function AdminContentManagerScreen() {
 
   const handleToggleMiniLesson = async (value: boolean) => {
     const result = await setShowMiniLesson(packId, value);
-    if (!result.success) Alert.alert('Hindi Na-save', result.message);
+    if (!result.success) Alert.alert(t('adminSaveFailedTitle'), result.message);
   };
 
   return (
@@ -83,8 +77,8 @@ export default function AdminContentManagerScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Content Manager</Text>
-        <Text style={styles.headerSubtitle}>{`I-edit ang: ${pack?.name ?? '...'}`}</Text>
+        <Text style={styles.headerTitle}>{t('contentManagerTitle')}</Text>
+        <Text style={styles.headerSubtitle}>{t('contentManagerSubtitle', { name: pack?.name ?? '...' })}</Text>
       </View>
 
       <View style={styles.catRowWrap}>
@@ -100,7 +94,7 @@ export default function AdminContentManagerScreen() {
               onPress={() => setCategory(c.key)}
             >
               <Text style={[styles.catChipText, { color: category === c.key ? '#FFF' : c.color }]}>
-                {c.label}
+                {t(c.labelKey)}
               </Text>
             </TouchableOpacity>
           ))}
@@ -114,17 +108,15 @@ export default function AdminContentManagerScreen() {
             style={[styles.levelChip, level === lvl && { backgroundColor: activeCategory.color }]}
             onPress={() => setLevel(lvl)}
           >
-            <Text style={[styles.levelChipText, level === lvl && { color: '#FFF' }]}>Level {lvl}</Text>
+            <Text style={[styles.levelChipText, level === lvl && { color: '#FFF' }]}>{t('levelNum', { n: lvl })}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <View style={styles.miniLessonRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.miniLessonTitle}>Mini-Lesson bago ang Quiz</Text>
-          <Text style={styles.miniLessonSub}>
-            Kapag naka-ON, makikita ng mag-aaral ang mini-lesson bago sumagot sa bawat tanong.
-          </Text>
+          <Text style={styles.miniLessonTitle}>{t('miniLessonBeforeQuiz')}</Text>
+          <Text style={styles.miniLessonSub}>{t('miniLessonToggleDesc')}</Text>
         </View>
         <Switch
           value={pack?.showMiniLesson ?? true}
@@ -133,10 +125,7 @@ export default function AdminContentManagerScreen() {
           thumbColor="#FFF"
         />
       </View>
-      <Text style={styles.miniLessonNote}>
-        Tandaan: kasalukuyang naaapektuhan lang nito ang Global Library — hindi pa ito
-        nakikita ng mga estudyanteng gumagamit ng ibang pack.
-      </Text>
+      <Text style={styles.miniLessonNote}>{t('miniLessonToggleNote')}</Text>
 
       {!!error && (
         <View style={styles.errorBanner}>
@@ -148,7 +137,7 @@ export default function AdminContentManagerScreen() {
       {!ready && (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={activeCategory.color} />
-          <Text style={styles.loadingText}>Kinukuha ang nilalaman mula sa server...</Text>
+          <Text style={styles.loadingText}>{t('adminFetchingContent')}</Text>
         </View>
       )}
 
@@ -159,33 +148,33 @@ export default function AdminContentManagerScreen() {
           return (
             <View key={num} style={styles.card}>
               <View style={styles.cardTop}>
-                <Text style={styles.cardTitle}>Activity {num}</Text>
+                <Text style={styles.cardTitle}>{t('activityNumShort', { num })}</Text>
                 {custom ? (
                   <View style={styles.customBadge}>
-                    <Text style={styles.customBadgeText}>Custom</Text>
+                    <Text style={styles.customBadgeText}>{t('customBadge')}</Text>
                   </View>
                 ) : (
                   <View style={styles.defaultBadge}>
-                    <Text style={styles.defaultBadgeText}>Default</Text>
+                    <Text style={styles.defaultBadgeText}>{t('defaultBadge')}</Text>
                   </View>
                 )}
               </View>
               <Text style={styles.cardQuestion} numberOfLines={2}>{q.question}</Text>
-              <Text style={styles.cardAnswer}>Sagot: {q.correctAnswer}</Text>
+              <Text style={styles.cardAnswer}>{t('answerLabelShort', { answer: q.correctAnswer })}</Text>
               <View style={styles.cardActions}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: activeCategory.color }]}
                   onPress={() =>
-                    router.navigate({ pathname: '/question-editor', params: { packId, category, level, activityNum: num, categoryColor: activeCategory.color, categoryLabel: activeCategory.label } })
+                    router.navigate({ pathname: '/question-editor', params: { packId, category, level, activityNum: num, categoryColor: activeCategory.color, categoryLabel: t(activeCategory.labelKey) } })
                   }
                 >
                   <Ionicons name="create-outline" size={16} color="#FFF" />
-                  <Text style={styles.actionBtnText}>Edit</Text>
+                  <Text style={styles.actionBtnText}>{t('editBtn')}</Text>
                 </TouchableOpacity>
                 {custom && (
                   <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => handleDelete(num)}>
                     <Ionicons name="trash-outline" size={16} color="#FFF" />
-                    <Text style={styles.actionBtnText}>Delete</Text>
+                    <Text style={styles.actionBtnText}>{t('deleteBtn')}</Text>
                   </TouchableOpacity>
                 )}
               </View>

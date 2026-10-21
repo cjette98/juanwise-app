@@ -16,12 +16,13 @@ import {
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { useStudentResults, ActivityResult, getCanonicalAttempts, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
 import { CATEGORY_META } from '@/shared/content/category-meta';
+import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 const LEVELS = [1, 2, 3, 4, 5];
-const ACTIVITY_TYPES: { key: 'quiz' | 'jigsaw'; label: string; icon: IconName }[] = [
-  { key: 'quiz', label: 'Quiz', icon: 'quiz' },
-  { key: 'jigsaw', label: 'Jigsaw Puzzle', icon: 'puzzle' },
+const ACTIVITY_TYPES: { key: 'quiz' | 'jigsaw'; labelKey: TranslationKey; icon: IconName }[] = [
+  { key: 'quiz', labelKey: 'gameTypeQuiz', icon: 'quiz' },
+  { key: 'jigsaw', labelKey: 'gameTypeJigsaw', icon: 'puzzle' },
 ];
 
 type Medal = 'gold' | 'silver' | 'bronze' | null;
@@ -58,10 +59,10 @@ function formatDate(timestamp: number) {
 
 // Same three-way split the leaderboard's PACE_META uses — medal tokens
 // instead of a bespoke hex triplet, gold/silver/bronze in the same order.
-const PACE_META: Record<'fast' | 'steady' | 'needs-support', { label: string; color: string; icon: IconName }> = {
-  fast: { label: 'Mabilis Matuto', color: tokens.color.medalGold, icon: 'bolt' },
-  steady: { label: 'Sakto sa Bilis', color: tokens.color.medalSilver, icon: 'clock' },
-  'needs-support': { label: 'Kailangan ng Tulong', color: tokens.color.medalBronze, icon: 'lightbulb' },
+const PACE_META: Record<'fast' | 'steady' | 'needs-support', { labelKey: TranslationKey; color: string; icon: IconName }> = {
+  fast: { labelKey: 'paceFast', color: tokens.color.medalGold, icon: 'bolt' },
+  steady: { labelKey: 'paceSteady', color: tokens.color.medalSilver, icon: 'clock' },
+  'needs-support': { labelKey: 'paceNeedsSupport', color: tokens.color.medalBronze, icon: 'lightbulb' },
 };
 
 function computeTrophy(totalPoints: number, totalTimeUsed: number): Trophy {
@@ -90,6 +91,7 @@ function levelStats(attempts: ActivityResult[], level: number) {
 
 export default function StudentSummaryScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { studentName } = useLocalSearchParams<{ studentName: string }>();
   const { getFilteredResults, ready } = useStudentResults();
 
@@ -166,7 +168,7 @@ export default function StudentSummaryScreen() {
     <Screen>
       <ScreenHeader
         title={studentName}
-        subtitle="Kompletong Record — Buod at Kasaysayan ng Bawat Gawain"
+        subtitle={t('fullRecordTitle')}
         color={tokens.color.navLeaderboard}
         onBack={() => router.back()}
       />
@@ -176,35 +178,35 @@ export default function StudentSummaryScreen() {
           <Card style={styles.statCard}>
             <Icon name="trophy" size={20} color={trophyTint} filled={!!overallTotals.trophy} />
             <BodyStrong>{overallTotals.trophy ? overallTotals.trophy : '—'}</BodyStrong>
-            <Caption>Trophy</Caption>
+            <Caption>{t('trophyWord')}</Caption>
           </Card>
           <Card style={styles.statCard}>
             <Icon name="star" size={20} color={tokens.color.gold} filled />
             <BodyStrong>{overallTotals.totalPoints}/{COMBINED_MAX_POINTS}</BodyStrong>
-            <Caption>Kabuuang Puntos</Caption>
+            <Caption>{t('totalPointsLabel')}</Caption>
           </Card>
           <Card style={styles.statCard}>
             <Icon name="check" size={20} color={tokens.color.success} strokeWidth={3} />
             <BodyStrong>{overallTotals.attempts}</BodyStrong>
-            <Caption>Gawaing Natapos</Caption>
+            <Caption>{t('activitiesDoneLabel')}</Caption>
           </Card>
           <Card style={styles.statCard}>
             <Icon name="clock" size={20} color={tokens.color.inkMuted} />
             <BodyStrong>{formatTime(overallTotals.totalTimeUsed)}</BodyStrong>
-            <Caption>Kabuuang Oras</Caption>
+            <Caption>{t('totalTimeLabel')}</Caption>
           </Card>
         </View>
 
         <View style={styles.paceRow}>
           <Pill
-            label={paceMeta.label}
+            label={t(paceMeta.labelKey)}
             icon={paceMeta.icon}
             tone="neutral"
             style={{ backgroundColor: paceMeta.color, borderColor: 'transparent' }}
           />
           <View style={styles.paceStarsWrap}>
             <StarRow earned={Math.round(overallTotals.avgStars)} of={3} size={15} />
-            <Caption>({overallTotals.avgStars.toFixed(1)} avg)</Caption>
+            <Caption>{t('avgSuffix', { avg: overallTotals.avgStars.toFixed(1) })}</Caption>
           </View>
         </View>
 
@@ -215,7 +217,7 @@ export default function StudentSummaryScreen() {
           >
             <Icon name="chart" size={15} color={viewMode === 'summary' ? tokens.color.onDark : tokens.color.ink} />
             <Caption style={viewMode === 'summary' ? styles.viewToggleTextActive : styles.viewToggleText}>
-              Buod (Category/Level)
+              {t('viewSummaryToggle')}
             </Caption>
           </TouchableOpacity>
           <TouchableOpacity
@@ -224,14 +226,14 @@ export default function StudentSummaryScreen() {
           >
             <Icon name="clock" size={15} color={viewMode === 'history' ? tokens.color.onDark : tokens.color.ink} />
             <Caption style={viewMode === 'history' ? styles.viewToggleTextActive : styles.viewToggleText}>
-              Kasaysayan (Lahat ng Gawain)
+              {t('viewHistoryToggle')}
             </Caption>
           </TouchableOpacity>
         </View>
 
-        {!ready && <Body style={styles.emptyText}>Naglo-load...</Body>}
+        {!ready && <Body style={styles.emptyText}>{t('loading')}</Body>}
         {ready && allAttempts.length === 0 && (
-          <Body style={styles.emptyText}>Wala pang natatapos na gawain ang estudyanteng ito.</Body>
+          <Body style={styles.emptyText}>{t('noActivityForStudent')}</Body>
         )}
 
         {ready && allAttempts.length > 0 && viewMode === 'history' && (
@@ -245,23 +247,27 @@ export default function StudentSummaryScreen() {
                     <View style={styles.historyCategoryRow}>
                       <Icon name={r.activityType === 'jigsaw' ? 'puzzle' : 'quiz'} size={14} color={catColor} />
                       <BodyStrong style={{ color: catColor }} numberOfLines={1}>
-                        {meta.label}
+                        {t(meta.labelKey)}
                       </BodyStrong>
                     </View>
                     <Caption numberOfLines={1}>
-                      Level {r.level} · Activity {r.activityNum} · {formatDate(r.timestamp)}
+                      {t('historyRowLine', {
+                        level: r.level,
+                        num: r.activityNum,
+                        date: formatDate(r.timestamp),
+                      })}
                     </Caption>
                   </View>
                   <View style={styles.historyRowRight}>
                     <View style={styles.historyStatLine}>
                       <Icon name="medal" size={14} color={medalTint(r.medal)} filled={!!r.medal} />
                       <Caption style={styles.historyStatText}>
-                        {r.timedOut ? 'Timeout' : `${r.timeUsed}s`}
+                        {r.timedOut ? t('timeoutLabel') : t('secondsSuffix', { seconds: r.timeUsed })}
                       </Caption>
                     </View>
                     <View style={styles.historyStatLine}>
                       <Icon name="star" size={13} color={tokens.color.gold} filled />
-                      <BodyStrong style={styles.historyStatPoints}>{r.points} pts</BodyStrong>
+                      <BodyStrong style={styles.historyStatPoints}>{t('pointsSuffixShort', { points: r.points })}</BodyStrong>
                     </View>
                   </View>
                 </Card>
@@ -284,9 +290,11 @@ export default function StudentSummaryScreen() {
                   <TouchableOpacity style={styles.categoryHeader} onPress={() => toggleCategory(c.key)}>
                     <View style={[styles.categoryDot, { backgroundColor: catColor }]} />
                     <View style={styles.categoryHeaderMain}>
-                      <BodyStrong style={{ color: catColor }}>{c.label}</BodyStrong>
+                      <BodyStrong style={{ color: catColor }}>{t(c.labelKey)}</BodyStrong>
                       <Caption>
-                        {totals.attempts > 0 ? `${totals.totalPoints} pts · ${totals.attempts} gawain` : 'Wala pang gawain'}
+                        {totals.attempts > 0
+                          ? t('categoryTotalsLine', { points: totals.totalPoints, attempts: totals.attempts })
+                          : t('noActivityShort')}
                       </Caption>
                     </View>
                     <View style={isExpanded ? styles.chevronExpanded : undefined}>
@@ -297,21 +305,21 @@ export default function StudentSummaryScreen() {
                   {isExpanded && (
                     <View style={styles.categoryBody}>
                       <View style={styles.typeRow}>
-                        {ACTIVITY_TYPES.map((t) => {
-                          const active = currentType === t.key;
+                        {ACTIVITY_TYPES.map((type) => {
+                          const active = currentType === type.key;
                           return (
                             <TouchableOpacity
-                              key={t.key}
+                              key={type.key}
                               style={[
                                 styles.typeChip,
                                 { borderColor: catColor },
                                 active && { backgroundColor: catColor },
                               ]}
-                              onPress={() => setActiveType((cur) => ({ ...cur, [c.key]: t.key }))}
+                              onPress={() => setActiveType((cur) => ({ ...cur, [c.key]: type.key }))}
                             >
-                              <Icon name={t.icon} size={14} color={active ? tokens.color.onDark : catColor} />
+                              <Icon name={type.icon} size={14} color={active ? tokens.color.onDark : catColor} />
                               <Caption style={{ color: active ? tokens.color.onDark : catColor, fontFamily: tokens.font.bodyBold }}>
-                                {t.label}
+                                {t(type.labelKey)}
                               </Caption>
                             </TouchableOpacity>
                           );
@@ -324,11 +332,11 @@ export default function StudentSummaryScreen() {
                           <TouchableOpacity
                             key={lvl}
                             style={styles.levelRow}
-                            onPress={() => openLevel(c.key, c.label, catColor, currentType, lvl)}
+                            onPress={() => openLevel(c.key, t(c.labelKey), catColor, currentType, lvl)}
                             disabled={!stats.attempted}
                           >
                             <View style={styles.levelRowLeft}>
-                              <Caption style={styles.levelRowLabel}>Level {lvl}</Caption>
+                              <Caption style={styles.levelRowLabel}>{t('levelNum', { n: lvl })}</Caption>
                               {stats.attempted && (
                                 <View style={styles.levelRowProgress}>
                                   <ProgressBar value={stats.passedCount / 6} color={catColor} height={6} />
@@ -338,13 +346,13 @@ export default function StudentSummaryScreen() {
                             {stats.attempted ? (
                               <View style={styles.levelRowStats}>
                                 <Icon name="medal" size={15} color={medalTint(stats.medal)} filled={!!stats.medal} />
-                                <Caption style={styles.levelRowStat}>{stats.passedCount}/6</Caption>
-                                <BodyStrong style={styles.levelRowPoints}>{stats.totalPoints} pts</BodyStrong>
+                                <Caption style={styles.levelRowStat}>{t('passedOfSix', { passed: stats.passedCount })}</Caption>
+                                <BodyStrong style={styles.levelRowPoints}>{t('pointsSuffixShort', { points: stats.totalPoints })}</BodyStrong>
                                 <Caption style={styles.levelRowStatSmall}>{formatTime(stats.totalTime)}</Caption>
                                 <Icon name="chevronRight" size={16} color={tokens.color.inkFaint} />
                               </View>
                             ) : (
-                              <Caption style={styles.levelRowEmpty}>Wala pang gawain</Caption>
+                              <Caption style={styles.levelRowEmpty}>{t('noActivityShort')}</Caption>
                             )}
                           </TouchableOpacity>
                         );

@@ -2,18 +2,20 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLanguage } from '@/shared/i18n/language-context';
 
 export default function ComingSoonScreen() {
   const router = useRouter();
-  const { title = 'Coming Soon' } = useLocalSearchParams<{ title?: string }>();
+  const { t } = useLanguage();
+  const { title } = useLocalSearchParams<{ title?: string }>();
 
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.emoji}>🚧</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>Nasa proseso pa ito ng paggawa. Balik ka na lang mamaya!</Text>
+      <Text style={styles.title}>{title || t('comingSoonTitle')}</Text>
+      <Text style={styles.subtitle}>{t('comingSoonSubtitle')}</Text>
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backButtonText}>← Bumalik</Text>
+        <Text style={styles.backButtonText}>{t('backBtn')}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

@@ -9,6 +9,7 @@ import {
   type StoredSession,
 } from './session';
 import type { ApiTokenPair } from './types';
+import { translate } from '@/shared/i18n/language-context';
 
 /**
  * Every error the API returns shares one envelope (juanwise-be
@@ -57,13 +58,13 @@ export function fieldErrors(error: unknown): string[] {
 }
 
 /** The message to put in an Alert for any thrown value. */
-export function errorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+export function errorMessage(error: unknown, fallback?: string): string {
   if (error instanceof ApiError) {
     const extra = fieldErrors(error);
     return extra.length ? `${error.message}\n\n• ${extra.join('\n• ')}` : error.message;
   }
   if (error instanceof Error && error.message) return error.message;
-  return fallback;
+  return fallback ?? translate('errGeneric');
 }
 
 type QueryValue = string | number | boolean | undefined | null;
@@ -115,7 +116,7 @@ function toApiError(status: number, payload: unknown): ApiError {
   return new ApiError(
     status,
     error?.code ?? 'UNKNOWN',
-    error?.message ?? `Request failed (${status}).`,
+    error?.message ?? translate('errRequestFailed', { status }),
     error?.details,
   );
 }
@@ -136,9 +137,9 @@ async function fetchWithTimeout(url: string, init: RequestInit, signal?: AbortSi
   } catch (err) {
     if (signal?.aborted) throw err;
     if ((err as Error)?.name === 'AbortError') {
-      throw new ApiError(0, NETWORK_ERROR_CODE, 'The server took too long to respond. Check your connection and try again.');
+      throw new ApiError(0, NETWORK_ERROR_CODE, translate('errTimeout'));
     }
-    throw new ApiError(0, NETWORK_ERROR_CODE, 'Could not reach the JuanWise server. Check your internet connection.');
+    throw new ApiError(0, NETWORK_ERROR_CODE, translate('errNetwork'));
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onExternalAbort);
@@ -203,7 +204,7 @@ async function send<T>(path: string, options: RequestOptions, retryOn401: boolea
   if (auth) {
     const session = await validSession();
     if (!session) {
-      throw new ApiError(401, 'UNAUTHENTICATED', 'You are signed out. Please sign in again.');
+      throw new ApiError(401, 'UNAUTHENTICATED', translate('errUnauthenticated'));
     }
     headers.Authorization = `Bearer ${session.idToken}`;
   }
@@ -298,7 +299,7 @@ export async function uploadToSignedUrl(
   });
 
   if (!response.ok) {
-    throw new ApiError(response.status, 'UPLOAD_FAILED', 'The image could not be uploaded. Please try again.');
+    throw new ApiError(response.status, 'UPLOAD_FAILED', translate('errUploadFailed'));
   }
 }
 

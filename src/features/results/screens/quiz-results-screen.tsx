@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { useStudentResults, ActivityResult } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
+import { useLanguage } from '@/shared/i18n/language-context';
 import { useRouter } from 'expo-router';
 import { Screen, ScreenHeader, Card, Button, Icon, Body, BodyStrong, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
@@ -16,6 +17,7 @@ function medalTint(medal: ActivityResult['medal']) {
 
 export default function QuizResultsScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { uid } = useUser();
   const { results, ready } = useStudentResults();
 
@@ -34,23 +36,20 @@ export default function QuizResultsScreen() {
   return (
     <Screen>
       <ScreenHeader
-        title="Quiz Results"
-        subtitle={`${quizResults.length} tamang sagot · ${totalPoints} kabuuang puntos`}
+        title={t('quizResultsTitle')}
+        subtitle={t('quizResultsSubtitle', { count: quizResults.length, points: totalPoints })}
         color={tokens.color.navQuiz}
         onBack={() => router.back()}
       />
 
       <ScrollView contentContainerStyle={styles.list}>
-        {!ready && <Body style={styles.emptyText}>Naglo-load...</Body>}
+        {!ready && <Body style={styles.emptyText}>{t('loading')}</Body>}
         {ready && quizResults.length === 0 && (
           <View style={styles.emptyWrap}>
             <Icon name="quiz" size={40} color={tokens.color.inkFaint} />
-            <Body style={styles.emptyText}>
-              Wala ka pang natatapos na Quiz. Pumunta sa Categories at subukan ang isang Quiz
-              activity para makita dito ang resulta mo.
-            </Body>
+            <Body style={styles.emptyText}>{t('noQuizResultsYet')}</Body>
             <Button
-              label="Pumunta sa Categories"
+              label={t('goToCategories')}
               onPress={() => router.navigate('/categories')}
               color={tokens.color.navQuiz}
               style={styles.emptyButton}
@@ -65,11 +64,9 @@ export default function QuizResultsScreen() {
             <Card key={r.id} style={styles.row}>
               <View style={styles.rowLeft}>
                 <BodyStrong style={{ color: categoryColor(r.category).base }} numberOfLines={1}>
-                  {meta.label}
+                  {t(meta.labelKey)}
                 </BodyStrong>
-                <Caption>
-                  Level {r.level} · Activity {r.activityNum}
-                </Caption>
+                <Caption>{t('levelActivityLine', { level: r.level, num: r.activityNum })}</Caption>
               </View>
               <View style={styles.rowStats}>
                 <View style={styles.rowStatLine}>
@@ -79,9 +76,9 @@ export default function QuizResultsScreen() {
                     <Caption>—</Caption>
                   )}
                   <Icon name="clock" size={13} color={tokens.color.inkMuted} />
-                  <Caption>{r.timeUsed}s</Caption>
+                  <Caption>{t('secondsSuffix', { seconds: r.timeUsed })}</Caption>
                 </View>
-                <BodyStrong style={styles.rowPoints}>{r.points} pts</BodyStrong>
+                <BodyStrong style={styles.rowPoints}>{t('pointsSuffixShort', { points: r.points })}</BodyStrong>
               </View>
             </Card>
           );

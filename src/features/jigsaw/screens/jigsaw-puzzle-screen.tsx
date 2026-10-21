@@ -8,8 +8,11 @@ import { useClassContent } from '@/features/learning/context/class-content-conte
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
 import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
+import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
-import { errorMessage } from '@/shared/api';
+import { useSound } from '@/shared/audio/sound-context';
+import { getCategoryMeta } from '@/shared/content/category-meta';
+import { ApiError, errorMessage } from '@/shared/api';
 import { generateEdgeMap, getPieceEdges, piecePathD } from '@/features/jigsaw/lib/jigsaw-shapes';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
@@ -65,15 +68,16 @@ export default function JigsawPuzzleScreen() {
     pieceCount: string;
     difficulty: string;
   }>();
-  const { category, label, color, difficulty } = params;
+  const { category, color, difficulty } = params;
   const level = toNum(params.level, 1);
   const activityNum = toNum(params.activityNum, 1);
   const pieceCount = toNum(params.pieceCount, 6);
-  const { completeActivity, failActivity } = useGameProgress();
+  const { recordOutcome, refresh: refreshProgress } = useGameProgress();
   const { addResult } = useStudentResults();
   const { name: studentName } = useUser();
   const { getEffectiveCategoryContent } = useClassContent();
   const { t } = useLanguage();
+  const label = t(getCategoryMeta(category).labelKey) || params.label;
   const cat = categoryColor(category);
 
   const { rows, cols } = getGrid(pieceCount);
@@ -128,6 +132,7 @@ export default function JigsawPuzzleScreen() {
   const [dragPieceId, setDragPieceId] = useState<number | null>(null);
   const dragXY = useRef(new Animated.ValueXY()).current;
 
+  const { playSfx } = useSound();
   const [phase, setPhase] = useState<Phase>('playing');
   const phaseRef = useRef(phase);
   useEffect(() => {
@@ -136,6 +141,14 @@ export default function JigsawPuzzleScreen() {
 
   const [result, setResult] = useState<(ActivityTimerResult & { stars: number; points: number }) | null>(null);
   const [queued, setQueued] = useState(false);
+  const [attemptSeq, setAttemptSeq] = useState(0);
+  // After a fail: how many tries remain, or that the activity is now closed.
+  const triesLine = (seq: number) => {
+    const left = triesLeft(seq);
+    return left > 0
+      ? t('triesLeftAfterFail', { n: left, tries: t(left === 1 ? 'tryWordOne' : 'tryWordMany') })
+      : t('activityFinishedNoTries');
+  };
 
   // Shows a zoomed-in reveal of the completed picture the moment the puzzle
   // is solved, before the activity-results modal appears.
@@ -197,6 +210,7 @@ export default function JigsawPuzzleScreen() {
       });
 
       setQueued(queued);
+      setAttemptSeq(recorded.attemptSeq);
       setResult({
         ...timerResult,
         medal: recorded.medal,
@@ -205,14 +219,25 @@ export default function JigsawPuzzleScreen() {
       });
 
       if (recorded.medal) {
-        await completeActivity(category, 'jigsaw', level, activityNum);
+        recordOutcome(category, 'jigsaw', level, activityNum, true, recorded.attemptSeq, { queued });
+        playSfx('complete');
         setTimeout(() => setPhase('success'), 250);
       } else {
-        await failActivity(category, 'jigsaw', level, activityNum);
+        recordOutcome(category, 'jigsaw', level, activityNum, false, recorded.attemptSeq, { queued });
+        playSfx('wrong');
         setPhase('failed');
       }
     } catch (err) {
-      Alert.alert('Hindi Naitala', errorMessage(err, 'Hindi naitala ang resulta mo. Subukan ulit.'));
+      if (err instanceof ApiError && err.status === 409) {
+        // The server has no try left for this activity (cap reached or already
+        // passed). Retrying here can never succeed, so sync the cards and leave.
+        void refreshProgress();
+        Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedResultMsg')), [
+          { text: t('okBtn'), onPress: () => router.back() },
+        ], { cancelable: false });
+        return;
+      }
+      Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedResultMsg')));
       phaseRef.current = 'playing';
       setPhase('playing');
     }
@@ -295,6 +320,8 @@ export default function JigsawPuzzleScreen() {
             next.add(pieceId);
             placedRef.current = next;
             setPlacedIds(next);
+            // The last piece is answered by `complete` once the result lands.
+            if (next.size < pieceCount) playSfx('snap');
             setDragPieceId(null);
             dragXY.setValue({ x: 0, y: 0 });
             handleWin(next);
@@ -357,7 +384,7 @@ export default function JigsawPuzzleScreen() {
   return (
     <Screen>
       <ScreenHeader
-        title={`${label} — ${t('level')} ${level}`}
+        title={t('headerLevelTitle', { label, level })}
         color={color}
         right={
           <ActivityTimer
@@ -376,7 +403,7 @@ export default function JigsawPuzzleScreen() {
       </ScreenHeader>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Caption style={styles.hintText}>Drag the pieces below into the board to complete the picture</Caption>
+        <Caption style={styles.hintText}>{t('dragPiecesHint')}</Caption>
 
         <View style={styles.progressRow}>
           <View style={styles.progressBarWrap}>
@@ -529,7 +556,7 @@ export default function JigsawPuzzleScreen() {
                 <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.successSoft }]}>
                   <Icon name="puzzle" size={22} color={tokens.color.success} strokeWidth={3} />
                 </View>
-                <H2 style={styles.successTitle}>Picture Complete!</H2>
+                <H2 style={styles.successTitle}>{t('pictureComplete')}</H2>
               </View>
               <Image source={puzzleImage} style={styles.revealImage} resizeMode="cover" />
               <BodyStrong style={styles.revealCaption}>{content.title ?? label}</BodyStrong>
@@ -549,13 +576,13 @@ export default function JigsawPuzzleScreen() {
                 >
                   <View style={styles.revealLessonHeadingRow}>
                     <Icon name="book" size={14} color={tokens.color.goldDark} />
-                    <Caption style={styles.revealLessonHeading}>Alamin</Caption>
+                    <Caption style={styles.revealLessonHeading}>{t('learnMoreBtn')}</Caption>
                   </View>
                   <Body style={styles.revealLesson}>{content.context}</Body>
                 </ScrollView>
               )}
               <Button
-                label="Continue"
+                label={t('continueBtn')}
                 onPress={() => setRevealSeen(true)}
                 color={cat.base}
                 shadowColor={cat.dark}
@@ -575,26 +602,26 @@ export default function JigsawPuzzleScreen() {
               <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.successSoft }]}>
                 <Icon name="check" size={22} color={tokens.color.success} strokeWidth={3} />
               </View>
-              <H2 style={styles.successTitle}>Activity Complete!</H2>
+              <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
             <View style={styles.detailBlock}>
-              <Body style={styles.detailLine}>Student: {studentName}</Body>
+              <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
                 <Icon name="clock" size={15} color={tokens.color.inkMuted} />
-                <Body style={styles.detailLine}>Time: {formatTime(result?.timeUsed)}</Body>
+                <Body style={styles.detailLine}>{t('detailTime', { time: formatTime(result?.timeUsed) })}</Body>
               </View>
               <View style={styles.detailRow}>
-                <Body style={styles.detailLine}>Stars Earned:</Body>
+                <Body style={styles.detailLine}>{t('starsEarnedLabel')}</Body>
                 <StarRow earned={result?.stars ?? 0} />
               </View>
-              <Body style={styles.detailLine}>Points: {result?.points ?? 0} pts</Body>
-              <Body style={styles.detailLine}>Category: {label}</Body>
-              <Body style={styles.detailLine}>Activity Type: Jigsaw Puzzle ({pieceCount} pieces)</Body>
-              <Body style={styles.detailLine}>Activity #: {activityNum} of 6 · Level {level}/5</Body>
-              {queued && <Caption style={styles.queuedLine}>Offline — ipapadala ang resultang ito pagbalik ng internet.</Caption>}
+              <Body style={styles.detailLine}>{t('detailPoints', { points: result?.points ?? 0 })}</Body>
+              <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
+              <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
+              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button
-              label="Proceed to Next Activity"
+              label={t('proceedNextActivity')}
               onPress={handleContinue}
               color={cat.base}
               shadowColor={cat.dark}
@@ -613,26 +640,27 @@ export default function JigsawPuzzleScreen() {
               <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.dangerSoft }]}>
                 <Icon name="close" size={22} color={tokens.color.danger} strokeWidth={3} />
               </View>
-              <H2 style={styles.timeUpTitle}>Activity Complete (Incorrect)</H2>
+              <H2 style={styles.timeUpTitle}>{t('activityCompleteIncorrect')}</H2>
             </View>
             <View style={styles.detailBlock}>
-              <Body style={styles.detailLine}>Student: {studentName}</Body>
+              <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
                 <Icon name="clock" size={15} color={tokens.color.inkMuted} />
-                <Body style={styles.detailLine}>Time: {formatTime(result?.timeUsed)}</Body>
+                <Body style={styles.detailLine}>{t('detailTime', { time: formatTime(result?.timeUsed) })}</Body>
               </View>
               <View style={styles.detailRow}>
                 <Icon name="flag" size={15} color={tokens.color.danger} />
-                <BodyStrong style={styles.flagLine}>Status: Failed / Incomplete (Needs Retry)</BodyStrong>
+                <BodyStrong style={styles.flagLine}>{t('statusFailedIncomplete')}</BodyStrong>
               </View>
-              <Body style={styles.detailLine}>Points: 0 pts</Body>
-              <Body style={styles.detailLine}>Category: {label}</Body>
-              <Body style={styles.detailLine}>Activity Type: Jigsaw Puzzle ({pieceCount} pieces)</Body>
-              <Body style={styles.detailLine}>Activity #: {activityNum} of 6 · Level {level}/5</Body>
-              {queued && <Caption style={styles.queuedLine}>Offline — ipapadala ang resultang ito pagbalik ng internet.</Caption>}
+              <Body style={styles.detailLine}>{t('pointsZero')}</Body>
+              <Body style={styles.detailLine}>{triesLine(attemptSeq)}</Body>
+              <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
+              <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
+              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button
-              label="Proceed to other Activity — maybe you can form it, try it"
+              label={t('proceedOtherActivityForm')}
               onPress={handleContinue}
               color={cat.base}
               shadowColor={cat.dark}

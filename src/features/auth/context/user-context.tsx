@@ -12,6 +12,7 @@ import {
   writeCache,
   type ApiUserProfile,
 } from '@/shared/api';
+import { useLanguage } from '@/shared/i18n/language-context';
 
 /**
  * The signed-in user, backed by the API instead of AsyncStorage.
@@ -143,6 +144,7 @@ type UserContextType = UserProfile & {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE);
   const [signedIn, setSignedIn] = useState(false);
   const [ready, setReady] = useState(false);
@@ -174,9 +176,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       // Offline or a server hiccup — keep whatever is on screen and say so.
-      setError(err instanceof Error ? err.message : 'Could not refresh your profile.');
+      setError(err instanceof Error ? err.message : t('profileRefreshFailedMsg'));
     }
-  }, [apply]);
+  }, [apply, t]);
 
   // On launch: show the cached profile immediately, then reconcile with the API.
   useEffect(() => {
@@ -278,10 +280,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const requestPasswordReset: UserContextType['requestPasswordReset'] = useCallback(
     async (email) => {
       const target = (email ?? profile.email).trim();
-      if (!target) throw new Error('No email address on file for this account.');
+      if (!target) throw new Error(t('noEmailOnFileMsg'));
       await authApi.forgotPassword(target);
     },
-    [profile.email],
+    [profile.email, t],
   );
 
   const value = useMemo<UserContextType>(

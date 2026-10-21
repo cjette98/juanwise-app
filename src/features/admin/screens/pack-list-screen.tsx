@@ -5,11 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { packsApi, errorMessage, type ApiPack } from '@/shared/api';
 import { useUser } from '@/features/auth/context/user-context';
+import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 
-const STATUS_LABEL: Record<ApiPack['status'], string> = {
-  draft: 'Draft',
-  published: 'Live',
-  archived: 'Archived',
+const STATUS_LABEL_KEY: Record<ApiPack['status'], TranslationKey> = {
+  draft: 'packDraft',
+  published: 'packLive',
+  archived: 'packArchived',
 };
 
 const STATUS_COLOR: Record<ApiPack['status'], string> = {
@@ -20,6 +21,7 @@ const STATUS_COLOR: Record<ApiPack['status'], string> = {
 
 export default function PackListScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { uid, role } = useUser();
   const [packs, setPacks] = useState<ApiPack[]>([]);
   const [ready, setReady] = useState(false);
@@ -36,11 +38,11 @@ export default function PackListScreen() {
       setPacks(items);
       setError(null);
     } catch (err) {
-      setError(errorMessage(err, 'Hindi na-load ang Activity Management.'));
+      setError(errorMessage(err, t('packLoadFailedMsg')));
     } finally {
       setReady(true);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -48,7 +50,7 @@ export default function PackListScreen() {
 
   const handleCreate = async () => {
     if (!newName.trim()) {
-      Alert.alert('Kulang na Impormasyon', 'Maglagay ng pangalan para sa bagong pack.');
+      Alert.alert(t('missingInfo'), t('packNameRequiredMsg'));
       return;
     }
     setBusyId('__create__');
@@ -59,7 +61,7 @@ export default function PackListScreen() {
       await load();
       router.navigate({ pathname: '/admin-content-manager', params: { packId: created.id } });
     } catch (err) {
-      Alert.alert('Hindi Nagawa', errorMessage(err, 'Hindi nagawa ang bagong pack.'));
+      Alert.alert(t('packCreateFailedTitle'), errorMessage(err, t('packCreateFailedMsg')));
     } finally {
       setBusyId(null);
     }
@@ -71,7 +73,7 @@ export default function PackListScreen() {
       await packsApi.duplicate(pack.id);
       await load();
     } catch (err) {
-      Alert.alert('Hindi Nakopya', errorMessage(err, 'Hindi nakopya ang pack.'));
+      Alert.alert(t('packCopyFailedTitle'), errorMessage(err, t('packCopyFailedMsg')));
     } finally {
       setBusyId(null);
     }
@@ -83,7 +85,7 @@ export default function PackListScreen() {
       await packsApi.publish(pack.id);
       await load();
     } catch (err) {
-      Alert.alert('Hindi Na-publish', errorMessage(err, 'Hindi na-publish ang pack.'));
+      Alert.alert(t('packPublishFailedTitle'), errorMessage(err, t('packPublishFailedMsg')));
     } finally {
       setBusyId(null);
     }
@@ -95,7 +97,7 @@ export default function PackListScreen() {
       await packsApi.archive(pack.id);
       await load();
     } catch (err) {
-      Alert.alert('Hindi Na-archive', errorMessage(err, 'Hindi na-archive ang pack.'));
+      Alert.alert(t('packArchiveFailedTitle'), errorMessage(err, t('packArchiveFailedMsg')));
     } finally {
       setBusyId(null);
     }
@@ -107,8 +109,8 @@ export default function PackListScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Activity Management</Text>
-        <Text style={styles.headerSubtitle}>Gumawa, kopyahin, o i-publish ang iyong Activity Management</Text>
+        <Text style={styles.headerTitle}>{t('managePacksBtn')}</Text>
+        <Text style={styles.headerSubtitle}>{t('packListSubtitle')}</Text>
       </View>
 
       {!!error && (
@@ -122,19 +124,19 @@ export default function PackListScreen() {
         {!ready && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator color="#3B7DD8" />
-            <Text style={styles.loadingText}>Kinukuha ang mga pack mula sa server...</Text>
+            <Text style={styles.loadingText}>{t('packFetching')}</Text>
           </View>
         )}
 
         {ready && (
           creating ? (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Bagong Pack</Text>
+              <Text style={styles.cardTitle}>{t('newPackBtn')}</Text>
               <TextInput
                 style={styles.input}
                 value={newName}
                 onChangeText={setNewName}
-                placeholder="Pangalan ng pack..."
+                placeholder={t('packNamePlaceholder')}
                 autoFocus
               />
               <View style={styles.cardActions}>
@@ -143,17 +145,17 @@ export default function PackListScreen() {
                   onPress={handleCreate}
                   disabled={busyId === '__create__'}
                 >
-                  {busyId === '__create__' ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.actionBtnText}>Gawin</Text>}
+                  {busyId === '__create__' ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.actionBtnText}>{t('createBtn')}</Text>}
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={() => setCreating(false)}>
-                  <Text style={styles.actionBtnText}>Kanselahin</Text>
+                  <Text style={styles.actionBtnText}>{t('cancelBtn')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
             <TouchableOpacity style={styles.newPackBtn} onPress={() => setCreating(true)}>
               <Ionicons name="add-circle-outline" size={18} color="#3B7DD8" />
-              <Text style={styles.newPackBtnText}>Bagong Pack</Text>
+              <Text style={styles.newPackBtnText}>{t('newPackBtn')}</Text>
             </TouchableOpacity>
           )
         )}
@@ -166,11 +168,17 @@ export default function PackListScreen() {
               <View style={styles.cardTop}>
                 <Text style={styles.cardTitle}>{pack.name}</Text>
                 <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[pack.status] }]}>
-                  <Text style={styles.statusBadgeText}>{STATUS_LABEL[pack.status]}</Text>
+                  <Text style={styles.statusBadgeText}>{t(STATUS_LABEL_KEY[pack.status])}</Text>
                 </View>
               </View>
               <Text style={styles.cardMeta}>
-                v{pack.version} · {pack.classCount > 0 ? `Ginagamit ng ${pack.classCount} klase` : 'Walang gumagamit'}
+                {t('packVersionMeta', {
+                  version: pack.version,
+                  usage:
+                    pack.classCount > 0
+                      ? t('packUsedByClasses', { count: pack.classCount })
+                      : t('packUsedByNone'),
+                })}
               </Text>
 
               <View style={styles.cardActions}>
@@ -180,13 +188,13 @@ export default function PackListScreen() {
                       style={[styles.actionBtn, styles.primaryBtn]}
                       onPress={() => router.navigate({ pathname: '/admin-content-manager', params: { packId: pack.id } })}
                     >
-                      <Text style={styles.actionBtnText}>I-edit ang Quiz</Text>
+                      <Text style={styles.actionBtnText}>{t('editQuizBtn')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.actionBtn, styles.purpleBtn]}
                       onPress={() => router.navigate({ pathname: '/jigsaw-content', params: { packId: pack.id } })}
                     >
-                      <Text style={styles.actionBtnText}>I-edit ang Jigsaw</Text>
+                      <Text style={styles.actionBtnText}>{t('editJigsawBtn')}</Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -195,7 +203,7 @@ export default function PackListScreen() {
                   onPress={() => handleDuplicate(pack)}
                   disabled={busy}
                 >
-                  <Text style={styles.actionBtnText}>Kopyahin</Text>
+                  <Text style={styles.actionBtnText}>{t('copyCode')}</Text>
                 </TouchableOpacity>
                 {owned && pack.status === 'draft' && (
                   <TouchableOpacity
@@ -203,7 +211,7 @@ export default function PackListScreen() {
                     onPress={() => handlePublish(pack)}
                     disabled={busy}
                   >
-                    <Text style={styles.actionBtnText}>I-publish</Text>
+                    <Text style={styles.actionBtnText}>{t('publishBtn')}</Text>
                   </TouchableOpacity>
                 )}
                 {owned && pack.status !== 'archived' && (
@@ -212,7 +220,7 @@ export default function PackListScreen() {
                     onPress={() => handleArchive(pack)}
                     disabled={busy}
                   >
-                    <Text style={styles.actionBtnText}>I-archive</Text>
+                    <Text style={styles.actionBtnText}>{t('archiveBtn')}</Text>
                   </TouchableOpacity>
                 )}
               </View>

@@ -28,3 +28,16 @@ export function computePerformanceScore(
   const normSpeed = maxActivityTimeSeconds > 0 ? Math.max(0, 1 - avgTimeUsed / maxActivityTimeSeconds) : 0;
   return PERFORMANCE_POINTS_WEIGHT * normPoints + PERFORMANCE_SPEED_WEIGHT * normSpeed;
 }
+
+/**
+ * Mean attemptSeq over the passing entries of an already-canonical list,
+ * rounded to 1 decimal; null when nothing passed.
+ */
+export function averageTriesToPass(
+  canonical: { medal: unknown; attemptSeq: number }[],
+): number | null {
+  const passes = canonical.filter((e) => e.medal);
+  if (passes.length === 0) return null;
+  const mean = passes.reduce((sum, e) => sum + e.attemptSeq, 0) / passes.length;
+  return Math.round(mean * 10) / 10;
+}

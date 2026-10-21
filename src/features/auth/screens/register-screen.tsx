@@ -185,7 +185,7 @@ export default function RegisterScreen() {
         },
       ]);
     } catch (err) {
-      Alert.alert(t('missingInfo'), errorMessage(err, 'Hindi nakumpleto ang pagpaparehistro.'));
+      Alert.alert(t('missingInfo'), errorMessage(err, t('registerIncompleteMsg')));
     } finally {
       setBusy(false);
     }

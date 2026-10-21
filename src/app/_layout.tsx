@@ -7,6 +7,7 @@ import { useFonts, Baloo2_700Bold, Baloo2_800ExtraBold } from '@expo-google-font
 import { Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
 
 import { LanguageProvider } from '@/shared/i18n/language-context';
+import { SoundProvider } from '@/shared/audio/sound-context';
 import { UserProvider } from '@/features/auth/context/user-context';
 import { StudentResultsProvider } from '@/features/results/context/student-results-context';
 import { GameProgressProvider } from '@/features/learning/context/game-progress-context';
@@ -38,26 +39,28 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <LanguageProvider>
-        {/* Order matters now that these read from the API: UserProvider owns the
-            session every other request needs, ClassProvider resolves the classId
-            the teacher's results are scoped by, and StudentResultsProvider reads
-            both. */}
-        <UserProvider>
-          <ClassProvider>
-            <StudentResultsProvider>
-              <GameProgressProvider>
-                <AdminContentProvider>
-                  <ClassContentProvider>
-                    <StatusBar style="auto" />
-                    {/* Every screen draws its own header/background, exactly as the
-                        original native-stack did with headerShown: false. */}
-                    <Stack screenOptions={{ headerShown: false }} />
-                  </ClassContentProvider>
-                </AdminContentProvider>
-              </GameProgressProvider>
-            </StudentResultsProvider>
-          </ClassProvider>
-        </UserProvider>
+        <SoundProvider>
+          {/* Order matters now that these read from the API: UserProvider owns the
+              session every other request needs, ClassProvider resolves the classId
+              the teacher's results are scoped by, and StudentResultsProvider reads
+              both. */}
+          <UserProvider>
+            <ClassProvider>
+              <StudentResultsProvider>
+                <GameProgressProvider>
+                  <AdminContentProvider>
+                    <ClassContentProvider>
+                      <StatusBar style="auto" />
+                      {/* Every screen draws its own header/background, exactly as the
+                          original native-stack did with headerShown: false. */}
+                      <Stack screenOptions={{ headerShown: false }} />
+                    </ClassContentProvider>
+                  </AdminContentProvider>
+                </GameProgressProvider>
+              </StudentResultsProvider>
+            </ClassProvider>
+          </UserProvider>
+        </SoundProvider>
       </LanguageProvider>
     </SafeAreaProvider>
   );

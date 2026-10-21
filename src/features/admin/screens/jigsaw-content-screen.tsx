@@ -5,18 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-
-const CATEGORIES = [
-  { key: 'history', label: 'History', color: '#2E6FB8' },
-  { key: 'culture', label: 'Culture & Tradition', color: '#C9631D' },
-  { key: 'geography', label: 'Geography', color: '#3E9E4F' },
-  { key: 'festival', label: 'Festival Arts', color: '#B84FA0' },
-  { key: 'national', label: 'National Symbols', color: '#C4304A' },
-  { key: 'heroes', label: 'Filipino Heroes', color: '#8A5A2B' },
-];
+import { useLanguage } from '@/shared/i18n/language-context';
+import { CATEGORY_META as CATEGORIES } from '@/shared/content/category-meta';
 
 export default function JigsawContentScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { packId } = useLocalSearchParams<{ packId: string }>();
   const { isPackReady, error, ensurePackLoaded, getEffectiveCategoryContent, setCategoryImageUri, setCategoryContext, resetCategoryImage } =
     useAdminContent();
@@ -32,7 +26,7 @@ export default function JigsawContentScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>Walang napiling pack. Bumalik sa Activity Management.</Text>
+          <Text style={styles.errorBannerText}>{t('adminNoPackSelected')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -49,7 +43,7 @@ export default function JigsawContentScreen() {
   const pickImage = async (categoryKey: string) => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Kailangan ng Pahintulot', 'Payagan ang app na ma-access ang iyong mga larawan para makapili ng puzzle picture.');
+      Alert.alert(t('adminPermissionNeeded'), t('photoPermissionPuzzleMsg'));
       return;
     }
     const picked = await ImagePicker.launchImageLibraryAsync({
@@ -64,7 +58,7 @@ export default function JigsawContentScreen() {
     setBusyKey(categoryKey);
     try {
       const result = await setCategoryImageUri(packId, categoryKey, asset.uri, asset.mimeType ?? undefined);
-      if (!result.success) Alert.alert('Hindi Na-upload', result.message);
+      if (!result.success) Alert.alert(t('adminUploadFailedTitle'), result.message);
     } finally {
       setBusyKey(null);
     }
@@ -74,7 +68,7 @@ export default function JigsawContentScreen() {
     setBusyKey(categoryKey);
     try {
       const result = await resetCategoryImage(packId, categoryKey);
-      if (!result.success) Alert.alert('Hindi Naibalik', result.message);
+      if (!result.success) Alert.alert(t('adminRestoreFailedTitle'), result.message);
     } finally {
       setBusyKey(null);
     }
@@ -87,14 +81,14 @@ export default function JigsawContentScreen() {
 
   const saveLesson = async (categoryKey: string) => {
     if (!draftText.trim()) {
-      Alert.alert('Walang Laman', 'Maglagay ng teksto para sa mini-lesson.');
+      Alert.alert(t('adminEmptyTitle'), t('emptyMiniLessonMsg'));
       return;
     }
     setBusyKey(categoryKey);
     try {
       const result = await setCategoryContext(packId, categoryKey, draftText.trim());
       if (!result.success) {
-        Alert.alert('Hindi Na-save', result.message);
+        Alert.alert(t('adminSaveFailedTitle'), result.message);
         return;
       }
       setEditingKey(null);
@@ -109,8 +103,8 @@ export default function JigsawContentScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Jigsaw Pictures & Mini-Lessons</Text>
-        <Text style={styles.headerSubtitle}>Piliin ang larawan ng puzzle at i-edit ang mini-lesson bawat kategorya</Text>
+        <Text style={styles.headerTitle}>{t('jigsawContentTitle')}</Text>
+        <Text style={styles.headerSubtitle}>{t('jigsawContentSubtitle')}</Text>
       </View>
 
       {!!error && (
@@ -124,7 +118,7 @@ export default function JigsawContentScreen() {
         {!ready && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator color="#9B4FD6" />
-            <Text style={styles.loadingText}>Kinukuha ang nilalaman mula sa server...</Text>
+            <Text style={styles.loadingText}>{t('adminFetchingContent')}</Text>
           </View>
         )}
 
@@ -136,7 +130,7 @@ export default function JigsawContentScreen() {
             <View key={cat.key} style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={[styles.dot, { backgroundColor: cat.color }]} />
-                <Text style={styles.cardTitle}>{cat.label}</Text>
+                <Text style={styles.cardTitle}>{t(cat.labelKey)}</Text>
               </View>
 
               <Image source={content.image} style={styles.preview} resizeMode="cover" />
@@ -152,7 +146,7 @@ export default function JigsawContentScreen() {
                   ) : (
                     <Ionicons name="image-outline" size={16} color="#FFF" />
                   )}
-                  <Text style={styles.actionBtnText}>Palitan ang Larawan</Text>
+                  <Text style={styles.actionBtnText}>{t('changePictureBtn')}</Text>
                 </TouchableOpacity>
                 {content.hasCustomImage && (
                   <TouchableOpacity
@@ -161,7 +155,7 @@ export default function JigsawContentScreen() {
                     disabled={busy}
                   >
                     <Ionicons name="refresh-outline" size={16} color="#FFF" />
-                    <Text style={styles.actionBtnText}>Ibalik sa Default</Text>
+                    <Text style={styles.actionBtnText}>{t('restoreDefaultBtn')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -173,7 +167,7 @@ export default function JigsawContentScreen() {
                     value={draftText}
                     onChangeText={setDraftText}
                     multiline
-                    placeholder="I-type ang mini-lesson..."
+                    placeholder={t('typeMiniLesson')}
                   />
                   <View style={styles.lessonActions}>
                     <TouchableOpacity
@@ -181,21 +175,21 @@ export default function JigsawContentScreen() {
                       onPress={() => saveLesson(cat.key)}
                       disabled={busy}
                     >
-                      <Text style={styles.actionBtnText}>I-save</Text>
+                      <Text style={styles.actionBtnText}>{t('saveBtn')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.actionBtn, styles.resetBtn]}
                       onPress={() => setEditingKey(null)}
                       disabled={busy}
                     >
-                      <Text style={styles.actionBtnText}>Kanselahin</Text>
+                      <Text style={styles.actionBtnText}>{t('cancelBtn')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
                 <TouchableOpacity onPress={() => startEditingLesson(cat.key, content.context)}>
                   <Text style={styles.lessonText} numberOfLines={3}>{content.context}</Text>
-                  <Text style={[styles.editLessonLink, { color: cat.color }]}>✎ I-edit ang Mini-Lesson</Text>
+                  <Text style={[styles.editLessonLink, { color: cat.color }]}>{t('editMiniLessonBtn')}</Text>
                 </TouchableOpacity>
               )}
             </View>
