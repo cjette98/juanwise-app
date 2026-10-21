@@ -70,7 +70,7 @@ export default function JigsawPuzzleScreen() {
   const level = toNum(params.level, 1);
   const activityNum = toNum(params.activityNum, 1);
   const pieceCount = toNum(params.pieceCount, 6);
-  const { completeActivity, failActivity } = useGameProgress();
+  const { recordOutcome } = useGameProgress();
   const { addResult } = useStudentResults();
   const { name: studentName } = useUser();
   const { getEffectiveCategoryContent } = useClassContent();
@@ -207,10 +207,10 @@ export default function JigsawPuzzleScreen() {
       });
 
       if (recorded.medal) {
-        await completeActivity(category, 'jigsaw', level, activityNum);
+        recordOutcome(category, 'jigsaw', level, activityNum, true, recorded.attemptSeq);
         setTimeout(() => setPhase('success'), 250);
       } else {
-        await failActivity(category, 'jigsaw', level, activityNum);
+        recordOutcome(category, 'jigsaw', level, activityNum, false, recorded.attemptSeq);
         setPhase('failed');
       }
     } catch (err) {

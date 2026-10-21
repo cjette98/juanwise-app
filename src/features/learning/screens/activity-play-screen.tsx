@@ -56,7 +56,7 @@ export default function ActivityPlayScreen() {
   const { t } = useLanguage();
   const label = t(getCategoryMeta(category).labelKey) || params.label;
   const questionTypeLabel = (type: string) => (QUESTION_TYPE_KEYS[type] ? t(QUESTION_TYPE_KEYS[type]) : type);
-  const { completeActivity, failActivity } = useGameProgress();
+  const { recordOutcome } = useGameProgress();
   const { addResult } = useStudentResults();
   const { name: studentName } = useUser();
   // Content and the app-wide "Mini-Lesson" toggle both come from the content
@@ -189,10 +189,10 @@ export default function ActivityPlayScreen() {
       });
 
       if (recorded.medal) {
-        await completeActivity(category, activityType, level, activityNum);
+        recordOutcome(category, activityType, level, activityNum, true, recorded.attemptSeq);
         setPhase('success');
       } else {
-        await failActivity(category, activityType, level, activityNum);
+        recordOutcome(category, activityType, level, activityNum, false, recorded.attemptSeq);
         setPhase('incorrect');
       }
     } catch (err) {
