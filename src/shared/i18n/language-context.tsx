@@ -170,7 +170,8 @@ const en = {
   logOutBtn: 'LOG OUT',
 
   settingsTitle: 'Settings',
-  soundsLabel: 'Sounds',
+  musicLabel: 'Music',
+  soundEffectsLabel: 'Sound effects',
   helpLabel: 'Help',
   aboutGameLabel: 'About Game',
   termsConditionsLabel: 'Terms and Conditions',
@@ -813,7 +814,8 @@ const tl: Record<TranslationKey, string> = {
   logOutBtn: 'MAG-LOG OUT',
 
   settingsTitle: 'Settings',
-  soundsLabel: 'Tunog',
+  musicLabel: 'Musika',
+  soundEffectsLabel: 'Mga tunog',
   helpLabel: 'Tulong',
   aboutGameLabel: 'Tungkol sa Laro',
   termsConditionsLabel: 'Mga Tuntunin at Kundisyon',

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage, LANGUAGES, type Language } from '@/shared/i18n/language-context';
 import { useRouter } from 'expo-router';
 import { Screen, ScreenHeader, Card, Icon, type IconName, BodyStrong } from '@/shared/components/ui';
+import { useSound } from '@/shared/audio/sound-context';
 import { tokens } from '@/shared/theme/tokens';
 
 type MenuItem = {
@@ -17,7 +18,7 @@ type MenuItem = {
 export default function SettingsScreen() {
   const router = useRouter();
   const { t, language, setLanguage } = useLanguage();
-  const [soundsOn, setSoundsOn] = useState(true);
+  const { prefs, setMusic, setEffects } = useSound();
 
   // Onboarding asks once and never again, so this is the only place a user can
   // change their mind about the language afterwards.
@@ -94,15 +95,27 @@ export default function SettingsScreen() {
         </Card>
 
         <Card style={[styles.settingsCard, styles.menuCard]}>
+          <View style={[styles.settingsRow, styles.settingsRowDivider]}>
+            <View style={[styles.iconChip, { backgroundColor: tokens.color.primary }]}>
+              {/* Registry has no music/speaker icons; Ionicons fills that gap. */}
+              <Ionicons name="musical-notes-outline" size={18} color={tokens.color.onDark} />
+            </View>
+            <BodyStrong style={styles.settingsLabel} numberOfLines={1}>{t('musicLabel')}</BodyStrong>
+            <Switch
+              value={prefs.music}
+              onValueChange={setMusic}
+              trackColor={{ false: tokens.color.track, true: tokens.color.success }}
+              thumbColor={tokens.color.surface}
+            />
+          </View>
           <View style={styles.settingsRow}>
             <View style={[styles.iconChip, { backgroundColor: tokens.color.primary }]}>
-              {/* Registry has no volume/speaker icon; Ionicons fills that one gap. */}
               <Ionicons name="volume-high-outline" size={18} color={tokens.color.onDark} />
             </View>
-            <BodyStrong style={styles.settingsLabel} numberOfLines={1}>{t('soundsLabel')}</BodyStrong>
+            <BodyStrong style={styles.settingsLabel} numberOfLines={1}>{t('soundEffectsLabel')}</BodyStrong>
             <Switch
-              value={soundsOn}
-              onValueChange={setSoundsOn}
+              value={prefs.effects}
+              onValueChange={setEffects}
               trackColor={{ false: tokens.color.track, true: tokens.color.success }}
               thumbColor={tokens.color.surface}
             />
