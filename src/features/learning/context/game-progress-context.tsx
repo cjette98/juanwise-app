@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { progressApi, readCache, writeCache, type ApiProgressTrack } from '@/shared/api';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
+import { useStudentResults } from '@/features/results/context/student-results-context';
 import { applyAttemptToTrack, type LocalTrack } from '../lib/attempt-rules';
 
 /**
@@ -124,6 +125,14 @@ export function GameProgressProvider({ children }: { children: React.ReactNode }
       if (mounted.current) setReady(true);
     })();
   }, [userReady, signedIn, uid, refresh]);
+
+  // Queued offline attempts reached the server (or were refused) and nothing is
+  // still queued, so server progress is now complete — adopt it. Skipped while
+  // anything is queued, since that refresh would wipe the optimistic attempts.
+  const { outboxSettledVersion } = useStudentResults();
+  useEffect(() => {
+    if (outboxSettledVersion) void refresh();
+  }, [outboxSettledVersion, refresh]);
 
   const trackFor = useCallback(
     (categoryKey: string, activityType: string) => tracks[makeKey(categoryKey, activityType)] ?? EMPTY_TRACK,

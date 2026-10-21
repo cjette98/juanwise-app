@@ -28,5 +28,5 @@ export {
   type StoredSession,
 } from './session';
 export { clearAllCaches, clearCache, readCache, writeCache } from './cache';
-export { clearOutbox, enqueueResult, flushOutbox, pendingCount } from './outbox';
+export { clearOutbox, enqueueResult, flushOutbox, pendingCount, type FlushResult } from './outbox';
 export * from './types';

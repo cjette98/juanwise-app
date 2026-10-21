@@ -300,6 +300,12 @@ type StudentResultsContextType = {
   /** Admin only — the API refuses an unscoped delete. */
   clearResults: () => Promise<{ success: boolean; message: string }>;
   refresh: () => Promise<void>;
+  /**
+   * Bumped whenever an outbox replay settled queued attempts and nothing is
+   * left queued, i.e. the server now holds every attempt. The progress
+   * provider refreshes on it, since a replay also advanced server progress.
+   */
+  outboxSettledVersion: number;
   leaderboard: StudentSummary[];
   /** Same ranking logic as `leaderboard`, but scoped to a category / game type / level
    *  so per-level, per-activity-type fast/slow rankings can be shown. */
@@ -322,6 +328,7 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
   const [results, setResults] = useState<ActivityResult[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [outboxSettledVersion, setOutboxSettledVersion] = useState(0);
   const mounted = useRef(true);
 
   useEffect(() => () => { mounted.current = false; }, []);
@@ -347,7 +354,10 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
     try {
       // Replay anything stranded by an earlier outage before reading back, so
       // the list the student sees already includes what they just earned.
-      if (!isTeacher && uid) await flushOutbox(uid);
+      if (!isTeacher && uid) {
+        const flushed = await flushOutbox(uid);
+        if (flushed.settled && !flushed.remaining && mounted.current) setOutboxSettledVersion((v) => v + 1);
+      }
 
       const rows = await resultsApi.listAll(isTeacher ? { classId: classId! } : {});
       if (!mounted.current) return;
@@ -388,25 +398,10 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
         timedOut: attempt.timedOut,
       };
 
-      try {
-        const recorded = toActivityResult(await resultsApi.submit(payload));
-        if (mounted.current) {
-          setResults((prev) => {
-            const next = [...prev, recorded];
-            writeCache(`${RESULTS_CACHE_KEY}:${scopeKey}`, next);
-            return next;
-          });
-        }
-        return { result: recorded, queued: false };
-      } catch (err) {
-        // A rejected payload is a bug, not an outage — surface it rather than
-        // queueing something the server will never accept.
-        if (err instanceof ApiError && !err.isTransient) throw err;
-
+      // Mirror the server's rule so the student still sees the right outcome
+      // offline: a pass is worth the attempt's share (15/10/6), medal by fraction of the budget.
+      const queueOffline = async () => {
         if (uid) await enqueueResult(uid, payload);
-
-        // Mirror the server's rule so the student still sees the right outcome
-        // offline: a pass is worth the attempt's share (15/10/6), medal by fraction of the budget.
         const optimistic = scoreLocally(attempt, uid, name, nextAttemptSeq(results, attempt));
         if (mounted.current) {
           setResults((prev) => {
@@ -416,9 +411,45 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
           });
         }
         return { result: optimistic, queued: true };
+      };
+
+      // Earlier offline attempts must reach the server first: it numbers
+      // attempts in arrival order, so a live submit that overtook them would be
+      // scored as the wrong try and push the queued ones past the cap.
+      const flushed = uid ? await flushOutbox(uid) : { settled: 0, remaining: 0 };
+      // The replay hit another outage: wait behind what is still queued.
+      if (flushed.remaining) return queueOffline();
+
+      // The replay replaced optimistic rows server-side: read them back, and
+      // let progress pick up what the replay advanced.
+      const syncAfterReplay = () => {
+        if (!flushed.settled || !mounted.current) return;
+        setOutboxSettledVersion((v) => v + 1);
+        void refresh();
+      };
+
+      try {
+        const recorded = toActivityResult(await resultsApi.submit(payload));
+        if (mounted.current) {
+          setResults((prev) => {
+            const next = [...prev, recorded];
+            writeCache(`${RESULTS_CACHE_KEY}:${scopeKey}`, next);
+            return next;
+          });
+        }
+        syncAfterReplay();
+        return { result: recorded, queued: false };
+      } catch (err) {
+        // A rejected payload is a bug, not an outage — surface it rather than
+        // queueing something the server will never accept.
+        if (err instanceof ApiError && !err.isTransient) {
+          syncAfterReplay();
+          throw err;
+        }
+        return queueOffline();
       }
     },
-    [uid, name, scopeKey, results],
+    [uid, name, scopeKey, results, refresh],
   );
 
   const clearResults: StudentResultsContextType['clearResults'] = useCallback(async () => {
@@ -529,12 +560,13 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
       addResult,
       clearResults,
       refresh,
+      outboxSettledVersion,
       leaderboard,
       getLeaderboard,
       getFilteredResults,
       getProgression,
     }),
-    [ready, results, error, addResult, clearResults, refresh, leaderboard, getLeaderboard, getFilteredResults, getProgression],
+    [ready, results, error, addResult, clearResults, refresh, outboxSettledVersion, leaderboard, getLeaderboard, getFilteredResults, getProgression],
   );
 
   return <StudentResultsContext.Provider value={value}>{children}</StudentResultsContext.Provider>;
