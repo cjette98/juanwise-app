@@ -12,7 +12,7 @@ import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useSound } from '@/shared/audio/sound-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
-import { errorMessage } from '@/shared/api';
+import { ApiError, errorMessage } from '@/shared/api';
 import { generateEdgeMap, getPieceEdges, piecePathD } from '@/features/jigsaw/lib/jigsaw-shapes';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
@@ -72,7 +72,7 @@ export default function JigsawPuzzleScreen() {
   const level = toNum(params.level, 1);
   const activityNum = toNum(params.activityNum, 1);
   const pieceCount = toNum(params.pieceCount, 6);
-  const { recordOutcome } = useGameProgress();
+  const { recordOutcome, refresh: refreshProgress } = useGameProgress();
   const { addResult } = useStudentResults();
   const { name: studentName } = useUser();
   const { getEffectiveCategoryContent } = useClassContent();
@@ -228,6 +228,15 @@ export default function JigsawPuzzleScreen() {
         setPhase('failed');
       }
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        // The server has no try left for this activity (cap reached or already
+        // passed). Retrying here can never succeed, so sync the cards and leave.
+        void refreshProgress();
+        Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedResultMsg')), [
+          { text: t('okBtn'), onPress: () => router.back() },
+        ], { cancelable: false });
+        return;
+      }
       Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedResultMsg')));
       phaseRef.current = 'playing';
       setPhase('playing');

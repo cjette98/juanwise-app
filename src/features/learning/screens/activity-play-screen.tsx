@@ -5,7 +5,7 @@ import { useClassContent } from '@/features/learning/context/class-content-conte
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
 import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
-import { errorMessage } from '@/shared/api';
+import { ApiError, errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matching';
@@ -58,7 +58,7 @@ export default function ActivityPlayScreen() {
   const { t } = useLanguage();
   const label = t(getCategoryMeta(category).labelKey) || params.label;
   const questionTypeLabel = (type: string) => (QUESTION_TYPE_KEYS[type] ? t(QUESTION_TYPE_KEYS[type]) : type);
-  const { recordOutcome } = useGameProgress();
+  const { recordOutcome, refresh: refreshProgress } = useGameProgress();
   const { addResult } = useStudentResults();
   const { name: studentName } = useUser();
   // Content and the app-wide "Mini-Lesson" toggle both come from the content
@@ -216,6 +216,15 @@ export default function ActivityPlayScreen() {
       // Only a payload the server refuses outright lands here — an outage is
       // queued by addResult instead. Let the student retry rather than
       // silently losing the attempt.
+      if (err instanceof ApiError && err.status === 409) {
+        // The server has no try left for this activity (cap reached or already
+        // passed). Retrying here can never succeed, so sync the cards and leave.
+        void refreshProgress();
+        Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedAnswerMsg')), [
+          { text: t('okBtn'), onPress: () => router.back() },
+        ], { cancelable: false });
+        return;
+      }
       Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedAnswerMsg')));
       setPhase('question');
     } finally {
