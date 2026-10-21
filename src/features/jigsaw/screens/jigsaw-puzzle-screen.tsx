@@ -8,6 +8,7 @@ import { useClassContent } from '@/features/learning/context/class-content-conte
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
 import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
+import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 import { errorMessage } from '@/shared/api';
@@ -138,6 +139,14 @@ export default function JigsawPuzzleScreen() {
 
   const [result, setResult] = useState<(ActivityTimerResult & { stars: number; points: number }) | null>(null);
   const [queued, setQueued] = useState(false);
+  const [attemptSeq, setAttemptSeq] = useState(0);
+  // After a fail: how many tries remain, or that the activity is now closed.
+  const triesLine = (seq: number) => {
+    const left = triesLeft(seq);
+    return left > 0
+      ? t('triesLeftAfterFail', { n: left, tries: t(left === 1 ? 'tryWordOne' : 'tryWordMany') })
+      : t('activityFinishedNoTries');
+  };
 
   // Shows a zoomed-in reveal of the completed picture the moment the puzzle
   // is solved, before the activity-results modal appears.
@@ -199,6 +208,7 @@ export default function JigsawPuzzleScreen() {
       });
 
       setQueued(queued);
+      setAttemptSeq(recorded.attemptSeq);
       setResult({
         ...timerResult,
         medal: recorded.medal,
@@ -628,6 +638,7 @@ export default function JigsawPuzzleScreen() {
                 <BodyStrong style={styles.flagLine}>{t('statusFailedIncomplete')}</BodyStrong>
               </View>
               <Body style={styles.detailLine}>{t('pointsZero')}</Body>
+              <Body style={styles.detailLine}>{triesLine(attemptSeq)}</Body>
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>

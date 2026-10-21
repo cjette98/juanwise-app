@@ -9,12 +9,13 @@ export type PrimaryActivityAction =
   | { kind: 'activity'; activityNum: number; labelKey: TranslationKey; labelVars: { n: number } }
   | { kind: 'summary'; labelKey: TranslationKey; labelVars: { n: number } };
 
+/** `finishedActivityNumbers` is completed ∪ exhausted: both close a slot. */
 export function getPrimaryActivityAction(
-  completedActivityNumbers: number[],
+  finishedActivityNumbers: number[],
   level: number,
 ): PrimaryActivityAction {
   const nextActivity = [1, 2, 3, 4, 5, 6].find(
-    (activityNum) => !completedActivityNumbers.includes(activityNum),
+    (activityNum) => !finishedActivityNumbers.includes(activityNum),
   );
 
   if (nextActivity !== undefined) {

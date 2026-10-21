@@ -11,6 +11,7 @@ import { toNum } from '@/shared/lib/params';
 import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matching';
 import { Screen, ScreenHeader, Card, Button, Icon, StarRow, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
+import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { difficultyLabelKey } from '@/features/learning/lib/activity-list-model';
 import { getCategoryMeta } from '@/shared/content/category-meta';
@@ -95,6 +96,14 @@ export default function ActivityPlayScreen() {
   const [result, setResult] = useState<(ActivityTimerResult & { stars: number; points: number }) | null>(null);
   const [enumCorrectCount, setEnumCorrectCount] = useState(0);
   const [queued, setQueued] = useState(false);
+  const [attemptSeq, setAttemptSeq] = useState(0);
+  // After a fail: how many tries remain, or that the activity is now closed.
+  const triesLine = (seq: number) => {
+    const left = triesLeft(seq);
+    return left > 0
+      ? t('triesLeftAfterFail', { n: left, tries: t(left === 1 ? 'tryWordOne' : 'tryWordMany') })
+      : t('activityFinishedNoTries');
+  };
   const [submitting, setSubmitting] = useState(false);
   const [attemptKey] = useState(0);
 
@@ -181,6 +190,7 @@ export default function ActivityPlayScreen() {
       });
 
       setQueued(wasQueued);
+      setAttemptSeq(recorded.attemptSeq);
       setResult({
         ...timerResult,
         medal: recorded.medal,
@@ -448,6 +458,7 @@ export default function ActivityPlayScreen() {
                 <BodyStrong style={styles.flagLine}>{t('statusFailedIncorrect')}</BodyStrong>
               </View>
               <Body style={styles.detailLine}>{t('pointsZero')}</Body>
+              <Body style={styles.detailLine}>{triesLine(attemptSeq)}</Body>
               {q.type === 'enumeration' && (
                 <Body style={styles.detailLine}>{t('detailAnswersCorrect', { correct: enumCorrectCount, required: requiredAnswers })}</Body>
               )}

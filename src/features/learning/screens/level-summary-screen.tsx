@@ -5,6 +5,7 @@ import { useUser } from '@/features/auth/context/user-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum, toBool } from '@/shared/lib/params';
 import { Screen, ScreenHeader, Card, Button, Icon, Pill, StarRow, H3, Body, BodyStrong, Caption, Label } from '@/shared/components/ui';
+import { MAX_ATTEMPTS } from '@/features/learning/lib/attempt-rules';
 import { tokens } from '@/shared/theme/tokens';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
@@ -112,12 +113,13 @@ export default function LevelSummaryScreen() {
         num,
         firstAttempt,
         passingAttempt,
+        exhausted: !passingAttempt && forActivity.length >= MAX_ATTEMPTS,
         firstAttemptCorrect: !!firstAttempt?.medal,
       };
     });
   }, [attempts]);
 
-  const allComplete = perActivity.every((a) => !!a.passingAttempt);
+  const allComplete = perActivity.every((a) => !!a.passingAttempt || a.exhausted);
 
   const totalPoints = perActivity.reduce((sum, a) => sum + (a.passingAttempt?.points ?? 0), 0);
   const totalTime = perActivity.reduce((sum, a) => sum + (a.passingAttempt?.timeUsed ?? 0), 0);
@@ -210,7 +212,9 @@ export default function LevelSummaryScreen() {
               ? typeof p.requiredCount === 'number'
                 ? t('passedWithCount', { correct: p.correctCount ?? 0, required: p.requiredCount })
                 : t('passedWord')
-              : t('retryWord');
+              : a.exhausted
+                ? t('outOfTries')
+                : t('retryWord');
             const statusTint = p ? tokens.color.successInk : tokens.color.dangerInk;
             return (
               <Card key={a.num} style={styles.activityRow}>
@@ -224,7 +228,7 @@ export default function LevelSummaryScreen() {
                 </View>
                 <View style={styles.activityRowRight}>
                   <View style={styles.statusChip}>
-                    <Icon name={p ? 'check' : 'refresh'} size={13} color={statusTint} strokeWidth={2.6} />
+                    <Icon name={p ? 'check' : a.exhausted ? 'close' : 'refresh'} size={13} color={statusTint} strokeWidth={2.6} />
                     <Caption style={{ color: statusTint }} numberOfLines={1}>
                       {statusText}
                     </Caption>

@@ -24,6 +24,21 @@ describe('getPrimaryActivityAction', () => {
   });
 });
 
+describe('getPrimaryActivityAction with exhausted activities', () => {
+  it('goes to the summary when the last activity is exhausted rather than passed', () => {
+    // The caller passes completed ∪ exhausted.
+    expect(getPrimaryActivityAction([1, 2, 3, 4, 5, 6], 3)).toEqual({
+      kind: 'summary',
+      labelKey: 'completeLevel',
+      labelVars: { n: 3 },
+    });
+  });
+
+  it('skips an exhausted activity when picking the next one', () => {
+    expect(getPrimaryActivityAction([1, 2, 3], 1)).toMatchObject({ kind: 'activity', activityNum: 4 });
+  });
+});
+
 describe('level difficulty', () => {
   it('keeps the ramp the jigsaw guide opacity reads', () => {
     expect(getLevelDifficultyKey(1)).toBe('Easy');
