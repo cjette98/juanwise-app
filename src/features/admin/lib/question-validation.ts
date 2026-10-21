@@ -63,7 +63,7 @@ function validateLang(
 ): LangResult {
   const hint = d.hint.trim();
   const question = d.question.trim();
-  if (!question) return fail(english, 'missingInfo', 'needLessonAndQuestionMsg');
+  if (!question || !hint) return fail(english, 'missingInfo', 'needLessonAndQuestionMsg');
   const miniLesson = d.miniLesson.trim();
   const explanation = d.explanation.trim() || hint;
   const base = { hint, miniLesson, question, explanation, choices: [], acceptedAnswers: [], answerPool: [], correctAnswer: '' };
@@ -120,10 +120,8 @@ export function validateQuestionDraft(input: {
     return fail(false, 'missingInfo', 'bothLanguagesRequired');
   }
 
-  // Optional text is all-or-nothing across the two languages.
-  for (const field of ['hint', 'miniLesson'] as const) {
-    if (!!tl[field].trim() !== !!en[field].trim()) return fail(false, 'missingInfo', 'bothLanguagesRequired');
-  }
+  // The mini-lesson is optional, but all-or-nothing across the two languages.
+  if (!!tl.miniLesson.trim() !== !!en.miniLesson.trim()) return fail(false, 'missingInfo', 'bothLanguagesRequired');
 
   const tlResult = validateLang(type, tl, required, minPool, false);
   if (!tlResult.ok) return tlResult;
