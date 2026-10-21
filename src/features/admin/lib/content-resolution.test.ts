@@ -187,6 +187,26 @@ describe('resolveEffectiveCategoryContent', () => {
       expect(resolveEffectiveCategoryContent(withEn, undefined, 'tl').context).toBe('base context');
     });
 
+    it('prefers a picked jigsaw\'s own Tagalog text over category English in English', () => {
+      const api = bilingual({
+        jigsawSlots: { '3_4': 'pic-1' },
+        jigsaws: [
+          {
+            id: 'pic-1',
+            title: 'Picture One',
+            imageUrl: 'https://example.test/pic1.jpg',
+            definition_en: '',
+            definition_tl: 'pic TL def',
+            context_en: null,
+            context_tl: 'pic TL ctx',
+          },
+        ],
+      });
+      const result = resolveEffectiveCategoryContent(base, api, 'en', 3, 4);
+      expect(result.context).toBe('pic TL ctx');
+      expect(result.definition).toBe('pic TL def');
+    });
+
     it('uses a picked jigsaw\'s English text in English', () => {
       const api = bilingual({
         jigsawSlots: { '3_4': 'pic-1' },

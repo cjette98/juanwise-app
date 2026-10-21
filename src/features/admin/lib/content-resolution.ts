@@ -70,10 +70,10 @@ export function resolveEffectiveCategoryContent(
     return {
       image: { uri: picked.imageUrl },
       context: english
-        ? (picked.context_en ?? api?.context_en ?? picked.context_tl ?? api?.context_tl ?? base.context_en ?? base.context_tl)
+        ? (picked.context_en || picked.context_tl || api?.context_en || api?.context_tl || base.context_en || base.context_tl)
         : (picked.context_tl ?? picked.context_en ?? api?.context_tl ?? base.context_tl),
       definition: english
-        ? (picked.definition_en ?? picked.definition_tl ?? null)
+        ? (picked.definition_en || picked.definition_tl || null)
         : (picked.definition_tl ?? picked.definition_en ?? null),
       title: picked.title,
       hasCustomImage: true,
@@ -83,10 +83,10 @@ export function resolveEffectiveCategoryContent(
   return {
     image: api?.imageUrl ? { uri: api.imageUrl } : base.image,
     context: english
-      ? (api?.context_en ?? api?.context_tl ?? base.context_en ?? base.context_tl)
+      ? (api?.context_en || api?.context_tl || base.context_en || base.context_tl)
       : (api?.context_tl ?? base.context_tl),
     definition: english
-      ? (api?.definition_en ?? api?.definition_tl ?? null)
+      ? (api?.definition_en || api?.definition_tl || null)
       : (api?.definition_tl ?? api?.definition_en ?? null),
     title: null,
     hasCustomImage: !!api?.imageUrl,
