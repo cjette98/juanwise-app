@@ -9,7 +9,7 @@ import { ApiError, errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matching';
-import { Screen, ScreenHeader, Card, Button, Icon, StarRow, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
+import { Screen, ScreenHeader, Card, Button, Icon, ScoreBadge, StarRow, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
@@ -115,6 +115,7 @@ export default function ActivityPlayScreen() {
    * again; the grading is local anyway — the server only decides the points.
    */
   const [picked, setPicked] = useState<{ value: string; correct: boolean } | null>(null);
+  const [ranOutOfTime, setRanOutOfTime] = useState(false);
   const [attemptKey] = useState(0);
 
   const timerRef = useRef<ActivityTimerHandle>(null);
@@ -185,6 +186,7 @@ export default function ActivityPlayScreen() {
     correctCount?: number,
   ) => {
     if (typeof correctCount === 'number') setEnumCorrectCount(correctCount);
+    setRanOutOfTime(timedOut);
 
     const requiredCount = q.type === 'enumeration' ? requiredAnswers : 1;
     const observedCorrect =
@@ -301,6 +303,17 @@ export default function ActivityPlayScreen() {
   };
 
   const filledCount = enumAnswers.filter((a) => a.trim()).length;
+  /**
+   * "Activity Complete (Incorrect)" was the title whether the clock ran out,
+   * the answer was wrong or the student walked out. The client asked that a
+   * wrong answer say so (item 4.3); the rest of the pop-up is the one it has
+   * always shown, which is what they asked to keep.
+   */
+  const incorrectTitle = ranOutOfTime
+    ? t('timeUpTitle')
+    : picked
+      ? t('answerIncorrectTitle')
+      : t('activityCompleteIncorrect');
   const answerBoxTint = picked
     ? { borderColor: picked.correct ? tokens.color.success : tokens.color.danger }
     : null;
@@ -483,6 +496,7 @@ export default function ActivityPlayScreen() {
               </View>
               <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
+            <ScoreBadge points={result?.points ?? 0} tone="win" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -493,7 +507,6 @@ export default function ActivityPlayScreen() {
                 <Body style={styles.detailLine}>{t('starsEarnedLabel')}</Body>
                 <StarRow earned={result?.stars ?? 0} />
               </View>
-              <Body style={styles.detailLine}>{t('detailPoints', { points: result?.points ?? 0 })}</Body>
               {q.type === 'enumeration' && (
                 <Body style={styles.detailLine}>{t('detailAnswersCorrect', { correct: enumCorrectCount, required: requiredAnswers })}</Body>
               )}
@@ -517,8 +530,9 @@ export default function ActivityPlayScreen() {
               <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.dangerSoft }]}>
                 <Icon name="close" size={22} color={tokens.color.danger} strokeWidth={3} />
               </View>
-              <H2 style={styles.timeUpTitle}>{t('activityCompleteIncorrect')}</H2>
+              <H2 style={styles.timeUpTitle}>{incorrectTitle}</H2>
             </View>
+            <ScoreBadge points={0} tone="loss" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -529,7 +543,6 @@ export default function ActivityPlayScreen() {
                 <Icon name="flag" size={15} color={tokens.color.danger} />
                 <BodyStrong style={styles.flagLine}>{t('statusFailedIncorrect')}</BodyStrong>
               </View>
-              <Body style={styles.detailLine}>{t('pointsZero')}</Body>
               <Body style={styles.detailLine}>{triesLine(attemptSeq)}</Body>
               {q.type === 'enumeration' && (
                 <Body style={styles.detailLine}>{t('detailAnswersCorrect', { correct: enumCorrectCount, required: requiredAnswers })}</Body>

@@ -333,8 +333,9 @@ const en = {
   proceedNextActivity: 'Proceed to Next Activity',
   activityCompleteIncorrect: 'Activity Complete (Incorrect)',
   statusFailedIncorrect: 'Status: Failed / Incorrect (Needs Retry)',
+  answerIncorrectTitle: 'Incorrect Answer',
+  pointsWord: 'points',
   statusFailedIncomplete: 'Status: Failed / Incomplete (Needs Retry)',
-  pointsZero: 'Points: 0 pts',
   proceedOtherActivityAnswer: 'Proceed to other Activity — maybe you can answer it, try it',
   proceedOtherActivityForm: 'Proceed to other Activity — maybe you can form it, try it',
 
@@ -578,7 +579,6 @@ const en = {
   // --- Result sheet detail lines ---
   detailStudent: 'Student: {name}',
   detailTime: 'Time: {time}',
-  detailPoints: 'Points: {points} pts',
   detailAnswersCorrect: 'Answers: {correct}/{required} correct',
   detailCategory: 'Category: {label}',
   detailActivityTypeQuiz: 'Activity Type: Quiz ({type})',
@@ -991,8 +991,9 @@ const tl: Record<TranslationKey, string> = {
   proceedNextActivity: 'Tumuloy sa Susunod na Aktibidad',
   activityCompleteIncorrect: 'Tapos na ang Aktibidad (Mali)',
   statusFailedIncorrect: 'Status: Bagsak / Mali (Kailangang Ulitin)',
+  answerIncorrectTitle: 'Maling Sagot',
+  pointsWord: 'puntos',
   statusFailedIncomplete: 'Status: Bagsak / Hindi Tapos (Kailangang Ulitin)',
-  pointsZero: 'Puntos: 0',
   proceedOtherActivityAnswer: 'Tumuloy sa ibang Aktibidad — baka masagot mo ito, subukan mo',
   proceedOtherActivityForm: 'Tumuloy sa ibang Aktibidad — baka mabuo mo ito, subukan mo',
 
@@ -1236,7 +1237,6 @@ const tl: Record<TranslationKey, string> = {
   // --- Result sheet detail lines ---
   detailStudent: 'Estudyante: {name}',
   detailTime: 'Oras: {time}',
-  detailPoints: 'Puntos: {points}',
   detailAnswersCorrect: 'Sagot: {correct}/{required} tama',
   detailCategory: 'Kategorya: {label}',
   detailActivityTypeQuiz: 'Uri ng Gawain: Quiz ({type})',

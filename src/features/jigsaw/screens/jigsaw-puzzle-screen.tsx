@@ -17,7 +17,7 @@ import { generateEdgeMap, getPieceEdges, piecePathD } from '@/features/jigsaw/li
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import {
-  Screen, ScreenHeader, Card, Button, Icon, Pill, ProgressBar, StarRow, H2, Body, BodyStrong, Caption,
+  Screen, ScreenHeader, Card, Button, Icon, Pill, ProgressBar, ScoreBadge, StarRow, H2, Body, BodyStrong, Caption,
 } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 
@@ -612,6 +612,7 @@ export default function JigsawPuzzleScreen() {
               </View>
               <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
+            <ScoreBadge points={result?.points ?? 0} tone="win" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -622,7 +623,6 @@ export default function JigsawPuzzleScreen() {
                 <Body style={styles.detailLine}>{t('starsEarnedLabel')}</Body>
                 <StarRow earned={result?.stars ?? 0} />
               </View>
-              <Body style={styles.detailLine}>{t('detailPoints', { points: result?.points ?? 0 })}</Body>
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
               <Body style={styles.detailLine}>{t('detailPuzzleCount', { num: activityNum, level })}</Body>
@@ -650,6 +650,7 @@ export default function JigsawPuzzleScreen() {
               </View>
               <H2 style={styles.timeUpTitle}>{t('activityCompleteIncorrect')}</H2>
             </View>
+            <ScoreBadge points={0} tone="loss" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -660,7 +661,6 @@ export default function JigsawPuzzleScreen() {
                 <Icon name="flag" size={15} color={tokens.color.danger} />
                 <BodyStrong style={styles.flagLine}>{t('statusFailedIncomplete')}</BodyStrong>
               </View>
-              <Body style={styles.detailLine}>{t('pointsZero')}</Body>
               <Body style={styles.detailLine}>{triesLine(attemptSeq)}</Body>
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
