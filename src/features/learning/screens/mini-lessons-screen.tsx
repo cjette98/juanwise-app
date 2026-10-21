@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Image } from 'react-native';
-import { Screen, ScreenHeader, Card, Button, Pill, Icon, H2, Body, BodyStrong, Caption } from '@/shared/components/ui';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Screen, ScreenHeader, Card, Button, Pill, Icon, ZoomableImage, H2, Body, BodyStrong, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
@@ -99,7 +99,13 @@ export default function MiniLessonsScreen() {
 
         {featured && (
           <Card style={styles.bannerCard}>
-            <Image source={featured.image} style={styles.bannerImage} />
+            <ZoomableImage
+              source={featured.image}
+              style={styles.bannerImage}
+              openLabel={t('openPictureLabel')}
+              zoomHint={t('pictureZoomHint')}
+              closeLabel={t('closePictureLabel')}
+            />
             <View style={styles.bannerBody}>
               <Pill
                 label={t(getCategoryMeta(featured.category).labelKey)}
@@ -120,7 +126,13 @@ export default function MiniLessonsScreen() {
 
         {rest.map((lesson) => (
           <Card key={lesson.key} style={styles.rowCard}>
-            <Image source={lesson.image} style={styles.rowImage} />
+            <ZoomableImage
+              source={lesson.image}
+              style={styles.rowImage}
+              openLabel={t('openPictureLabel')}
+              zoomHint={t('pictureZoomHint')}
+              closeLabel={t('closePictureLabel')}
+            />
             <View style={styles.rowBody}>
               <Pill
                 label={t(getCategoryMeta(lesson.category).labelKey)}

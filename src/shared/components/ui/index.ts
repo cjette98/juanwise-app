@@ -8,6 +8,7 @@ export { Pill } from './pill';
 export { ProgressBar } from './progress-bar';
 export { StarRow } from './star-row';
 export { ScoreBadge } from './score-badge';
+export { ZoomableImage } from './zoomable-image';
 export { ScreenHeader } from './screen-header';
 export { BottomNav } from './bottom-nav';
 export { Avatar } from './avatar';

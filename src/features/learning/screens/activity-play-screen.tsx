@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
@@ -9,7 +9,7 @@ import { ApiError, errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matching';
-import { Screen, ScreenHeader, Card, Button, Icon, ScoreBadge, StarRow, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
+import { Screen, ScreenHeader, Card, Button, Icon, ScoreBadge, StarRow, ZoomableImage, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
@@ -358,10 +358,12 @@ export default function ActivityPlayScreen() {
                 quiz question can carry one, and only when somebody illustrated
                 it — an unillustrated question keeps the text-only card it had. */}
             {!!q.miniLessonImageUrl && (
-              <Image
+              <ZoomableImage
                 source={{ uri: q.miniLessonImageUrl }}
                 style={styles.hintImage}
-                resizeMode="cover"
+                openLabel={t('openPictureLabel')}
+                zoomHint={t('pictureZoomHint')}
+                closeLabel={t('closePictureLabel')}
               />
             )}
             <Body style={styles.hintText}>{q.hint}</Body>
