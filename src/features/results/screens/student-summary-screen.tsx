@@ -12,6 +12,8 @@ import {
   BodyStrong,
   Caption,
   type IconName,
+  MedalBadge,
+  TrophyBadge,
 } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { useStudentResults, ActivityResult, getCanonicalAttempts, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
@@ -33,16 +35,6 @@ function medalForPoints(points: number): Medal {
   if (points >= 50) return 'silver';
   if (points >= 25) return 'bronze';
   return null;
-}
-
-const MEDAL_COLORS: Record<'gold' | 'silver' | 'bronze', string> = {
-  gold: tokens.color.medalGold,
-  silver: tokens.color.medalSilver,
-  bronze: tokens.color.medalBronze,
-};
-
-function medalTint(medal: Medal) {
-  return medal ? MEDAL_COLORS[medal] : tokens.color.inkDisabled;
 }
 
 function formatTime(seconds: number) {
@@ -162,7 +154,6 @@ export default function StudentSummaryScreen() {
     } });
   };
 
-  const trophyTint = overallTotals.trophy ? MEDAL_COLORS[overallTotals.trophy] : tokens.color.inkFaint;
   const paceMeta = PACE_META[overallTotals.pace];
 
   return (
@@ -177,7 +168,7 @@ export default function StudentSummaryScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.statsRow}>
           <Card style={styles.statCard}>
-            <Icon name="trophy" size={20} color={trophyTint} filled={!!overallTotals.trophy} />
+            <TrophyBadge tier={overallTotals.trophy} size={20} mutedColor={tokens.color.inkFaint} />
             <BodyStrong>{overallTotals.trophy ? overallTotals.trophy : '—'}</BodyStrong>
             <Caption>{t('trophyWord')}</Caption>
           </Card>
@@ -261,7 +252,7 @@ export default function StudentSummaryScreen() {
                   </View>
                   <View style={styles.historyRowRight}>
                     <View style={styles.historyStatLine}>
-                      <Icon name="medal" size={14} color={medalTint(r.medal)} filled={!!r.medal} />
+                      <MedalBadge tier={r.medal} size={14} mutedColor={tokens.color.inkDisabled} />
                       <Caption style={styles.historyStatText}>
                         {r.timedOut ? t('timeoutLabel') : t('secondsSuffix', { seconds: r.timeUsed })}
                       </Caption>
@@ -346,7 +337,7 @@ export default function StudentSummaryScreen() {
                             </View>
                             {stats.attempted ? (
                               <View style={styles.levelRowStats}>
-                                <Icon name="medal" size={15} color={medalTint(stats.medal)} filled={!!stats.medal} />
+                                <MedalBadge tier={stats.medal} size={15} mutedColor={tokens.color.inkDisabled} />
                                 <Caption style={styles.levelRowStat}>{t('passedOfSix', { passed: stats.passedCount })}</Caption>
                                 <BodyStrong style={styles.levelRowPoints}>{t('pointsSuffixShort', { points: stats.totalPoints })}</BodyStrong>
                                 <Caption style={styles.levelRowStatSmall}>{formatTime(stats.totalTime)}</Caption>

@@ -13,5 +13,6 @@ export { ScreenHeader } from './screen-header';
 export { BottomNav } from './bottom-nav';
 export { Avatar } from './avatar';
 export { avatarPalette, initialsOf } from './avatar-identity';
-export { MedalBadge, type MedalTier } from './medal-badge';
+export { MedalBadge, TrophyBadge } from './achievement-badges';
+export { tierColor, type AchievementTier } from './achievement-tiers';
 export { Segmented, type SegmentedOption } from './segmented';
