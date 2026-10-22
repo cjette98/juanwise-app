@@ -8,6 +8,7 @@ import { ApiError, errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
 import { Screen, Button, Icon, H1, Label, Caption } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -44,7 +45,21 @@ export default function LoginScreen() {
         return;
       }
 
-      router.replace(profile.role === 'student' ? '/student-home' : '/teacher-dashboard');
+      // Item 6.1 of the client evaluation: only failures used to say anything,
+      // so a student who tapped Login and saw the screen sit there could not
+      // tell a slow sign-in from a silent one. The home screen is behind the
+      // pop-up either way — dismissing it is what moves on, and `cancelable`
+      // plus `onDismiss` cover the Android back-tap, which would otherwise
+      // leave a signed-in student looking at the login form.
+      const home = profile.role === 'student' ? '/student-home' : '/teacher-dashboard';
+      const goHome = () => router.replace(home);
+
+      Alert.alert(
+        t('loginSuccess'),
+        t('loginSuccessMsg', { name: profile.name }),
+        [{ text: t('continueBtn'), onPress: goHome }],
+        { cancelable: false, onDismiss: goHome },
+      );
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         Alert.alert(t('invalidLogin'), t('invalidLoginMsg'));
@@ -180,7 +195,7 @@ const styles = StyleSheet.create({
   fieldInput: {
     flex: 1,
     fontFamily: tokens.font.body,
-    fontSize: tokens.type.body.fontSize,
+    fontSize: typeScale.body.fontSize,
     color: tokens.color.ink,
   },
   eyeBtn: { minWidth: tokens.hit.min, minHeight: tokens.hit.min, alignItems: 'center', justifyContent: 'center' },

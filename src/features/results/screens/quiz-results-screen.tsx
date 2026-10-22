@@ -5,15 +5,8 @@ import { useUser } from '@/features/auth/context/user-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useRouter } from 'expo-router';
-import { Screen, ScreenHeader, Card, Button, Icon, Body, BodyStrong, Caption } from '@/shared/components/ui';
+import { Screen, ScreenHeader, Card, Button, Icon, MedalBadge, tierColor, Body, BodyStrong, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
-
-function medalTint(medal: ActivityResult['medal']) {
-  if (medal === 'gold') return tokens.color.medalGold;
-  if (medal === 'silver') return tokens.color.medalSilver;
-  if (medal === 'bronze') return tokens.color.medalBronze;
-  return null;
-}
 
 export default function QuizResultsScreen() {
   const router = useRouter();
@@ -59,19 +52,18 @@ export default function QuizResultsScreen() {
 
         {quizResults.map((r) => {
           const meta = getCategoryMeta(r.category);
-          const tint = medalTint(r.medal);
           return (
             <Card key={r.id} style={styles.row}>
               <View style={styles.rowLeft}>
                 <BodyStrong style={{ color: categoryColor(r.category).base }} numberOfLines={1}>
                   {t(meta.labelKey)}
                 </BodyStrong>
-                <Caption>{t('levelActivityLine', { level: r.level, num: r.activityNum })}</Caption>
+                <Caption>{t('levelQuestionLine', { level: r.level, num: r.activityNum })}</Caption>
               </View>
               <View style={styles.rowStats}>
                 <View style={styles.rowStatLine}>
-                  {tint ? (
-                    <Icon name="medal" size={16} color={tint} filled />
+                  {tierColor(r.medal) ? (
+                    <MedalBadge tier={r.medal} size={16} />
                   ) : (
                     <Caption>—</Caption>
                   )}

@@ -4,12 +4,13 @@ import { useStudentResults, ActivityResult } from '@/features/results/context/st
 import { useUser } from '@/features/auth/context/user-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum, toBool } from '@/shared/lib/params';
-import { Screen, ScreenHeader, Card, Button, Icon, Pill, StarRow, H3, Body, BodyStrong, Caption, Label } from '@/shared/components/ui';
+import { Screen, ScreenHeader, Card, Button, Icon, MedalBadge, Pill, StarRow, H3, Body, BodyStrong, Caption, Label } from '@/shared/components/ui';
 import { MAX_ATTEMPTS } from '@/features/learning/lib/attempt-rules';
 import { tokens } from '@/shared/theme/tokens';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useSound } from '@/shared/audio/sound-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
+import { activityNaming } from '@/features/learning/lib/activity-naming';
 
 type LevelMedal = 'gold' | 'silver' | 'bronze' | null;
 
@@ -25,13 +26,6 @@ function medalLabelKey(medal: LevelMedal): TranslationKey {
   if (medal === 'silver') return 'silverMedal';
   if (medal === 'bronze') return 'bronzeMedal';
   return 'noMedalYet';
-}
-
-function medalTint(medal: LevelMedal) {
-  if (medal === 'gold') return tokens.color.medalGold;
-  if (medal === 'silver') return tokens.color.medalSilver;
-  if (medal === 'bronze') return tokens.color.medalBronze;
-  return tokens.color.inkDisabled;
 }
 
 // Same gold/silver/bronze branching starsForMedal always had — now returns
@@ -172,7 +166,7 @@ export default function LevelSummaryScreen() {
       >
         <View style={styles.medalRow}>
           <View style={styles.medalDisc}>
-            <Icon name="medal" size={26} color={medalTint(levelMedal)} filled={!!levelMedal} />
+            <MedalBadge tier={levelMedal} size={26} mutedColor={tokens.color.inkDisabled} />
           </View>
           <View style={styles.medalTextWrap}>
             <BodyStrong style={styles.medalLabelText}>{t(medalLabelKey(levelMedal))}</BodyStrong>
@@ -232,7 +226,7 @@ export default function LevelSummaryScreen() {
             return (
               <Card key={a.num} style={styles.activityRow}>
                 <View style={styles.activityRowLeft}>
-                  <BodyStrong numberOfLines={1}>{t('activityNumShort', { num: a.num })}</BodyStrong>
+                  <BodyStrong numberOfLines={1}>{t(activityNaming(activityType).numShort, { num: a.num })}</BodyStrong>
                   <Caption numberOfLines={1}>{typeLabel}</Caption>
                 </View>
                 <View style={styles.activityRowMid}>

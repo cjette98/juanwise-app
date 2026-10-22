@@ -10,7 +10,7 @@ describe('getPrimaryActivityAction', () => {
     expect(getPrimaryActivityAction([1, 3], 2)).toEqual({
       kind: 'activity',
       activityNum: 2,
-      labelKey: 'continueActivity',
+      labelKey: 'continueQuestion',
       labelVars: { n: 2 },
     });
   });

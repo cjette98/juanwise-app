@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Image } from 'react-native';
-import { Screen, ScreenHeader, Card, Button, Pill, Icon, H2, Body, BodyStrong, Caption } from '@/shared/components/ui';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Screen, ScreenHeader, Card, Button, Pill, Icon, ZoomableImage, H2, Body, BodyStrong, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
+import { activityNaming } from '@/features/learning/lib/activity-naming';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { quizLessonText } from '@/features/admin/lib/question-mapping';
 import { useRouter } from 'expo-router';
@@ -98,7 +99,13 @@ export default function MiniLessonsScreen() {
 
         {featured && (
           <Card style={styles.bannerCard}>
-            <Image source={featured.image} style={styles.bannerImage} />
+            <ZoomableImage
+              source={featured.image}
+              style={styles.bannerImage}
+              openLabel={t('openPictureLabel')}
+              zoomHint={t('pictureZoomHint')}
+              closeLabel={t('closePictureLabel')}
+            />
             <View style={styles.bannerBody}>
               <Pill
                 label={t(getCategoryMeta(featured.category).labelKey)}
@@ -106,7 +113,7 @@ export default function MiniLessonsScreen() {
                 style={{ backgroundColor: categoryColor(featured.category).base, borderColor: 'transparent' }}
               />
               <H2 style={styles.bannerTitle}>
-                {t('levelActivityLine', { level: featured.level, num: featured.activityNum })}
+                {t(activityNaming(featured.source).levelLine, { level: featured.level, num: featured.activityNum })}
               </H2>
               <View style={styles.sourceRow}>
                 <Icon name={featured.source === 'quiz' ? 'quiz' : 'puzzle'} size={14} color={tokens.color.inkMuted} />
@@ -119,7 +126,13 @@ export default function MiniLessonsScreen() {
 
         {rest.map((lesson) => (
           <Card key={lesson.key} style={styles.rowCard}>
-            <Image source={lesson.image} style={styles.rowImage} />
+            <ZoomableImage
+              source={lesson.image}
+              style={styles.rowImage}
+              openLabel={t('openPictureLabel')}
+              zoomHint={t('pictureZoomHint')}
+              closeLabel={t('closePictureLabel')}
+            />
             <View style={styles.rowBody}>
               <Pill
                 label={t(getCategoryMeta(lesson.category).labelKey)}
@@ -127,7 +140,7 @@ export default function MiniLessonsScreen() {
                 style={{ backgroundColor: categoryColor(lesson.category).base, borderColor: 'transparent' }}
               />
               <BodyStrong numberOfLines={1}>
-                {t('levelActivityLine', { level: lesson.level, num: lesson.activityNum })}
+                {t(activityNaming(lesson.source).levelLine, { level: lesson.level, num: lesson.activityNum })}
               </BodyStrong>
               <View style={styles.sourceRow}>
                 <Icon name={lesson.source === 'quiz' ? 'quiz' : 'puzzle'} size={12} color={tokens.color.inkMuted} />

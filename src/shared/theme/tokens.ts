@@ -158,3 +158,31 @@ export function categoryColor(key: string): { base: string; dark: string } {
 }
 
 export default tokens;
+
+
+/**
+ * How much to grow or shrink the type scale on a given screen width.
+ *
+ * The layouts were drawn on a 375pt phone. A 320pt phone (an iPhone SE, and
+ * the cheap Androids a lot of these students carry) overflowed every tight
+ * label; a tablet left them small. The clamp is deliberately narrow — past
+ * roughly ±12% the spacing scale, which stays fixed, no longer matches.
+ */
+export const BASE_SCREEN_WIDTH = 375;
+export const MIN_FONT_SCALE = 0.88;
+export const MAX_FONT_SCALE = 1.12;
+
+export function fontScaleFor(screenWidth: number): number {
+  if (!Number.isFinite(screenWidth) || screenWidth <= 0) return 1;
+  const raw = screenWidth / BASE_SCREEN_WIDTH;
+  return Math.min(MAX_FONT_SCALE, Math.max(MIN_FONT_SCALE, raw));
+}
+
+/** A type style at the screen's scale, line height included. */
+export function scaleTypeStyle<T extends { fontSize: number; lineHeight: number }>(
+  style: T,
+  scale: number,
+): T {
+  const round = (n: number) => Math.round(n * scale * 10) / 10;
+  return { ...style, fontSize: round(style.fontSize), lineHeight: round(style.lineHeight) };
+}

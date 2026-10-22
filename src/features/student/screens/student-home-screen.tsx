@@ -8,6 +8,7 @@ import { useGameProgress } from '@/features/learning/context/game-progress-conte
 import { useRouter } from 'expo-router';
 import { Screen, ScreenHeader, Card, Button, Pill, Icon, BottomNav, H3 } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 
 const AVATAR_SIZE = 64;
 
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm,
-    fontSize: tokens.type.h3.fontSize,
+    fontSize: typeScale.h3.fontSize,
     fontFamily: tokens.font.bodyBold,
     letterSpacing: 2,
     color: tokens.color.ink,

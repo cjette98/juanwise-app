@@ -16,8 +16,10 @@ import {
   Label,
   type IconName,
   type SegmentedOption,
+  TrophyBadge,
 } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 import {
   useStudentResults,
   ResultFilter,
@@ -51,16 +53,13 @@ const PACE_BY_TIER: Record<'gold' | 'silver' | 'bronze', LearnerPace> = {
 };
 
 /**
- * The trophy, drawn as the same line icon the rest of the app uses, tinted to
- * the tier it stands for, rather than the old bespoke `TROPHY_COLORS` hex
- * triplet. `null` (no trophy yet) draws a dash instead of leaving a hole in
- * the row.
+ * The same trophy badge the student leaderboard draws, tinted to the tier it
+ * stands for. `null` (no trophy yet) draws a dash instead of leaving a hole
+ * in the row.
  */
 function TrophyGlyph({ trophy }: { trophy: Trophy }) {
   if (!trophy) return <Caption style={{ color: tokens.color.inkFaint }}>—</Caption>;
-  const color =
-    trophy === 'gold' ? tokens.color.medalGold : trophy === 'silver' ? tokens.color.medalSilver : tokens.color.medalBronze;
-  return <Icon name="trophy" size={20} color={color} />;
+  return <TrophyBadge tier={trophy} size={20} />;
 }
 
 /** One of the three collapsed filter chips — shows the active selection, or its "All" default, and opens its option set. */
@@ -536,7 +535,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: tokens.radius.pill,
   },
-  paceBadgeText: { ...tokens.type.tab },
+  paceBadgeText: { ...typeScale.tab },
   statsBlock: { alignItems: 'flex-end', gap: 2 },
   pointsText: { color: tokens.color.ink },
   durationRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },

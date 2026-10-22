@@ -7,7 +7,7 @@ import {
   Pill,
   Icon,
   Avatar,
-  MedalBadge,
+  TrophyBadge,
   Segmented,
   StarRow,
   H2,
@@ -105,7 +105,7 @@ const PACE_ICON: Record<LearnerPace, IconName> = {
 };
 
 /**
- * The podium's medal colours are keyed on RANK, while a row's `MedalBadge` is
+ * The podium's medal colours are keyed on RANK, while a row's `TrophyBadge` is
  * keyed on the student's actual `trophy`. They are genuinely different facts:
  * trophies come from absolute points-and-time thresholds, so the second-place
  * student on a weak board may hold no trophy at all. The podium says "you came
@@ -138,7 +138,7 @@ function PacePill({ pace }: { pace: LearnerPace }) {
 }
 
 /**
- * The trophy, spoken. `MedalBadge` is decorative, so the row that contains it
+ * The trophy, spoken. `TrophyBadge` is decorative, so the row that contains it
  * is what has to say which trophy — otherwise the badge is invisible to a
  * screen reader.
  */
@@ -149,9 +149,9 @@ function useTrophyLabel() {
 }
 
 /** `null` renders the dash the legend needs for "no trophy yet". */
-function LegendMedal({ tier }: { tier: Trophy }) {
+function LegendTrophy({ tier }: { tier: Trophy }) {
   if (!tier) return <Caption style={{ color: tokens.color.inkFaint }}>—</Caption>;
-  return <MedalBadge tier={tier} size={18} />;
+  return <TrophyBadge tier={tier} size={18} />;
 }
 
 const PODIUM_HEIGHT: Record<1 | 2 | 3, number> = { 1: 108, 2: 84, 3: 66 };
@@ -288,7 +288,7 @@ export default function StudentLeaderboardScreen() {
               {(['gold', 'silver', 'bronze'] as const).map((tier) => (
                 <View key={tier} style={styles.legendRow}>
                   <View style={styles.legendRowLabelWrap}>
-                    <LegendMedal tier={tier} />
+                    <LegendTrophy tier={tier} />
                     <BodyStrong style={styles.legendRowLabel}>
                       {tier === 'bronze' ? t('legendBronzeOrNone') : t(TIER_NAME_KEY[tier])}
                     </BodyStrong>
@@ -356,7 +356,7 @@ export default function StudentLeaderboardScreen() {
                       ring={RANK_COLOR[entry.rank]}
                       ringWidth={3}
                     />
-                    <MedalBadge tier={entry.trophy} size={26} style={styles.podiumBadge} />
+                    <TrophyBadge tier={entry.trophy} size={26} style={styles.podiumBadge} />
                   </View>
                   <BodyStrong numberOfLines={1} style={styles.podiumName}>
                     {entry.studentName}{entry.studentName === name ? t('youSuffix') : ''}
@@ -432,7 +432,7 @@ export default function StudentLeaderboardScreen() {
                         <StarRow earned={Math.round(s.avgStars)} of={3} size={12} />
                       </View>
                     </View>
-                    <MedalBadge tier={s.trophy} size={30} />
+                    <TrophyBadge tier={s.trophy} size={30} />
                   </Card>
                 </TouchableOpacity>
               );
@@ -458,7 +458,7 @@ export default function StudentLeaderboardScreen() {
                   </View>
                   <View style={styles.peekStatsRow}>
                     <View style={styles.statLineRow}>
-                      <LegendMedal tier={peekSummary.trophy} />
+                      <LegendTrophy tier={peekSummary.trophy} />
                       <BodyStrong style={styles.peekStat}>{t('trophyWord')}</BodyStrong>
                     </View>
                     <BodyStrong style={styles.peekStat}>{t('pointsSuffixShort', { points: peekSummary.totalPoints })}</BodyStrong>

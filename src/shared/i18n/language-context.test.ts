@@ -88,7 +88,9 @@ describe('translate', () => {
   });
 
   it('accepts numbers as well as strings', () => {
-    expect(translate('detailPoints', { points: 0 })).toBe('Points: 0 pts');
+    expect(translate('detailQuestionCount', { num: 3, level: 2 })).toBe(
+      'Question #: 3 of 6 · Level 2/5',
+    );
   });
 
   it('leaves an unfilled placeholder alone rather than printing undefined', () => {

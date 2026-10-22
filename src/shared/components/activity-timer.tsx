@@ -2,6 +2,7 @@ import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } f
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 
 export type Medal = 'gold' | 'silver' | 'bronze' | null;
 
@@ -130,5 +131,5 @@ export default ActivityTimer;
 
 const styles = StyleSheet.create({
   ring: { width: 54, height: 54, alignItems: 'center', justifyContent: 'center' },
-  ringText: { ...tokens.type.h3, color: tokens.color.onDark },
+  ringText: { ...typeScale.h3, color: tokens.color.onDark },
 });

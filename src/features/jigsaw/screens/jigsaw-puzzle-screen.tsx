@@ -17,7 +17,7 @@ import { generateEdgeMap, getPieceEdges, piecePathD } from '@/features/jigsaw/li
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import {
-  Screen, ScreenHeader, Card, Button, Icon, Pill, ProgressBar, StarRow, H2, Body, BodyStrong, Caption,
+  Screen, ScreenHeader, Card, Button, Icon, Pill, ProgressBar, ScoreBadge, StarRow, H2, Body, BodyStrong, Caption,
 } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 
@@ -134,6 +134,8 @@ export default function JigsawPuzzleScreen() {
 
   const { playSfx } = useSound();
   const [phase, setPhase] = useState<Phase>('playing');
+  /** Last piece placed, waiting on the server for the points. */
+  const [scoring, setScoring] = useState(false);
   const phaseRef = useRef(phase);
   useEffect(() => {
     phaseRef.current = phase;
@@ -220,7 +222,6 @@ export default function JigsawPuzzleScreen() {
 
       if (recorded.medal) {
         recordOutcome(category, 'jigsaw', level, activityNum, true, recorded.attemptSeq, { queued });
-        playSfx('complete');
         setTimeout(() => setPhase('success'), 250);
       } else {
         recordOutcome(category, 'jigsaw', level, activityNum, false, recorded.attemptSeq, { queued });
@@ -239,6 +240,7 @@ export default function JigsawPuzzleScreen() {
       }
       Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedResultMsg')));
       phaseRef.current = 'playing';
+      setScoring(false);
       setPhase('playing');
     }
   };
@@ -251,6 +253,10 @@ export default function JigsawPuzzleScreen() {
     const isSolved = finalPlaced.size === pieceCount;
     if (isSolved && phaseRef.current === 'playing') {
       phaseRef.current = 'success';
+      // The puzzle is solved on this frame; only the points wait for the
+      // server, so the fanfare and the "scoring" line go out now.
+      playSfx('complete');
+      setScoring(true);
       const timerResult = timerRef.current?.stop();
       if (timerResult) void recordAttempt(timerResult, true);
     }
@@ -403,7 +409,9 @@ export default function JigsawPuzzleScreen() {
       </ScreenHeader>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Caption style={styles.hintText}>{t('dragPiecesHint')}</Caption>
+        <Caption style={styles.hintText}>
+          {scoring ? t('scoringPuzzle') : t('dragPiecesHint')}
+        </Caption>
 
         <View style={styles.progressRow}>
           <View style={styles.progressBarWrap}>
@@ -604,6 +612,7 @@ export default function JigsawPuzzleScreen() {
               </View>
               <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
+            <ScoreBadge points={result?.points ?? 0} tone="win" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -614,10 +623,9 @@ export default function JigsawPuzzleScreen() {
                 <Body style={styles.detailLine}>{t('starsEarnedLabel')}</Body>
                 <StarRow earned={result?.stars ?? 0} />
               </View>
-              <Body style={styles.detailLine}>{t('detailPoints', { points: result?.points ?? 0 })}</Body>
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
-              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              <Body style={styles.detailLine}>{t('detailPuzzleCount', { num: activityNum, level })}</Body>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button
@@ -642,6 +650,7 @@ export default function JigsawPuzzleScreen() {
               </View>
               <H2 style={styles.timeUpTitle}>{t('activityCompleteIncorrect')}</H2>
             </View>
+            <ScoreBadge points={0} tone="loss" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -652,11 +661,10 @@ export default function JigsawPuzzleScreen() {
                 <Icon name="flag" size={15} color={tokens.color.danger} />
                 <BodyStrong style={styles.flagLine}>{t('statusFailedIncomplete')}</BodyStrong>
               </View>
-              <Body style={styles.detailLine}>{t('pointsZero')}</Body>
               <Body style={styles.detailLine}>{triesLine(attemptSeq)}</Body>
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
-              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              <Body style={styles.detailLine}>{t('detailPuzzleCount', { num: activityNum, level })}</Body>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button

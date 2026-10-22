@@ -18,6 +18,7 @@ import {
   Label,
 } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 
 export default function ClassOverviewScreen() {
   const router = useRouter();
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.space.sm,
     textAlign: 'center',
     color: tokens.color.ink,
-    ...tokens.type.display,
+    ...typeScale.display,
     letterSpacing: 4,
   },
   codeBtnRow: { flexDirection: 'row', gap: tokens.space.sm, width: '100%', alignItems: 'center' },

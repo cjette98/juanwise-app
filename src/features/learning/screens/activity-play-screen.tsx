@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
@@ -9,8 +9,9 @@ import { ApiError, errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matching';
-import { Screen, ScreenHeader, Card, Button, Icon, StarRow, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
+import { Screen, ScreenHeader, Card, Button, Icon, ScoreBadge, StarRow, ZoomableImage, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { difficultyLabelKey } from '@/features/learning/lib/activity-list-model';
@@ -108,6 +109,14 @@ export default function ActivityPlayScreen() {
       : t('activityFinishedNoTries');
   };
   const [submitting, setSubmitting] = useState(false);
+  /**
+   * The answer the student just gave and whether it was right, set on the tap
+   * itself rather than when the server replies (evaluation items 3.1 and 4.1).
+   * Waiting for the round trip left the screen looking dead, so students tapped
+   * again; the grading is local anyway — the server only decides the points.
+   */
+  const [picked, setPicked] = useState<{ value: string; correct: boolean } | null>(null);
+  const [ranOutOfTime, setRanOutOfTime] = useState(false);
   const [attemptKey] = useState(0);
 
   const timerRef = useRef<ActivityTimerHandle>(null);
@@ -119,6 +128,7 @@ export default function ActivityPlayScreen() {
     setChoices(q.choices ? shuffleChoices(q.choices) : []);
     setEnumAnswers(Array(requiredAnswers).fill(''));
     setTextAnswer('');
+    setPicked(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionSignature, requiredAnswers]);
 
@@ -177,6 +187,7 @@ export default function ActivityPlayScreen() {
     correctCount?: number,
   ) => {
     if (typeof correctCount === 'number') setEnumCorrectCount(correctCount);
+    setRanOutOfTime(timedOut);
 
     const requiredCount = q.type === 'enumeration' ? requiredAnswers : 1;
     const observedCorrect =
@@ -206,11 +217,9 @@ export default function ActivityPlayScreen() {
 
       if (recorded.medal) {
         recordOutcome(category, activityType, level, activityNum, true, recorded.attemptSeq, { queued: wasQueued });
-        playSfx('correct');
         setPhase('success');
       } else {
         recordOutcome(category, activityType, level, activityNum, false, recorded.attemptSeq, { queued: wasQueued });
-        playSfx('wrong');
         setPhase('incorrect');
       }
     } catch (err) {
@@ -227,6 +236,7 @@ export default function ActivityPlayScreen() {
         return;
       }
       Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedAnswerMsg')));
+      setPicked(null);
       setPhase('question');
     } finally {
       setSubmitting(false);
@@ -235,20 +245,25 @@ export default function ActivityPlayScreen() {
 
   const handleAnswer = (given: string) => {
     if (phase !== 'question' || submitting) return;
-    playSfx('tap');
+    const correct = isCorrect(given);
+    // Mark and sound the answer on this frame; the pop-up follows when the
+    // server has scored it.
+    setPicked({ value: given, correct });
+    playSfx(correct ? 'correct' : 'wrong');
     const timerResult = timerRef.current?.stop();
     if (!timerResult) return;
-    void recordAttempt(timerResult, isCorrect(given), false);
+    void recordAttempt(timerResult, correct, false);
   };
 
   // Enumeration: submits all filled tabs at once.
   const handleSubmitEnumeration = () => {
     if (phase !== 'question' || submitting) return;
-    playSfx('tap');
+    const { correctCount, passed } = checkEnumerationAnswers(enumAnswers);
+    setPicked({ value: enumAnswers.join('|'), correct: passed });
+    playSfx(passed ? 'correct' : 'wrong');
     const timerResult = timerRef.current?.stop();
     if (!timerResult) return;
 
-    const { correctCount, passed } = checkEnumerationAnswers(enumAnswers);
     void recordAttempt(timerResult, passed, false, correctCount);
   };
 
@@ -262,6 +277,7 @@ export default function ActivityPlayScreen() {
 
   const handleExpire = (timerResult: ActivityTimerResult) => {
     if (phase === 'success' || phase === 'incorrect') return;
+    playSfx('wrong');
     const correctCount =
       q.type === 'enumeration' ? checkEnumerationAnswers(enumAnswers).correctCount : undefined;
     void recordAttempt(timerResult, false, true, correctCount);
@@ -288,12 +304,26 @@ export default function ActivityPlayScreen() {
   };
 
   const filledCount = enumAnswers.filter((a) => a.trim()).length;
+  /**
+   * "Activity Complete (Incorrect)" was the title whether the clock ran out,
+   * the answer was wrong or the student walked out. The client asked that a
+   * wrong answer say so (item 4.3); the rest of the pop-up is the one it has
+   * always shown, which is what they asked to keep.
+   */
+  const incorrectTitle = ranOutOfTime
+    ? t('timeUpTitle')
+    : picked
+      ? t('answerIncorrectTitle')
+      : t('activityCompleteIncorrect');
+  const answerBoxTint = picked
+    ? { borderColor: picked.correct ? tokens.color.success : tokens.color.danger }
+    : null;
 
   return (
     <Screen>
       <ScreenHeader
         title={t('headerLevelTitle', { label, level })}
-        subtitle={t('activityPlaySubtitle', {
+        subtitle={t('quizPlaySubtitle', {
           type: questionTypeLabel(q.type),
           difficulty: t(difficultyLabelKey(difficulty)),
           num: activityNum,
@@ -329,10 +359,12 @@ export default function ActivityPlayScreen() {
                 quiz question can carry one, and only when somebody illustrated
                 it — an unillustrated question keeps the text-only card it had. */}
             {!!q.miniLessonImageUrl && (
-              <Image
+              <ZoomableImage
                 source={{ uri: q.miniLessonImageUrl }}
                 style={styles.hintImage}
-                resizeMode="cover"
+                openLabel={t('openPictureLabel')}
+                zoomHint={t('pictureZoomHint')}
+                closeLabel={t('closePictureLabel')}
               />
             )}
             <Body style={styles.hintText}>{q.hint}</Body>
@@ -346,34 +378,63 @@ export default function ActivityPlayScreen() {
 
             {q.type === 'multiple-choice' && (
               <View style={styles.choicesWrap}>
-                {choices.map((choice, i) => (
-                  <TouchableOpacity
-                    key={choice}
-                    style={[styles.choiceRow, { borderColor: headerColor }]}
-                    onPress={() => handleAnswer(choice)}
-                    activeOpacity={0.75}
-                  >
-                    <View style={[styles.choiceChip, { backgroundColor: headerColor }]}>
-                      <BodyStrong style={styles.choiceChipText}>{CHOICE_LETTERS[i] ?? i + 1}</BodyStrong>
-                    </View>
-                    <Body style={[styles.choiceText, { color: headerColor }]}>{choice}</Body>
-                  </TouchableOpacity>
-                ))}
+                {choices.map((choice, i) => {
+                  const isPicked = picked?.value === choice;
+                  // Green or red the instant it is tapped; the others fade so
+                  // the marked one is unmistakable, and nothing stays tappable.
+                  const tint = isPicked
+                    ? picked.correct
+                      ? { line: tokens.color.success, fill: tokens.color.successSoft, ink: tokens.color.successInk }
+                      : { line: tokens.color.danger, fill: tokens.color.dangerSoft, ink: tokens.color.dangerInk }
+                    : null;
+                  return (
+                    <TouchableOpacity
+                      key={choice}
+                      style={[
+                        styles.choiceRow,
+                        { borderColor: tint?.line ?? headerColor },
+                        tint && { backgroundColor: tint.fill },
+                        picked && !isPicked && styles.choiceRowFaded,
+                      ]}
+                      onPress={() => handleAnswer(choice)}
+                      disabled={!!picked || submitting}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: !!picked, selected: isPicked }}
+                    >
+                      <View style={[styles.choiceChip, { backgroundColor: tint?.line ?? headerColor }]}>
+                        {isPicked ? (
+                          <Icon
+                            name={picked.correct ? 'check' : 'close'}
+                            size={18}
+                            color={tokens.color.onDark}
+                            strokeWidth={3}
+                          />
+                        ) : (
+                          <BodyStrong style={styles.choiceChipText}>{CHOICE_LETTERS[i] ?? i + 1}</BodyStrong>
+                        )}
+                      </View>
+                      <Body style={[styles.choiceText, { color: tint?.ink ?? headerColor }]}>{choice}</Body>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
 
             {q.type === 'identification' && (
               <View style={styles.identificationWrap}>
                 <TextInput
-                  style={styles.textInput}
+                  style={[styles.textInput, answerBoxTint]}
                   value={textAnswer}
                   onChangeText={setTextAnswer}
+                  editable={!picked && !submitting}
                   placeholder={t('typeYourAnswer')}
                   placeholderTextColor={tokens.color.inkFaint}
                 />
                 <Button
                   label={t('submitBtn')}
                   onPress={() => handleAnswer(textAnswer)}
+                  disabled={!!picked || submitting}
                   color={cat.base}
                   shadowColor={cat.dark}
                   style={styles.fullWidthButton}
@@ -392,9 +453,10 @@ export default function ActivityPlayScreen() {
                       <Label style={styles.enumIndexText}>{i + 1}</Label>
                     </View>
                     <TextInput
-                      style={[styles.textInput, styles.enumInput]}
+                      style={[styles.textInput, styles.enumInput, answerBoxTint]}
                       value={val}
                       onChangeText={(text) => updateEnumAnswer(i, text)}
+                      editable={!picked && !submitting}
                       placeholder={t('answerNPlaceholder', { n: i + 1 })}
                       placeholderTextColor={tokens.color.inkFaint}
                     />
@@ -403,10 +465,17 @@ export default function ActivityPlayScreen() {
                 <Button
                   label={t('submitCompleteAnswer')}
                   onPress={handleSubmitEnumeration}
+                  disabled={!!picked || submitting}
                   color={cat.base}
                   shadowColor={cat.dark}
                   style={styles.fullWidthButton}
                 />
+              </View>
+            )}
+            {submitting && (
+              <View style={styles.scoringRow}>
+                <ActivityIndicator color={headerColor} />
+                <Caption style={styles.scoringText}>{t('scoringAnswer')}</Caption>
               </View>
             )}
           </Card>
@@ -430,6 +499,7 @@ export default function ActivityPlayScreen() {
               </View>
               <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
+            <ScoreBadge points={result?.points ?? 0} tone="win" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -440,13 +510,12 @@ export default function ActivityPlayScreen() {
                 <Body style={styles.detailLine}>{t('starsEarnedLabel')}</Body>
                 <StarRow earned={result?.stars ?? 0} />
               </View>
-              <Body style={styles.detailLine}>{t('detailPoints', { points: result?.points ?? 0 })}</Body>
               {q.type === 'enumeration' && (
                 <Body style={styles.detailLine}>{t('detailAnswersCorrect', { correct: enumCorrectCount, required: requiredAnswers })}</Body>
               )}
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeQuiz', { type: questionTypeLabel(q.type) })}</Body>
-              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              <Body style={styles.detailLine}>{t('detailQuestionCount', { num: activityNum, level })}</Body>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button label={t('proceedNextActivity')} onPress={handleContinue} color={cat.base} shadowColor={cat.dark} style={styles.fullWidthButton} />
@@ -464,8 +533,9 @@ export default function ActivityPlayScreen() {
               <View style={[styles.sheetTitleIcon, { backgroundColor: tokens.color.dangerSoft }]}>
                 <Icon name="close" size={22} color={tokens.color.danger} strokeWidth={3} />
               </View>
-              <H2 style={styles.timeUpTitle}>{t('activityCompleteIncorrect')}</H2>
+              <H2 style={styles.timeUpTitle}>{incorrectTitle}</H2>
             </View>
+            <ScoreBadge points={0} tone="loss" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -476,14 +546,13 @@ export default function ActivityPlayScreen() {
                 <Icon name="flag" size={15} color={tokens.color.danger} />
                 <BodyStrong style={styles.flagLine}>{t('statusFailedIncorrect')}</BodyStrong>
               </View>
-              <Body style={styles.detailLine}>{t('pointsZero')}</Body>
               <Body style={styles.detailLine}>{triesLine(attemptSeq)}</Body>
               {q.type === 'enumeration' && (
                 <Body style={styles.detailLine}>{t('detailAnswersCorrect', { correct: enumCorrectCount, required: requiredAnswers })}</Body>
               )}
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeQuiz', { type: questionTypeLabel(q.type) })}</Body>
-              <Body style={styles.detailLine}>{t('detailActivityCount', { num: activityNum, level })}</Body>
+              <Body style={styles.detailLine}>{t('detailQuestionCount', { num: activityNum, level })}</Body>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button
@@ -523,6 +592,9 @@ const styles = StyleSheet.create({
   questionCard: { width: '100%' },
   questionText: { marginBottom: tokens.space.lg, textAlign: 'center' },
   choicesWrap: { gap: tokens.space.sm },
+  choiceRowFaded: { opacity: 0.45 },
+  scoringRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: tokens.space.sm, marginTop: tokens.space.lg },
+  scoringText: { color: tokens.color.inkMuted },
   choiceRow: {
     minHeight: 62,
     flexDirection: 'row',
@@ -551,7 +623,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.space.lg,
     backgroundColor: tokens.color.surface,
     color: tokens.color.ink,
-    ...tokens.type.body,
+    ...typeScale.body,
   },
   enumHelper: { marginBottom: -tokens.space.xs },
   enumRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm },
