@@ -9,10 +9,19 @@ import { useRouter } from 'expo-router';
 import { Screen, Button, Icon, type IconName, H1, Label, Caption } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
 import { typeScale } from '@/shared/theme/typography';
+import {
+  MAX_FULL_NAME,
+  MAX_SECTION,
+  filterGradeInput,
+  filterNameInput,
+  filterSectionInput,
+  isFullName,
+  isGradeLevel,
+  isSection,
+} from '@/shared/lib/profile-fields';
 
 const LRN_REGEX = /^\d{12}$/;
 const TEACHER_ID_REGEX = /^\d{7}$/;
-const GRADE_REGEX = /^\d+$/;
 const GMAIL_REGEX = /^[^\s@]+@gmail\.com$/i;
 const USERNAME_REGEX = /^\S+$/;
 
@@ -24,10 +33,6 @@ const USERNAME_REGEX = /^\S+$/;
  */
 const TEACHER_EMAIL_DOMAINS = ['@deped.gov.ph', '@gmail.com', '@yopmail.com'];
 const TEACHER_EMAIL_REGEX = /^\S+@(deped\.gov\.ph|gmail\.com|yopmail\.com)$/i;
-
-function isFullName(name: string) {
-  return name.trim().split(/\s+/).length >= 2;
-}
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -78,19 +83,21 @@ export default function RegisterScreen() {
 
   const lrnError = errorFor('lrn', lrn, LRN_REGEX.test(lrn), t('invalidLrnMsg'));
   const fullNameError = errorFor('fullName', fullName, isFullName(fullName), t('invalidFullNameMsg'));
-  const gradeError = errorFor('grade', grade, GRADE_REGEX.test(grade), t('invalidGradeMsg'));
+  const gradeError = errorFor('grade', grade, isGradeLevel(grade), t('invalidGradeMsg'));
+  const sectionError = errorFor('section', section, isSection(section), t('invalidSectionMsg'));
   const emailError = errorFor('email', email, GMAIL_REGEX.test(email), t('invalidGmailMsg'));
   const teacherNameError = errorFor('teacherName', teacherName, isFullName(teacherName), t('invalidFullNameMsg'));
   const teacherIdError = errorFor('teacherId', teacherId, TEACHER_ID_REGEX.test(teacherId), t('invalidTeacherIdMsg'));
-  const handleGradeError = errorFor('handleGrade', handleGrade, GRADE_REGEX.test(handleGrade), t('invalidGradeMsg'));
+  const handleGradeError = errorFor('handleGrade', handleGrade, isGradeLevel(handleGrade), t('invalidGradeMsg'));
+  const teacherSectionError = errorFor('teacherSection', teacherSection, isSection(teacherSection), t('invalidSectionMsg'));
   const depedGmailError = errorFor('depedGmail', depedGmail, TEACHER_EMAIL_REGEX.test(depedGmail), t('invalidDepedGmailMsg'));
   const usernameError = errorFor('username', username, USERNAME_REGEX.test(username), t('invalidUsernameMsg'));
 
   const handleRegister = async () => {
     setTouched({
-      lrn: true, fullName: true, grade: true, email: true,
-      teacherName: true, teacherId: true, handleGrade: true, depedGmail: true,
-      username: true,
+      lrn: true, fullName: true, grade: true, section: true, email: true,
+      teacherName: true, teacherId: true, handleGrade: true, teacherSection: true,
+      depedGmail: true, username: true,
     });
 
     if (!username.trim() || !USERNAME_REGEX.test(username)) {
@@ -115,8 +122,12 @@ export default function RegisterScreen() {
         Alert.alert(t('missingInfo'), t('invalidFullNameMsg'));
         return;
       }
-      if (!GRADE_REGEX.test(grade)) {
+      if (!isGradeLevel(grade)) {
         Alert.alert(t('missingInfo'), t('invalidGradeMsg'));
+        return;
+      }
+      if (!isSection(section)) {
+        Alert.alert(t('missingInfo'), t('invalidSectionMsg'));
         return;
       }
       if (!GMAIL_REGEX.test(email)) {
@@ -149,8 +160,12 @@ export default function RegisterScreen() {
         Alert.alert(t('missingInfo'), t('invalidTeacherIdMsg'));
         return;
       }
-      if (!GRADE_REGEX.test(handleGrade)) {
+      if (!isGradeLevel(handleGrade)) {
         Alert.alert(t('missingInfo'), t('invalidGradeMsg'));
+        return;
+      }
+      if (!isSection(teacherSection)) {
+        Alert.alert(t('missingInfo'), t('invalidSectionMsg'));
         return;
       }
       if (!TEACHER_EMAIL_REGEX.test(depedGmail)) {
@@ -236,9 +251,11 @@ export default function RegisterScreen() {
               icon="user"
               placeholder="Juan Dela Cruz"
               value={fullName}
-              onChangeText={setFullName}
+              onChangeText={(text) => setFullName(filterNameInput(text))}
               onBlur={() => markTouched('fullName')}
+              maxLength={MAX_FULL_NAME}
               error={fullNameError}
+              hint={t('fullNameHint')}
             />
             <Field label={t('age')} icon="chart" value={age} onChangeText={setAge} keyboardType="number-pad" />
             <Field
@@ -246,12 +263,24 @@ export default function RegisterScreen() {
               icon="book"
               placeholder="6"
               value={grade}
-              onChangeText={setGrade}
+              onChangeText={(text) => setGrade(filterGradeInput(text))}
               onBlur={() => markTouched('grade')}
               keyboardType="number-pad"
+              maxLength={2}
               error={gradeError}
+              hint={t('gradeHint')}
             />
-            <Field label={t('section')} icon="book" value={section} onChangeText={setSection} />
+            <Field
+              label={t('section')}
+              icon="book"
+              placeholder="Infinity1"
+              value={section}
+              onChangeText={(text) => setSection(filterSectionInput(text))}
+              onBlur={() => markTouched('section')}
+              maxLength={MAX_SECTION}
+              error={sectionError}
+              hint={t('sectionHint')}
+            />
             <Field
               label={t('email')}
               placeholder="juan123@gmail.com"
@@ -270,9 +299,11 @@ export default function RegisterScreen() {
               icon="user"
               placeholder="Maria Cruz"
               value={teacherName}
-              onChangeText={setTeacherName}
+              onChangeText={(text) => setTeacherName(filterNameInput(text))}
               onBlur={() => markTouched('teacherName')}
+              maxLength={MAX_FULL_NAME}
               error={teacherNameError}
+              hint={t('fullNameHint')}
             />
             <Field
               label={t('teacherId')}
@@ -290,12 +321,24 @@ export default function RegisterScreen() {
               icon="book"
               placeholder="5"
               value={handleGrade}
-              onChangeText={setHandleGrade}
+              onChangeText={(text) => setHandleGrade(filterGradeInput(text))}
               onBlur={() => markTouched('handleGrade')}
               keyboardType="number-pad"
+              maxLength={2}
               error={handleGradeError}
+              hint={t('gradeHint')}
             />
-            <Field label={t('section')} icon="book" value={teacherSection} onChangeText={setTeacherSection} />
+            <Field
+              label={t('section')}
+              icon="book"
+              placeholder="Infinity1"
+              value={teacherSection}
+              onChangeText={(text) => setTeacherSection(filterSectionInput(text))}
+              onBlur={() => markTouched('teacherSection')}
+              maxLength={MAX_SECTION}
+              error={teacherSectionError}
+              hint={t('sectionHint')}
+            />
             <Field
               label={t('depedGmail')}
               placeholder="maria.cruz@deped.gov.ph"

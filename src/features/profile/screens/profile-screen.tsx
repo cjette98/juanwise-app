@@ -24,6 +24,16 @@ import { useRouter } from 'expo-router';
 import { Screen, ScreenHeader, Card, Button, Pill, ProgressBar, Icon, type IconName, H3, BodyStrong, Body, Label, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { typeScale } from '@/shared/theme/typography';
+import {
+  MAX_FULL_NAME,
+  MAX_SECTION,
+  filterGradeInput,
+  filterNameInput,
+  filterSectionInput,
+  isFullName,
+  isGradeLevel,
+  isSection,
+} from '@/shared/lib/profile-fields';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -171,6 +181,18 @@ export default function ProfileScreen() {
       Alert.alert(t('requiredFieldTitle'), t('requiredFieldMsg'));
       return;
     }
+    if (!isFullName(draftName)) {
+      Alert.alert(t('requiredFieldTitle'), t('invalidFullNameMsg'));
+      return;
+    }
+    if (!isGradeLevel(draftGrade)) {
+      Alert.alert(t('requiredFieldTitle'), t('invalidGradeMsg'));
+      return;
+    }
+    if (!isSection(draftSection)) {
+      Alert.alert(t('requiredFieldTitle'), t('invalidSectionMsg'));
+      return;
+    }
 
     setSaving(true);
     try {
@@ -285,7 +307,7 @@ export default function ProfileScreen() {
 
   const fields: FieldDef[] = isTeacher
     ? [
-        { key: 'fullName', label: t('fullName'), icon: 'user', value: name, draft: draftName, onChangeText: setDraftName },
+        { key: 'fullName', label: t('fullName'), icon: 'user', value: name, draft: draftName, onChangeText: (text: string) => setDraftName(filterNameInput(text)) },
         { key: 'teacherId', label: t('teacherId'), icon: 'bookmark', value: teacherId, draft: teacherId, onChangeText: noop, readOnly: true },
         {
           key: 'gradeSection',
@@ -301,7 +323,7 @@ export default function ProfileScreen() {
         { key: 'username', label: t('username'), icon: 'user', value: username, draft: username, onChangeText: noop, readOnly: true },
       ]
     : [
-        { key: 'fullName', label: t('fullName'), icon: 'user', value: name, draft: draftName, onChangeText: setDraftName },
+        { key: 'fullName', label: t('fullName'), icon: 'user', value: name, draft: draftName, onChangeText: (text: string) => setDraftName(filterNameInput(text)) },
         { key: 'lrn', label: t('lrn'), icon: 'bookmark', value: lrn, draft: lrn, onChangeText: noop, keyboardType: 'numeric', readOnly: true },
         { key: 'age', label: t('age'), icon: 'clock', value: age, draft: draftAge, onChangeText: setDraftAge, keyboardType: 'numeric' },
         {
@@ -429,14 +451,17 @@ export default function ProfileScreen() {
                       <TextInput
                         style={[styles.cardInput, styles.inlineInput]}
                         value={draftGrade}
-                        onChangeText={setDraftGrade}
+                        onChangeText={(text) => setDraftGrade(filterGradeInput(text))}
+                        keyboardType="number-pad"
+                        maxLength={2}
                         placeholder={t('grade')}
                         placeholderTextColor={tokens.color.inkFaint}
                       />
                       <TextInput
                         style={[styles.cardInput, styles.inlineInput]}
                         value={draftSection}
-                        onChangeText={setDraftSection}
+                        onChangeText={(text) => setDraftSection(filterSectionInput(text))}
+                        maxLength={MAX_SECTION}
                         placeholder={t('section')}
                         placeholderTextColor={tokens.color.inkFaint}
                       />
@@ -447,6 +472,7 @@ export default function ProfileScreen() {
                       value={f.draft}
                       onChangeText={f.onChangeText}
                       keyboardType={f.keyboardType || 'default'}
+                      maxLength={f.key === 'fullName' ? MAX_FULL_NAME : undefined}
                       placeholder={f.label}
                       placeholderTextColor={tokens.color.inkFaint}
                     />
