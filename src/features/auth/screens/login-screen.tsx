@@ -45,7 +45,21 @@ export default function LoginScreen() {
         return;
       }
 
-      router.replace(profile.role === 'student' ? '/student-home' : '/teacher-dashboard');
+      // Item 6.1 of the client evaluation: only failures used to say anything,
+      // so a student who tapped Login and saw the screen sit there could not
+      // tell a slow sign-in from a silent one. The home screen is behind the
+      // pop-up either way — dismissing it is what moves on, and `cancelable`
+      // plus `onDismiss` cover the Android back-tap, which would otherwise
+      // leave a signed-in student looking at the login form.
+      const home = profile.role === 'student' ? '/student-home' : '/teacher-dashboard';
+      const goHome = () => router.replace(home);
+
+      Alert.alert(
+        t('loginSuccess'),
+        t('loginSuccessMsg', { name: profile.name }),
+        [{ text: t('continueBtn'), onPress: goHome }],
+        { cancelable: false, onDismiss: goHome },
+      );
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         Alert.alert(t('invalidLogin'), t('invalidLoginMsg'));

@@ -47,6 +47,8 @@ const en = {
   wrongAccountTypeMsg: 'This account is not registered under the selected tab. Please switch to the correct account type.',
   invalidLogin: 'Invalid Login',
   invalidLoginMsg: 'Incorrect username or password.',
+  loginSuccess: 'Logged In',
+  loginSuccessMsg: 'Welcome back, {name}!',
 
   forgotStudentTitle: 'STUDENT ACCOUNT GMAIL (recovery)',
   forgotTeacherTitle: 'TEACHER EMAIL (recovery)',
@@ -708,6 +710,8 @@ const tl: Record<TranslationKey, string> = {
   wrongAccountTypeMsg: 'Ang account na ito ay hindi narehistro sa napiling tab. Pumili ng tamang klase ng account.',
   invalidLogin: 'Maling Login',
   invalidLoginMsg: 'Mali ang username o password.',
+  loginSuccess: 'Naka-login Ka Na',
+  loginSuccessMsg: 'Maligayang pagbabalik, {name}!',
 
   forgotStudentTitle: 'GMAIL NG ACCOUNT NG ESTUDYANTE (recovery)',
   forgotTeacherTitle: 'EMAIL NG GURO (recovery)',
