@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, Alert, type TextInputProps } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Image, Alert, type TextInputProps } from 'react-native';
+import { TextInput } from '@/shared/components/ui/capped-text';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useUser } from '@/features/auth/context/user-context';

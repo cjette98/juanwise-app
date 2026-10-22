@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, TextInput, TextInputProps, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TextInputProps, TouchableOpacity, View } from 'react-native';
+import { TextInput } from '@/shared/components/ui/capped-text';
 import { Icon } from '@/shared/components/ui';
 import { useLanguage } from '@/shared/i18n/language-context';
 

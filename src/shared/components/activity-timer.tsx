@@ -1,5 +1,6 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from '@/shared/components/ui/capped-text';
 import Svg, { Circle } from 'react-native-svg';
 import { tokens } from '@/shared/theme/tokens';
 import { typeScale } from '@/shared/theme/typography';

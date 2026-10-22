@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, TextInput, Alert, Image } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, Image } from 'react-native';
+import { Text, TextInput } from '@/shared/components/ui/capped-text';
 import { useUser } from '@/features/auth/context/user-context';
 import { useStudentResults } from '@/features/results/context/student-results-context';
 import { useLanguage } from '@/shared/i18n/language-context';
