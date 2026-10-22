@@ -420,14 +420,14 @@ export default function TeacherLeaderboardScreen() {
                     </View>
                     <View style={styles.statsBlock}>
                       {isUnfiltered && <TrophyGlyph trophy={s.trophy} />}
-                      <H3 style={styles.pointsText}>
+                      <H3 style={styles.pointsText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                         {isUnfiltered
                           ? `${s.totalPoints}/${COMBINED_MAX_POINTS} ${t('ptsSuffix')}`
                           : `${s.totalPoints} ${t('ptsSuffix')}`}
                       </H3>
                       <View style={styles.durationRow}>
                         <Icon name="clock" size={12} color={tokens.color.inkMuted} />
-                        <Caption style={styles.durationText}>
+                        <Caption style={styles.durationText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
                           {formatDuration(s.totalTimeUsed)} {t('totalTimeSuffix')}
                         </Caption>
                       </View>
@@ -536,10 +536,12 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.pill,
   },
   paceBadgeText: { ...typeScale.tab },
-  statsBlock: { alignItems: 'flex-end', gap: 2 },
+  // Capped so the student's column keeps room for a whole word at the phone's
+  // largest font; the points and time shrink to fit instead (evaluation 3.2).
+  statsBlock: { alignItems: 'flex-end', gap: 2, flexShrink: 1, maxWidth: '35%' },
   pointsText: { color: tokens.color.ink },
-  durationRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  durationText: { color: tokens.color.inkMuted },
+  durationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1 },
+  durationText: { color: tokens.color.inkMuted, flexShrink: 1 },
 
   clearButton: { marginTop: tokens.space.sm },
 });
