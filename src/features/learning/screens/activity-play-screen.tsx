@@ -362,6 +362,7 @@ export default function ActivityPlayScreen() {
               <ZoomableImage
                 source={{ uri: q.miniLessonImageUrl }}
                 style={styles.hintImage}
+                containerStyle={styles.hintImageWrap}
                 openLabel={t('openPictureLabel')}
                 zoomHint={t('pictureZoomHint')}
                 closeLabel={t('closePictureLabel')}
@@ -581,6 +582,9 @@ const styles = StyleSheet.create({
     marginBottom: tokens.space.sm,
   },
   hintLabel: { marginBottom: tokens.space.sm },
+  // The card centres its children, so the picture's wrapper is stretched to
+  // the card's width for the picture's `width: '100%'` to mean something.
+  hintImageWrap: { alignSelf: 'stretch' },
   hintImage: {
     width: '100%',
     height: 160,
