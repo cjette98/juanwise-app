@@ -1,5 +1,5 @@
 // src/shared/components/ui/zoomable-image.tsx
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -11,13 +11,12 @@ import {
   type ImageSourcePropType,
   type ImageStyle,
   type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { Icon } from './icon';
 import { Caption } from './text';
 import { tokens } from '@/shared/theme/tokens';
-
-/** 1x fills the screen; each tap steps up, and the third tap comes back. */
-const ZOOM_STEPS = [1, 2, 3] as const;
+import { ZOOM_STEPS, centredScrollOffset, nextZoomIndex } from './zoom-steps';
 
 /**
  * A picture that opens full screen and zooms, used for every mini-lesson
@@ -33,6 +32,7 @@ const ZOOM_STEPS = [1, 2, 3] as const;
 export function ZoomableImage({
   source,
   style,
+  containerStyle,
   resizeMode = 'cover',
   openLabel,
   zoomHint,
@@ -41,6 +41,12 @@ export function ZoomableImage({
   source: ImageSourcePropType;
   /** The thumbnail's style — the full-screen view sizes itself. */
   style?: StyleProp<ImageStyle>;
+  /**
+   * The tappable wrapper's style. A thumbnail sized as a share of its parent
+   * (`width: '100%'`) needs the wrapper to take that width first: inside a
+   * parent that centres its children the wrapper otherwise shrinks to nothing.
+   */
+  containerStyle?: StyleProp<ViewStyle>;
   resizeMode?: 'cover' | 'contain';
   /** Accessibility label for the thumbnail, e.g. "Open the picture". */
   openLabel: string;
@@ -52,6 +58,15 @@ export function ZoomableImage({
   const [zoomIndex, setZoomIndex] = useState(0);
   const zoom = ZOOM_STEPS[zoomIndex];
   const { width, height } = Dimensions.get('window');
+  const verticalScroll = useRef<ScrollView>(null);
+  const horizontalScroll = useRef<ScrollView>(null);
+
+  // A zoom step resizes the canvas; open it on its middle, where the picture is.
+  const centre = () => {
+    const { x, y } = centredScrollOffset({ width, height }, zoom);
+    verticalScroll.current?.scrollTo({ y, animated: false });
+    horizontalScroll.current?.scrollTo({ x, animated: false });
+  };
 
   const close = () => {
     setOpen(false);
@@ -61,6 +76,7 @@ export function ZoomableImage({
   return (
     <>
       <Pressable
+        style={containerStyle}
         onPress={() => setOpen(true)}
         accessibilityRole="imagebutton"
         accessibilityLabel={openLabel}
@@ -71,6 +87,8 @@ export function ZoomableImage({
       <Modal visible={open} animationType="fade" onRequestClose={close} statusBarTranslucent>
         <View style={styles.viewer}>
           <ScrollView
+            ref={verticalScroll}
+            onContentSizeChange={centre}
             maximumZoomScale={ZOOM_STEPS[ZOOM_STEPS.length - 1]}
             minimumZoomScale={1}
             centerContent
@@ -78,12 +96,14 @@ export function ZoomableImage({
             contentContainerStyle={styles.pane}
           >
             <ScrollView
+              ref={horizontalScroll}
+              onContentSizeChange={centre}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.pane}
             >
               <Pressable
-                onPress={() => setZoomIndex((i) => (i + 1) % ZOOM_STEPS.length)}
+                onPress={() => setZoomIndex(nextZoomIndex)}
                 accessibilityRole="imagebutton"
                 accessibilityLabel={zoomHint}
               >

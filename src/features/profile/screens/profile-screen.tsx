@@ -1,8 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -14,6 +12,7 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
+import { Text, TextInput } from '@/shared/components/ui/capped-text';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '@/features/auth/context/user-context';

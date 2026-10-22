@@ -1,6 +1,7 @@
 // src/shared/components/ui/avatar.tsx
 import React from 'react';
-import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { Text } from '@/shared/components/ui/capped-text';
 import { avatarPalette, initialsOf } from './avatar-identity';
 import { tokens } from '@/shared/theme/tokens';
 

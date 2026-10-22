@@ -75,6 +75,15 @@ describe('placeholder parity', () => {
     }
     expect(mismatched).toEqual([]);
   });
+
+  // Item 4.4 of the client evaluation: the full record labelled a timed-out
+  // attempt "Timeout" in the Tagalog app.
+  it('says a timed-out attempt in Tagalog, never the English "timeout"', () => {
+    const english = [...tlEntries]
+      .filter(([, value]) => /timeout/i.test(value.replace(/\{[a-zA-Z0-9]+\}/g, '')))
+      .map(([key]) => key);
+    expect(english).toEqual([]);
+  });
 });
 
 describe('translate', () => {

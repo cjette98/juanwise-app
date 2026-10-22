@@ -921,13 +921,13 @@ const tl: Record<TranslationKey, string> = {
   trophyPaceTitle: 'Tropeo = Pace (parehong batayan)',
   legendBronzeOrNone: 'Tanso / Wala',
   starsExplain:
-    'Bituin = katamtamang bituin kada gawain (3 bituin pinakamabilis/tama, 1 bituin pumasa lang, 0 bituin mali/timeout).',
+    'Bituin = katamtamang bituin kada gawain (3 bituin pinakamabilis/tama, 1 bituin pumasa lang, 0 bituin mali/naubusan ng oras).',
   sortFastest: 'Nangungunang Estudyante',
   sortHighestPoints: 'Pinakamataas na Puntos',
   loadingResults: 'Naglo-load...',
   noResultsForFilter: 'Wala pang natatapos na gawain ang mga estudyante sa napiling filter.',
   totalTimeSuffix: 'kabuuan',
-  activityTimeoutStat: '{attempts} gawain · {timeouts} timeout',
+  activityTimeoutStat: '{attempts} gawain · {timeouts} naubusan ng oras',
   avgTriesStat: '{n} karaniwang subok bago pumasa',
   quizCorrectStat: 'Quiz: {correct}/30 tama',
 
@@ -1065,7 +1065,7 @@ const tl: Record<TranslationKey, string> = {
   activitiesDoneLabel: 'Gawaing Natapos',
   totalTimeLabel: 'Kabuuang Oras',
   noActivityForStudent: 'Wala pang natatapos na gawain ang estudyanteng ito.',
-  timeoutLabel: 'Timeout',
+  timeoutLabel: 'Naubusan ng oras',
   noActivityShort: 'Wala pang gawain',
 
   // --- Performance progression ---

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Image, StyleSheet, Animated, Text } from 'react-native';
+import { View, Image, StyleSheet, Animated } from 'react-native';
+import { Text } from '@/shared/components/ui/capped-text';
 import { images } from '@/shared/assets/images';
 import { useUser } from '@/features/auth/context/user-context';
 import { useRouter } from 'expo-router';

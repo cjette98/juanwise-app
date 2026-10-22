@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { TextInput } from '@/shared/components/ui/capped-text';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { authApi, errorMessage } from '@/shared/api';

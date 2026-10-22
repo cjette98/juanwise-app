@@ -55,7 +55,9 @@ export default function TermsScreen() {
       Alert.alert(content.cancelAlertTitle, content.cancelAlertMsg);
       return;
     }
-    router.navigate('/register');
+    // Sign-in comes first: most people reaching this screen already have an
+    // account, and the login form links to registration for those who don't.
+    router.navigate('/login');
   };
 
   const handleCancel = () => {

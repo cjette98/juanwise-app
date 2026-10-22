@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, ScrollView, Alert, Share, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Share, RefreshControl, TouchableOpacity } from 'react-native';
+import { TextInput } from '@/shared/components/ui/capped-text';
 import { useRouter } from 'expo-router';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useClass } from '@/features/teacher/context/class-context';

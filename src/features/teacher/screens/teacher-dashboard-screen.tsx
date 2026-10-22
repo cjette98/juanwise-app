@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
+import { Text } from '@/shared/components/ui/capped-text';
 import { useRouter } from 'expo-router';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useUser } from '@/features/auth/context/user-context';

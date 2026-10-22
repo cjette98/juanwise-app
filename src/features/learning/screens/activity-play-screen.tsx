@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { TextInput } from '@/shared/components/ui/capped-text';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
@@ -362,6 +363,7 @@ export default function ActivityPlayScreen() {
               <ZoomableImage
                 source={{ uri: q.miniLessonImageUrl }}
                 style={styles.hintImage}
+                containerStyle={styles.hintImageWrap}
                 openLabel={t('openPictureLabel')}
                 zoomHint={t('pictureZoomHint')}
                 closeLabel={t('closePictureLabel')}
@@ -581,6 +583,9 @@ const styles = StyleSheet.create({
     marginBottom: tokens.space.sm,
   },
   hintLabel: { marginBottom: tokens.space.sm },
+  // The card centres its children, so the picture's wrapper is stretched to
+  // the card's width for the picture's `width: '100%'` to mean something.
+  hintImageWrap: { alignSelf: 'stretch' },
   hintImage: {
     width: '100%',
     height: 160,
