@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
-import { Text, TextInput } from '@/shared/components/ui/capped-text';
+import { TextInput } from '@/shared/components/ui/capped-text';
+import { H2, H3, Body, Caption } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,7 +31,7 @@ export default function JigsawContentScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>{t('adminNoPackSelected')}</Text>
+          <Caption style={styles.errorBannerText}>{t('adminNoPackSelected')}</Caption>
         </View>
       </SafeAreaView>
     );
@@ -110,14 +113,14 @@ export default function JigsawContentScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('jigsawContentTitle')}</Text>
-        <Text style={styles.headerSubtitle}>{t('jigsawContentSubtitle')}</Text>
+        <H2 style={styles.headerTitle}>{t('jigsawContentTitle')}</H2>
+        <Caption style={styles.headerSubtitle}>{t('jigsawContentSubtitle')}</Caption>
       </View>
 
       {!!error && (
         <View style={styles.errorBanner}>
           <Ionicons name="cloud-offline-outline" size={16} color="#FFF" />
-          <Text style={styles.errorBannerText}>{error}</Text>
+          <Caption style={styles.errorBannerText}>{error}</Caption>
         </View>
       )}
 
@@ -125,7 +128,7 @@ export default function JigsawContentScreen() {
         {!ready && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator color="#9B4FD6" />
-            <Text style={styles.loadingText}>{t('adminFetchingContent')}</Text>
+            <Caption style={styles.loadingText}>{t('adminFetchingContent')}</Caption>
           </View>
         )}
 
@@ -137,7 +140,7 @@ export default function JigsawContentScreen() {
             <View key={cat.key} style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={[styles.dot, { backgroundColor: cat.color }]} />
-                <Text style={styles.cardTitle}>{t(cat.labelKey)}</Text>
+                <H3 style={styles.cardTitle}>{t(cat.labelKey)}</H3>
               </View>
 
               <Image source={content.image} style={styles.preview} resizeMode="cover" />
@@ -153,7 +156,7 @@ export default function JigsawContentScreen() {
                   ) : (
                     <Ionicons name="image-outline" size={16} color="#FFF" />
                   )}
-                  <Text style={styles.actionBtnText}>{t('changePictureBtn')}</Text>
+                  <Caption style={styles.actionBtnText}>{t('changePictureBtn')}</Caption>
                 </TouchableOpacity>
                 {content.hasCustomImage && (
                   <TouchableOpacity
@@ -162,14 +165,14 @@ export default function JigsawContentScreen() {
                     disabled={busy}
                   >
                     <Ionicons name="refresh-outline" size={16} color="#FFF" />
-                    <Text style={styles.actionBtnText}>{t('restoreDefaultBtn')}</Text>
+                    <Caption style={styles.actionBtnText}>{t('restoreDefaultBtn')}</Caption>
                   </TouchableOpacity>
                 )}
               </View>
 
               {isEditing ? (
                 <View style={styles.lessonEditWrap}>
-                  <Text style={styles.langLabel}>{t('contentLangEnglish')}</Text>
+                  <Caption style={styles.langLabel}>{t('contentLangEnglish')}</Caption>
                   <TextInput
                     style={styles.lessonInput}
                     value={draftEn}
@@ -177,7 +180,7 @@ export default function JigsawContentScreen() {
                     multiline
                     placeholder={t('typeMiniLesson')}
                   />
-                  <Text style={styles.langLabel}>{t('contentLangTagalog')}</Text>
+                  <Caption style={styles.langLabel}>{t('contentLangTagalog')}</Caption>
                   <TextInput
                     style={styles.lessonInput}
                     value={draftTl}
@@ -191,21 +194,21 @@ export default function JigsawContentScreen() {
                       onPress={() => saveLesson(cat.key)}
                       disabled={busy}
                     >
-                      <Text style={styles.actionBtnText}>{t('saveBtn')}</Text>
+                      <Caption style={styles.actionBtnText}>{t('saveBtn')}</Caption>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.actionBtn, styles.resetBtn]}
                       onPress={() => setEditingKey(null)}
                       disabled={busy}
                     >
-                      <Text style={styles.actionBtnText}>{t('cancelBtn')}</Text>
+                      <Caption style={styles.actionBtnText}>{t('cancelBtn')}</Caption>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
                 <TouchableOpacity onPress={() => startEditingLesson(cat.key)}>
-                  <Text style={styles.lessonText} numberOfLines={3}>{content.context}</Text>
-                  <Text style={[styles.editLessonLink, { color: cat.color }]}>{t('editMiniLessonBtn')}</Text>
+                  <Body style={styles.lessonText} numberOfLines={3}>{content.context}</Body>
+                  <Caption style={[styles.editLessonLink, { color: cat.color }]}>{t('editMiniLessonBtn')}</Caption>
                 </TouchableOpacity>
               )}
             </View>
@@ -220,13 +223,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5EFE0' },
   header: { backgroundColor: '#9B4FD6', paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
   headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
-  headerSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.9, marginTop: 2 },
+  headerTitle: { color: '#FFF' },
+  headerSubtitle: { color: '#FFF', opacity: 0.9, marginTop: 2 },
   list: { padding: 16, gap: 16 },
   card: { backgroundColor: '#FFF', borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: '#E0D5BE' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  cardTitle: { fontWeight: 'bold', fontSize: 15, color: '#1A1A1A' },
+  cardTitle: { color: '#1A1A1A' },
   preview: { width: '100%', height: 140, borderRadius: 12, marginBottom: 10, backgroundColor: '#EEE' },
   imageActions: { flexDirection: 'row', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14 },
@@ -236,17 +239,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#B23A3A',
     borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginHorizontal: 16, marginTop: 12,
   },
-  errorBannerText: { color: '#FFF', fontSize: 12, flex: 1 },
+  errorBannerText: { color: '#FFF', flex: 1 },
   loadingWrap: { alignItems: 'center', paddingVertical: 24, gap: 8 },
-  loadingText: { fontSize: 12.5, color: '#8E8E93' },
-  actionBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
-  lessonText: { fontSize: 13, color: '#2B2B2B', lineHeight: 19 },
-  editLessonLink: { fontSize: 12, fontWeight: 'bold', marginTop: 6 },
+  loadingText: { color: '#8E8E93' },
+  actionBtnText: { color: '#FFF', fontFamily: tokens.font.bodyBold },
+  lessonText: { color: '#2B2B2B' },
+  editLessonLink: { fontFamily: tokens.font.bodyBold, marginTop: 6 },
   lessonEditWrap: { gap: 8 },
-  langLabel: { fontSize: 11.5, fontWeight: 'bold', color: '#5C3A21', marginBottom: -4 },
+  langLabel: { fontFamily: tokens.font.bodyBold, color: '#5C3A21', marginBottom: -4 },
   lessonInput: {
     borderWidth: 1.5, borderColor: '#E0D5BE', borderRadius: 12, padding: 10, minHeight: 80,
-    textAlignVertical: 'top', fontSize: 13, color: '#1A1A1A',
+    textAlignVertical: 'top', fontFamily: tokens.font.body, fontSize: typeScale.body.fontSize, color: '#1A1A1A',
   },
   lessonActions: { flexDirection: 'row', gap: 8 },
 });

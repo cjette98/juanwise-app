@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Image, StyleSheet, Animated } from 'react-native';
-import { Text } from '@/shared/components/ui/capped-text';
+import { BodyStrong } from '@/shared/components/ui';
 import { images } from '@/shared/assets/images';
 import { useUser } from '@/features/auth/context/user-context';
 import { useRouter } from 'expo-router';
@@ -55,7 +55,7 @@ export default function SplashScreen() {
       />
 
       <View style={styles.loadingArea}>
-        <Text style={styles.loadingText}>{t('splashLoading')}</Text>
+        <BodyStrong style={styles.loadingText}>{t('splashLoading')}</BodyStrong>
         <View style={styles.barBackground}>
           <Animated.View style={[styles.barFill, { width: barWidth }]} />
         </View>
@@ -76,8 +76,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: '#FCD116',
-    fontSize: 16,
-    fontWeight: 'bold',
     marginBottom: 10,
   },
   barBackground: {

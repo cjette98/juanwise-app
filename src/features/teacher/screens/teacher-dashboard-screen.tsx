@@ -8,7 +8,7 @@ import { useClass } from '@/features/teacher/context/class-context';
 import { useAssignedPack } from '@/features/teacher/lib/use-assigned-pack';
 import { Screen, ScreenHeader, Card, Pill, Icon, type IconName, BodyStrong, Caption, Label } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
-import { typeScale } from '@/shared/theme/typography';
+import { MAX_FONT_MULTIPLIER, typeScale } from '@/shared/theme/typography';
 
 const AVATAR_SIZE = 76;
 
@@ -107,7 +107,7 @@ export default function TeacherDashboardScreen() {
       <View style={styles.bottomBar}>
         <View style={styles.bottomItem}>
           <Icon name="home" size={25} color={tokens.color.primary} strokeWidth={2.4} />
-          <Caption style={{ ...typeScale.tab, color: tokens.color.primary }}>{t('dashboardHomeTab')}</Caption>
+          <Caption style={[styles.tabLabel, { color: tokens.color.primary }]} maxFontSizeMultiplier={MAX_FONT_MULTIPLIER.tab}>{t('dashboardHomeTab')}</Caption>
         </View>
         <TouchableOpacity
           style={styles.bottomItem}
@@ -116,7 +116,7 @@ export default function TeacherDashboardScreen() {
           accessibilityLabel={t('dashboardProfileTab')}
         >
           <Icon name="user" size={25} color={tokens.color.inkDisabled} strokeWidth={2.4} />
-          <Caption style={{ ...typeScale.tab, color: tokens.color.inkDisabled }}>{t('dashboardProfileTab')}</Caption>
+          <Caption style={[styles.tabLabel, { color: tokens.color.inkDisabled }]} maxFontSizeMultiplier={MAX_FONT_MULTIPLIER.tab}>{t('dashboardProfileTab')}</Caption>
         </TouchableOpacity>
       </View>
     </Screen>
@@ -181,4 +181,5 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.space.sm,
   },
   bottomItem: { flex: 1, alignItems: 'center', gap: 4, minHeight: tokens.hit.min, justifyContent: 'center' },
+  tabLabel: typeScale.tab,
 });
