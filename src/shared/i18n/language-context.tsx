@@ -349,6 +349,12 @@ const en = {
   // --- Jigsaw puzzle ---
   dragPiecesHint: 'Drag the pieces below into the board to complete the picture',
   pictureComplete: 'Picture Complete!',
+  jigsawReferenceLabel: 'Reference',
+  jigsawReferenceCaption: 'Target picture',
+  jigsawReferenceTap: 'Tap to enlarge',
+  jigsawProgressLabel: 'Progress',
+  jigsawTrayLabel: 'Piece tray',
+  jigsawTrayHint: 'Drag a piece to the board',
   learnMoreBtn: 'Learn more',
 
   // --- Level summary ---
@@ -1014,6 +1020,12 @@ const tl: Record<TranslationKey, string> = {
   // --- Jigsaw puzzle ---
   dragPiecesHint: 'I-drag ang mga piraso sa ibaba papunta sa board para mabuo ang larawan',
   pictureComplete: 'Kumpleto na ang Larawan!',
+  jigsawReferenceLabel: 'Sanggunian',
+  jigsawReferenceCaption: 'Ang larawang bubuuin',
+  jigsawReferenceTap: 'Pindutin para lumaki',
+  jigsawProgressLabel: 'Progreso',
+  jigsawTrayLabel: 'Mga piraso',
+  jigsawTrayHint: 'I-drag ang piraso papunta sa board',
   learnMoreBtn: 'Alamin',
 
   // --- Level summary ---
