@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum, toBool } from '@/shared/lib/params';
 import { Screen, ScreenHeader, Card, Button, Icon, MedalBadge, Pill, StarRow, H3, Body, BodyStrong, Caption, Label } from '@/shared/components/ui';
 import { MAX_ATTEMPTS } from '@/features/learning/lib/attempt-rules';
+import { timeBudgetFor } from '@/features/results/lib/game-limits';
 import { tokens } from '@/shared/theme/tokens';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useSound } from '@/shared/audio/sound-context';
@@ -53,10 +54,10 @@ function getJigsawPieceCount(activityNum: number) {
   return 12;
 }
 
-// Per-activity timer duration by activity type — Quiz = 60s, Jigsaw = 120s
-// (per spec). Used to compute the level's total-time cap (6 activities).
+// Per-activity timer duration by activity type (60 s for both since the
+// client's 2026-11-07 clarification). Used for the level's total-time cap.
 function maxTimePerActivity(activityType: string) {
-  return activityType === 'jigsaw' ? 120 : 60;
+  return timeBudgetFor(activityType === 'jigsaw' ? 'jigsaw' : 'quiz');
 }
 
 function formatTime(seconds: number) {

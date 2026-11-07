@@ -7,6 +7,7 @@ import { useGameProgress } from '@/features/learning/context/game-progress-conte
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
 import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
+import { JIGSAW_TIME_BUDGET_SECONDS } from '@/features/results/lib/game-limits';
 import { useUser } from '@/features/auth/context/user-context';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
@@ -24,8 +25,9 @@ import { tokens, categoryColor } from '@/shared/theme/tokens';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BOARD_SIZE = SCREEN_WIDTH * 0.82;
 
-// Jigsaw activity timer — 120 seconds max per activity (per spec).
-const ACTIVITY_DURATION = 120;
+// Jigsaw activity timer — 60 seconds per puzzle, the same as a quiz question
+// (client clarification, 2026-11-07).
+const ACTIVITY_DURATION = JIGSAW_TIME_BUDGET_SECONDS;
 
 function getGrid(pieceCount: number) {
   if (pieceCount === 6) return { rows: 2, cols: 3 };
@@ -43,7 +45,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 // Points and the medal behind the star rating are awarded by the API
-// (`POST /results` → juanwise-be `results/scoring.ts`) out of the 120s budget
+// (`POST /results` → juanwise-be `results/scoring.ts`) out of the 60s budget
 // this screen reports against. Scoring lives in one place now, so the jigsaw
 // results, the leaderboard and the class analytics can never disagree.
 // Max per level is still 15 * 6 activities = 90 pts, the same cap as Quiz.
