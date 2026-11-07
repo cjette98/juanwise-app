@@ -94,6 +94,9 @@ export default function TermsScreen() {
 
             <H3 style={styles.subTitle}>{content.adminRulesTitle}</H3>
             <Body style={styles.bodyText}>{content.adminRules}</Body>
+
+            <H3 style={styles.subTitle}>{content.mainAdminRulesTitle}</H3>
+            <Body style={styles.bodyText}>{content.mainAdminRules}</Body>
           </ScrollView>
 
           <TouchableOpacity
