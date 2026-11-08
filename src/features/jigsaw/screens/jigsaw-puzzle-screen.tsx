@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { decideExit } from '@/features/learning/lib/exit-rule';
+import { useExitGuard } from '@/features/learning/lib/use-exit-guard';
 import {
   View, StyleSheet, Image, Animated, PanResponder, Dimensions, TouchableOpacity, Modal, ScrollView, Alert,
 } from 'react-native';
@@ -131,6 +133,10 @@ export default function JigsawPuzzleScreen() {
 
   const [placedIds, setPlacedIds] = useState<Set<number>>(new Set());
   const placedRef = useRef(placedIds);
+  /** Whether any piece has been placed this visit; leaving before that is not an attempt. */
+  const startedRef = useRef(false);
+  /** Set when the server has no try left, so the way out is never guarded again. */
+  const [closed, setClosed] = useState(false);
   useEffect(() => {
     placedRef.current = placedIds;
   }, [placedIds]);
@@ -239,6 +245,7 @@ export default function JigsawPuzzleScreen() {
         // The server has no try left for this activity (cap reached or already
         // passed). Retrying here can never succeed, so sync the cards and leave.
         void refreshProgress();
+        setClosed(true);
         Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedResultMsg')), [
           { text: t('okBtn'), onPress: () => router.back() },
         ], { cancelable: false });
@@ -273,15 +280,23 @@ export default function JigsawPuzzleScreen() {
     recordFailedAttempt(timerResult);
   };
 
-  // Leaving the puzzle unsolved (Back button) counts the same as a timeout
-  // — a 🚩 red-flag "Needs Retry" — matching Quiz's behavior.
-  const handleBackPress = () => {
-    if (phase === 'playing') {
-      const timerResult = timerRef.current?.stop();
-      if (timerResult) recordFailedAttempt(timerResult);
-    } else {
-      router.back();
+  // Every way out while playing (Back button, Android back, iOS swipe) lands
+  // here. Leaving before placing a piece records nothing and the next visit
+  // starts a fresh timer; leaving a started puzzle counts as a failed attempt,
+  // like a timeout (Adjustment 3, item 2).
+  useExitGuard(phase === 'playing' && !closed, () => {
+    if (phaseRef.current !== 'playing') return 'stay';
+    if (decideExit({ inPlay: true, started: startedRef.current }) === 'leave') {
+      timerRef.current?.stop();
+      return 'leave';
     }
+    const timerResult = timerRef.current?.stop();
+    if (timerResult) recordFailedAttempt(timerResult);
+    return 'stay';
+  });
+
+  const handleBackPress = () => {
+    router.back();
   };
 
   const handleContinue = () => {
@@ -328,6 +343,7 @@ export default function JigsawPuzzleScreen() {
           // Dropped inside its correct square — place it (or leave it
           // placed if it already was).
           if (!wasPlaced) {
+            startedRef.current = true;
             const next = new Set(placedRef.current);
             next.add(pieceId);
             placedRef.current = next;

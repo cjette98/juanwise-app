@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { decideExit, quizAnswerStarted } from '@/features/learning/lib/exit-rule';
+import { useExitGuard } from '@/features/learning/lib/use-exit-guard';
 import { View, StyleSheet, TouchableOpacity, Modal, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { TextInput } from '@/shared/components/ui/capped-text';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
@@ -118,6 +120,8 @@ export default function ActivityPlayScreen() {
    */
   const [picked, setPicked] = useState<{ value: string; correct: boolean } | null>(null);
   const [ranOutOfTime, setRanOutOfTime] = useState(false);
+  /** Set when the server has no try left, so the way out is never guarded again. */
+  const [closed, setClosed] = useState(false);
   const [attemptKey] = useState(0);
 
   const timerRef = useRef<ActivityTimerHandle>(null);
@@ -231,6 +235,7 @@ export default function ActivityPlayScreen() {
         // The server has no try left for this activity (cap reached or already
         // passed). Retrying here can never succeed, so sync the cards and leave.
         void refreshProgress();
+        setClosed(true);
         Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedAnswerMsg')), [
           { text: t('okBtn'), onPress: () => router.back() },
         ], { cancelable: false });
@@ -284,20 +289,28 @@ export default function ActivityPlayScreen() {
     void recordAttempt(timerResult, false, true, correctCount);
   };
 
-  // Leaving the question unanswered (Back button) also counts as "left
-  // unanswered" per spec — same red-flag outcome as a wrong answer.
-  const handleBackPress = () => {
-    if (phase === 'question') {
-      if (submitting) return;
-      const timerResult = timerRef.current?.stop();
-      if (timerResult) {
-        const correctCount =
-          q.type === 'enumeration' ? checkEnumerationAnswers(enumAnswers).correctCount : undefined;
-        void recordAttempt(timerResult, false, false, correctCount);
-      }
-    } else {
-      router.back();
+  // Every way out while the question is up (Back button, Android back, iOS
+  // swipe) lands here. Leaving before starting an answer records nothing and
+  // the next visit starts a fresh timer; leaving a started answer counts as a
+  // failed attempt, as before (Adjustment 3, item 2).
+  useExitGuard(phase === 'question' && !closed, () => {
+    if (submitting) return 'stay';
+    const started = quizAnswerStarted(q.type, textAnswer, enumAnswers);
+    if (decideExit({ inPlay: true, started }) === 'leave') {
+      timerRef.current?.stop();
+      return 'leave';
     }
+    const timerResult = timerRef.current?.stop();
+    if (timerResult) {
+      const correctCount =
+        q.type === 'enumeration' ? checkEnumerationAnswers(enumAnswers).correctCount : undefined;
+      void recordAttempt(timerResult, false, false, correctCount);
+    }
+    return 'stay';
+  });
+
+  const handleBackPress = () => {
+    router.back();
   };
 
   const handleContinue = () => {
