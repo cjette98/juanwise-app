@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { packsApi, errorMessage, type ApiPack } from '@/shared/api';
 import { useUser } from '@/features/auth/context/user-context';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
+import { readableColumn } from '@/shared/theme/layout';
 
 const STATUS_LABEL_KEY: Record<ApiPack['status'], TranslationKey> = {
   draft: 'packDraft',
@@ -124,7 +125,7 @@ export default function PackListScreen() {
         </View>
       )}
 
-      <ScrollView contentContainerStyle={styles.list}>
+      <ScrollView contentContainerStyle={[styles.list, readableColumn]}>
         {!ready && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator color="#3B7DD8" />

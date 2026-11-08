@@ -13,6 +13,7 @@ import { validateQuestionDraft, type LangDraft } from '@/features/admin/lib/ques
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
+import { readableColumn } from '@/shared/theme/layout';
 
 const TYPE_LABEL_KEYS: Record<QuizType, TranslationKey> = {
   'multiple-choice': 'typeMultipleChoice',
@@ -331,7 +332,7 @@ export default function QuestionEditorScreen() {
         </H3>
       </View>
 
-      <ScrollView contentContainerStyle={styles.form}>
+      <ScrollView contentContainerStyle={[styles.form, readableColumn]}>
         <Caption style={styles.label}>{t('questionTypeLabel')}</Caption>
         <View style={styles.typeRow}>
           {QUESTION_TYPES.map((key) => (

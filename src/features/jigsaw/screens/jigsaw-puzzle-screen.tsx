@@ -413,6 +413,15 @@ export default function JigsawPuzzleScreen() {
 
   const remainingTray = trayOrder.filter((id) => !placedIds.has(id));
   const canShuffle = phase === 'playing' && dragPieceId === null && remainingTray.length > 1;
+  // Reset (from the client's mock-up) sends every placed piece back to the
+  // tray. The clock keeps running, and the visit still counts as started, so
+  // leaving afterwards is still a failed try (Adjustment 3, items 2 and 9).
+  const canReset = phase === 'playing' && dragPieceId === null && placedIds.size > 0;
+  const resetBoard = () => {
+    const empty = new Set<number>();
+    placedRef.current = empty;
+    setPlacedIds(empty);
+  };
 
   return (
     <Screen>
@@ -600,10 +609,24 @@ export default function JigsawPuzzleScreen() {
         )}
       </View>
 
-      <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.85}>
-        <Icon name="chevronLeft" size={16} color={tokens.color.onDark} strokeWidth={3} />
-        <BodyStrong style={styles.backButtonText}>{t('backBtn')}</BodyStrong>
-      </TouchableOpacity>
+      <View style={styles.bottomBar}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.85}>
+          <Icon name="chevronLeft" size={16} color={tokens.color.onDark} strokeWidth={3} />
+          <BodyStrong style={styles.backButtonText}>{t('backBtn')}</BodyStrong>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.resetButton, !canReset && styles.shuffleButtonDisabled]}
+          onPress={resetBoard}
+          disabled={!canReset}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={t('resetPiecesA11y')}
+          accessibilityState={{ disabled: !canReset }}
+        >
+          <Icon name="refresh" size={16} color={tokens.color.ink} strokeWidth={2.6} />
+          <BodyStrong>{t('resetPieces')}</BodyStrong>
+        </TouchableOpacity>
+      </View>
 
       {/* Picture reveal — a zoomed pop-up of the completed picture, shown
           right after the puzzle is solved and before the results modal. */}
@@ -803,8 +826,26 @@ const styles = StyleSheet.create({
   trayContent: { paddingHorizontal: tokens.space.md, gap: tokens.space.sm, alignItems: 'center' },
   dragOverlay: { ...StyleSheet.absoluteFill, zIndex: 999, elevation: 30 },
   dragOverlayPiece: { position: 'absolute' },
+  bottomBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: tokens.space.lg,
+    marginVertical: tokens.space.lg,
+  },
+  resetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.xs,
+    paddingVertical: tokens.space.sm,
+    paddingHorizontal: tokens.space.md,
+    borderRadius: tokens.radius.pill,
+    borderWidth: 2,
+    borderColor: tokens.color.border,
+    backgroundColor: tokens.color.surface,
+    minHeight: tokens.hit.min,
+  },
   backButton: {
-    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -813,7 +854,6 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.space.sm,
     paddingHorizontal: tokens.space.xl,
     borderRadius: tokens.radius.pill,
-    marginVertical: tokens.space.lg,
     minHeight: tokens.hit.min,
   },
   backButtonText: { color: tokens.color.onDark },

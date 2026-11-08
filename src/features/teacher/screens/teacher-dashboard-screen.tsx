@@ -9,6 +9,7 @@ import { useAssignedPack } from '@/features/teacher/lib/use-assigned-pack';
 import { Screen, ScreenHeader, Card, Pill, Icon, type IconName, BodyStrong, Caption, Label } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
 import { MAX_FONT_MULTIPLIER, typeScale } from '@/shared/theme/typography';
+import { readableColumn } from '@/shared/theme/layout';
 
 const AVATAR_SIZE = 76;
 
@@ -60,7 +61,7 @@ export default function TeacherDashboardScreen() {
         </View>
       </ScreenHeader>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, readableColumn]}>
         <Label style={styles.sectionLabel}>{t('contentPackCardTitle')}</Label>
         <TouchableOpacity activeOpacity={0.85} onPress={() => router.navigate('/class-content')}>
           <Card raised>

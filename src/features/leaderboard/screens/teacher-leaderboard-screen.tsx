@@ -38,6 +38,7 @@ import { analyticsApi, type ApiCategoryKey, type ApiPace } from '@/shared/api';
 import CATEGORY_META from '@/shared/content/category-meta';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useRouter } from 'expo-router';
+import { readableColumn } from '@/shared/theme/layout';
 
 type GameType = 'quiz' | 'jigsaw';
 type FilterKey = 'topic' | 'level';
@@ -307,7 +308,7 @@ export default function TeacherLeaderboardScreen() {
           )}
         </ScreenHeader>
 
-        <View style={styles.body}>
+        <View style={[styles.body, readableColumn]}>
           {/* FILTERS — three chips in one row, each opening its own option set below */}
           <View style={styles.filterChipRow}>
             <FilterChip
