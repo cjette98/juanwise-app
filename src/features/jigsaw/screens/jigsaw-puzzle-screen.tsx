@@ -8,7 +8,7 @@ import Svg, { Path, Image as SvgImage, ClipPath, Defs, G } from 'react-native-sv
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
-import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
+import { levelScore, starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { JIGSAW_TIME_BUDGET_SECONDS } from '@/features/results/lib/game-limits';
 import { useUser } from '@/features/auth/context/user-context';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
@@ -81,8 +81,13 @@ export default function JigsawPuzzleScreen() {
   const activityNum = toNum(params.activityNum, 1);
   const pieceCount = toNum(params.pieceCount, 6);
   const { recordOutcome, refresh: refreshProgress } = useGameProgress();
-  const { addResult } = useStudentResults();
-  const { name: studentName } = useUser();
+  const { addResult, results } = useStudentResults();
+  const { name: studentName, uid } = useUser();
+  // The level's running score, shown on every result pop-up (Adjustment 3, item 5).
+  const levelNow = useMemo(
+    () => levelScore(results, { uid, category, activityType: 'jigsaw', level }),
+    [results, uid, category, level],
+  );
   const { getEffectiveCategoryContent } = useClassContent();
   const { t } = useLanguage();
   const label = t(getCategoryMeta(category).labelKey) || params.label;
@@ -673,6 +678,7 @@ export default function JigsawPuzzleScreen() {
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
               <Body style={styles.detailLine}>{t('detailPuzzleCount', { num: activityNum, level })}</Body>
+              <BodyStrong style={styles.detailLine}>{t('levelScoreLine', { points: levelNow.points, max: levelNow.maxPoints, done: levelNow.done, of: levelNow.of })}</BodyStrong>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button
@@ -712,6 +718,7 @@ export default function JigsawPuzzleScreen() {
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
               <Body style={styles.detailLine}>{t('detailPuzzleCount', { num: activityNum, level })}</Body>
+              <BodyStrong style={styles.detailLine}>{t('levelScoreLine', { points: levelNow.points, max: levelNow.maxPoints, done: levelNow.done, of: levelNow.of })}</BodyStrong>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button

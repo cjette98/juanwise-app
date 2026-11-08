@@ -366,6 +366,11 @@ const en = {
   statFailedTries: '{failed} failed tries',
   tiedLabel: 'Tied',
   statCompleted: '{n} completed',
+  levelScoreLine: 'Level score so far: {points} of {max} pts · {done} of {of} done',
+  seeResultsSoFar: 'See results so far',
+  inProgressWord: 'In progress',
+  notYetWord: 'Not yet',
+  backToActivities: 'Back to activities',
   learnMoreBtn: 'Learn more',
 
   // --- Level summary ---
@@ -1048,6 +1053,11 @@ const tl: Record<TranslationKey, string> = {
   statFailedTries: '{failed} bigong subok',
   tiedLabel: 'Tabla',
   statCompleted: '{n} natapos',
+  levelScoreLine: 'Iskor sa level sa ngayon: {points} sa {max} puntos · {done} sa {of} tapos',
+  seeResultsSoFar: 'Tingnan ang resulta sa ngayon',
+  inProgressWord: 'Ginagawa pa',
+  notYetWord: 'Wala pa',
+  backToActivities: 'Bumalik sa mga aktibidad',
   learnMoreBtn: 'Alamin',
 
   // --- Level summary ---

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalAttempts, inActiveClass, isPass, totalsFor, type ScoredAttempt } from './totals';
+import { canonicalAttempts, inActiveClass, isPass, levelScore, totalsFor, type ScoredAttempt } from './totals';
 
 /**
  * The app's totals must equal the server's (juanwise-be results/scoring.ts):
@@ -98,5 +98,22 @@ describe('inActiveClass', () => {
   it('keeps unassigned attempts when the player has no class', () => {
     const rows = [attempt({ classId: 'class-1' }), attempt({ classId: null })];
     expect(inActiveClass(rows, null).map((r) => r.classId)).toEqual([null]);
+  });
+});
+
+describe('levelScore', () => {
+  it('totals one level of one game type for one player, out of 90', () => {
+    const score = levelScore(
+      [
+        attempt({ activityNum: 1, points: 15 }),
+        attempt({ activityNum: 2, points: 10, attemptSeq: 2 }),
+        fail({ activityNum: 3 }),
+        attempt({ level: 2, activityNum: 1, points: 15 }),
+        attempt({ activityType: 'jigsaw', activityNum: 1, points: 15 }),
+        attempt({ uid: 'someone-else', activityNum: 4, points: 15 }),
+      ],
+      { uid: 'u1', category: 'history', activityType: 'quiz', level: 1 },
+    );
+    expect(score).toEqual({ points: 25, maxPoints: 90, done: 2, of: 6 });
   });
 });

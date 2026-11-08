@@ -13,6 +13,8 @@
 //
 // Pure on purpose (no React, no Expo), so it can be unit-tested.
 
+import { ACTIVITIES_PER_LEVEL, POINTS_PER_LEVEL } from './game-limits';
+
 /** The fields of a recorded attempt these totals read. */
 export interface ScoredAttempt {
   uid: string;
@@ -86,4 +88,31 @@ export function totalsFor(entries: ScoredAttempt[]): Totals {
  */
 export function inActiveClass<T extends { classId: string | null }>(entries: T[], classId: string | null): T[] {
   return entries.filter((e) => (e.classId ?? null) === (classId ?? null));
+}
+
+export interface LevelScore {
+  points: number;
+  maxPoints: number;
+  /** Activities passed so far. */
+  done: number;
+  of: number;
+}
+
+/**
+ * The running score for one level of one game type, shown while the level is
+ * still being played (Adjustment 3, item 5): "25 of 90 points, 2 of 6 done".
+ */
+export function levelScore(
+  entries: ScoredAttempt[],
+  slot: { uid: string; category: string; activityType: 'quiz' | 'jigsaw'; level: number },
+): LevelScore {
+  const inLevel = entries.filter(
+    (e) =>
+      e.uid === slot.uid &&
+      e.category === slot.category &&
+      e.activityType === slot.activityType &&
+      e.level === slot.level,
+  );
+  const { totalPoints, completed } = totalsFor(inLevel);
+  return { points: totalPoints, maxPoints: POINTS_PER_LEVEL, done: completed, of: ACTIVITIES_PER_LEVEL };
 }

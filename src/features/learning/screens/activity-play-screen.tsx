@@ -6,7 +6,7 @@ import { TextInput } from '@/shared/components/ui/capped-text';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
-import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
+import { levelScore, starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { ApiError, errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -63,8 +63,13 @@ export default function ActivityPlayScreen() {
   const label = t(getCategoryMeta(category).labelKey) || params.label;
   const questionTypeLabel = (type: string) => (QUESTION_TYPE_KEYS[type] ? t(QUESTION_TYPE_KEYS[type]) : type);
   const { recordOutcome, refresh: refreshProgress } = useGameProgress();
-  const { addResult } = useStudentResults();
-  const { name: studentName } = useUser();
+  const { addResult, results } = useStudentResults();
+  const { name: studentName, uid } = useUser();
+  // The level's running score, shown on every result pop-up (Adjustment 3, item 5).
+  const levelNow = useMemo(
+    () => levelScore(results, { uid, category, activityType: 'quiz', level }),
+    [results, uid, category, level],
+  );
   // Content and the app-wide "Mini-Lesson" toggle both come from the content
   // module now, so an admin's edit reaches every student's device.
   const { showMiniLesson, ready: adminReady, getEffectiveQuestion } = useClassContent();
@@ -293,19 +298,16 @@ export default function ActivityPlayScreen() {
   // swipe) lands here. Leaving before starting an answer records nothing and
   // the next visit starts a fresh timer; leaving a started answer counts as a
   // failed attempt, as before (Adjustment 3, item 2).
+  const answerStarted = quizAnswerStarted(q.type, textAnswer, enumAnswers);
+  const exitCorrectCount = q.type === 'enumeration' ? checkEnumerationAnswers(enumAnswers).correctCount : undefined;
   useExitGuard(phase === 'question' && !closed, () => {
     if (submitting) return 'stay';
-    const started = quizAnswerStarted(q.type, textAnswer, enumAnswers);
-    if (decideExit({ inPlay: true, started }) === 'leave') {
+    if (decideExit({ inPlay: true, started: answerStarted }) === 'leave') {
       timerRef.current?.stop();
       return 'leave';
     }
     const timerResult = timerRef.current?.stop();
-    if (timerResult) {
-      const correctCount =
-        q.type === 'enumeration' ? checkEnumerationAnswers(enumAnswers).correctCount : undefined;
-      void recordAttempt(timerResult, false, false, correctCount);
-    }
+    if (timerResult) void recordAttempt(timerResult, false, false, exitCorrectCount);
     return 'stay';
   });
 
@@ -531,6 +533,7 @@ export default function ActivityPlayScreen() {
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeQuiz', { type: questionTypeLabel(q.type) })}</Body>
               <Body style={styles.detailLine}>{t('detailQuestionCount', { num: activityNum, level })}</Body>
+              <BodyStrong style={styles.detailLine}>{t('levelScoreLine', { points: levelNow.points, max: levelNow.maxPoints, done: levelNow.done, of: levelNow.of })}</BodyStrong>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button label={t('proceedNextActivity')} onPress={handleContinue} color={cat.base} shadowColor={cat.dark} style={styles.fullWidthButton} />
@@ -568,6 +571,7 @@ export default function ActivityPlayScreen() {
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeQuiz', { type: questionTypeLabel(q.type) })}</Body>
               <Body style={styles.detailLine}>{t('detailQuestionCount', { num: activityNum, level })}</Body>
+              <BodyStrong style={styles.detailLine}>{t('levelScoreLine', { points: levelNow.points, max: levelNow.maxPoints, done: levelNow.done, of: levelNow.of })}</BodyStrong>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button
