@@ -15,6 +15,8 @@ import { slotStatus, triesLeft } from '@/features/learning/lib/attempt-rules';
 import { activityNaming } from '@/features/learning/lib/activity-naming';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
+import { levelScore, useStudentResults } from '@/features/results/context/student-results-context';
+import { useUser } from '@/features/auth/context/user-context';
 
 function difficultyColor(level: number) {
   if (level === 1) return tokens.color.success;
@@ -35,6 +37,15 @@ export default function ActivityListScreen() {
   const { category, color, activityType } = params;
   const level = toNum(params.level, 1);
   const { getProgress, getFailed, getExhausted, getAttemptsUsed } = useGameProgress();
+  const { results } = useStudentResults();
+  const { uid } = useUser();
+  // The level's running score while it is being played (Adjustment 3, item 5).
+  const levelNow = levelScore(results, {
+    uid,
+    category,
+    activityType: activityType === 'jigsaw' ? 'jigsaw' : 'quiz',
+    level,
+  });
   // The admin console sets the cut per activity; unset ones keep the ramp that
   // used to be hardcoded here.
   const { getJigsawPieceCount, getEffectiveQuestion, getEffectiveCategoryContent } = useClassContent();
@@ -149,6 +160,9 @@ export default function ActivityListScreen() {
           </View>
           <Caption style={styles.progressCount}>{t('doneOfSixShort', { done: doneCount })}</Caption>
         </View>
+        <Caption style={styles.levelScore}>
+          {t('levelScoreLine', { points: levelNow.points, max: levelNow.maxPoints, done: levelNow.done, of: levelNow.of })}
+        </Caption>
       </ScreenHeader>
 
       <ScrollView contentContainerStyle={styles.list}>
@@ -228,6 +242,17 @@ export default function ActivityListScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
+        {/* Part-way through a level, the summary so far is one tap away. */}
+        {primaryAction.kind === 'activity' && doneCount > 0 && (
+          <Button
+            label={t('seeResultsSoFar')}
+            variant="secondary"
+            onPress={() =>
+              router.navigate({ pathname: '/level-summary', params: { category, label, color, activityType, level } })
+            }
+            style={styles.soFarButton}
+          />
+        )}
         <Button label={t(primaryAction.labelKey, primaryAction.labelVars)} onPress={handlePrimaryAction} color={cat.base} shadowColor={cat.dark} icon="chevronRight" />
       </View>
     </Screen>
@@ -238,6 +263,8 @@ const styles = StyleSheet.create({
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm, marginTop: tokens.space.md },
   progressBarWrap: { flex: 1 },
   progressCount: { color: tokens.color.onDarkMuted, fontFamily: tokens.font.bodyBold },
+  levelScore: { color: tokens.color.onDarkMuted, marginTop: tokens.space.xs },
+  soFarButton: { marginBottom: tokens.space.sm },
   list: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl, gap: tokens.space.sm },
   sectionLabel: { paddingHorizontal: tokens.space.xs, marginBottom: tokens.space.xs },
   activityList: { gap: tokens.space.sm },

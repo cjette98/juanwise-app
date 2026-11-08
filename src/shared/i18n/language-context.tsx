@@ -355,6 +355,22 @@ const en = {
   jigsawProgressLabel: 'Progress',
   jigsawTrayLabel: 'Piece tray',
   jigsawTrayHint: 'Drag a piece to the board',
+  boardPointsTab: 'Quiz · Points',
+  boardTimeTab: 'Jigsaw · Time',
+  rankingRulePoints:
+    'How ranking works: most points first, then less total time, then fewer failed or timed-out tries. Players tied on all three share a rank.',
+  rankingRuleTime:
+    'How ranking works: lowest average time per finished puzzle first, then more points, then fewer failed or timed-out tries. Players tied on all three share a rank.',
+  statPointsShort: '{points} pts',
+  statAvgTime: '{avg}s avg',
+  statFailedTries: '{failed} failed tries',
+  tiedLabel: 'Tied',
+  statCompleted: '{n} completed',
+  levelScoreLine: 'Level score so far: {points} of {max} pts · {done} of {of} done',
+  seeResultsSoFar: 'See results so far',
+  inProgressWord: 'In progress',
+  notYetWord: 'Not yet',
+  backToActivities: 'Back to activities',
   learnMoreBtn: 'Learn more',
 
   // --- Level summary ---
@@ -1026,6 +1042,22 @@ const tl: Record<TranslationKey, string> = {
   jigsawProgressLabel: 'Progreso',
   jigsawTrayLabel: 'Mga piraso',
   jigsawTrayHint: 'I-drag ang piraso papunta sa board',
+  boardPointsTab: 'Quiz · Puntos',
+  boardTimeTab: 'Jigsaw · Oras',
+  rankingRulePoints:
+    'Paano niraranggo: pinakamaraming puntos muna, saka mas maikling kabuuang oras, saka mas kaunting bigo o naubusan ng oras na subok. Pareho ang ranggo kapag pantay sa tatlo.',
+  rankingRuleTime:
+    'Paano niraranggo: pinakamababang karaniwang oras bawat natapos na puzzle muna, saka mas maraming puntos, saka mas kaunting bigo o naubusan ng oras na subok. Pareho ang ranggo kapag pantay sa tatlo.',
+  statPointsShort: '{points} puntos',
+  statAvgTime: '{avg}s karaniwan',
+  statFailedTries: '{failed} bigong subok',
+  tiedLabel: 'Tabla',
+  statCompleted: '{n} natapos',
+  levelScoreLine: 'Iskor sa level sa ngayon: {points} sa {max} puntos · {done} sa {of} tapos',
+  seeResultsSoFar: 'Tingnan ang resulta sa ngayon',
+  inProgressWord: 'Ginagawa pa',
+  notYetWord: 'Wala pa',
+  backToActivities: 'Bumalik sa mga aktibidad',
   learnMoreBtn: 'Alamin',
 
   // --- Level summary ---

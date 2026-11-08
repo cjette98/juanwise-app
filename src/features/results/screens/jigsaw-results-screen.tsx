@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { useStudentResults, ActivityResult } from '@/features/results/context/student-results-context';
+import { useStudentResults, totalsFor } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
 import { useLanguage } from '@/shared/i18n/language-context';
@@ -24,7 +24,7 @@ export default function JigsawResultsScreen() {
     [results, uid]
   );
 
-  const totalPoints = jigsawResults.reduce((sum, r) => sum + r.points, 0);
+  const { totalPoints } = totalsFor(jigsawResults);
 
   return (
     <Screen>

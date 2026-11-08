@@ -76,6 +76,8 @@ export default function LevelSummaryScreen() {
     activityType: 'quiz' | 'jigsaw';
     level: string;
     viewStudentName?: string;
+    /** The viewed student's uid; matched before the name, since names can repeat. */
+    viewStudentUid?: string;
     readOnly?: string;
   }>();
   const { category, color, activityType, viewStudentName } = params;
@@ -83,8 +85,9 @@ export default function LevelSummaryScreen() {
   const label = t(getCategoryMeta(category).labelKey) || params.label;
   const level = toNum(params.level, 1);
   const readOnly = toBool(params.readOnly);
-  const { name: loggedInName } = useUser();
+  const { name: loggedInName, uid: loggedInUid } = useUser();
   const studentName = viewStudentName || loggedInName;
+  const studentUid = params.viewStudentUid || (viewStudentName ? undefined : loggedInUid);
   const isReadOnly = !!readOnly;
   const { getFilteredResults } = useStudentResults();
 
@@ -94,9 +97,9 @@ export default function LevelSummaryScreen() {
   const attempts = useMemo(
     () =>
       getFilteredResults({ category, activityType, level })
-        .filter((r) => r.studentName === studentName)
+        .filter((r) => (studentUid ? r.uid === studentUid : r.studentName === studentName))
         .sort((a, b) => a.timestamp - b.timestamp),
-    [getFilteredResults, category, activityType, level, studentName]
+    [getFilteredResults, category, activityType, level, studentName, studentUid]
   );
 
   const perActivity = useMemo(() => {
@@ -163,7 +166,12 @@ export default function LevelSummaryScreen() {
         title={t('levelDashLabel', { level, label })}
         subtitle={t('studentNameLine', { name: studentName })}
         color={tokens.color.success}
-        right={<Pill label={isReadOnly ? t('summaryWord') : t('completeWord')} tone="translucent" />}
+        right={
+          <Pill
+            label={isReadOnly ? t('summaryWord') : allComplete ? t('completeWord') : t('inProgressWord')}
+            tone="translucent"
+          />
+        }
       >
         <View style={styles.medalRow}>
           <View style={styles.medalDisc}>
@@ -216,14 +224,17 @@ export default function LevelSummaryScreen() {
               activityType === 'jigsaw'
                 ? t('jigsawPcs', { n: getJigsawPieceCount(a.num) })
                 : t(questionTypeKey(level));
+            const notStarted = !p && !a.firstAttempt;
             const statusText = p
               ? typeof p.requiredCount === 'number'
                 ? t('passedWithCount', { correct: p.correctCount ?? 0, required: p.requiredCount })
                 : t('passedWord')
               : a.exhausted
                 ? t('outOfTries')
-                : t('retryWord');
-            const statusTint = p ? tokens.color.successInk : tokens.color.dangerInk;
+                : notStarted
+                  ? t('notYetWord')
+                  : t('retryWord');
+            const statusTint = p ? tokens.color.successInk : notStarted ? tokens.color.inkMuted : tokens.color.dangerInk;
             return (
               <Card key={a.num} style={styles.activityRow}>
                 <View style={styles.activityRowLeft}>
@@ -236,7 +247,12 @@ export default function LevelSummaryScreen() {
                 </View>
                 <View style={styles.activityRowRight}>
                   <View style={styles.statusChip}>
-                    <Icon name={p ? 'check' : a.exhausted ? 'close' : 'refresh'} size={13} color={statusTint} strokeWidth={2.6} />
+                    <Icon
+                      name={p ? 'check' : a.exhausted ? 'close' : notStarted ? 'minus' : 'refresh'}
+                      size={13}
+                      color={statusTint}
+                      strokeWidth={2.6}
+                    />
                     <Caption style={{ color: statusTint }} numberOfLines={1}>
                       {statusText}
                     </Caption>
@@ -259,14 +275,15 @@ export default function LevelSummaryScreen() {
       <View style={styles.footer}>
         {isReadOnly ? (
           <Button label={t('backToSummary')} onPress={handleBack} color={color} icon="chevronLeft" />
+        ) : !allComplete ? (
+          // Opened part-way through the level (Adjustment 3, item 5).
+          <Button label={t('backToActivities')} onPress={handleBack} color={color} icon="chevronLeft" />
         ) : (
           <Button
             label={level < 5 ? t('proceedNextLevelUnlock', { n: level + 1 }) : t('proceedToLevelMap')}
             onPress={handleProceed}
-            disabled={!allComplete}
             color={color}
             icon="chevronRight"
-            style={!allComplete ? styles.proceedDisabled : undefined}
           />
         )}
       </View>
@@ -323,5 +340,4 @@ const styles = StyleSheet.create({
   },
   warningText: { flex: 1, color: tokens.color.dangerInk },
   footer: { paddingHorizontal: tokens.space.lg, paddingBottom: tokens.space.lg, paddingTop: tokens.space.sm },
-  proceedDisabled: { opacity: 0.5 },
 });

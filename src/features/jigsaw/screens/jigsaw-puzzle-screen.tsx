@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { decideExit } from '@/features/learning/lib/exit-rule';
+import { useExitGuard } from '@/features/learning/lib/use-exit-guard';
 import {
   View, StyleSheet, Image, Animated, PanResponder, Dimensions, TouchableOpacity, Modal, ScrollView, Alert,
 } from 'react-native';
@@ -6,7 +8,7 @@ import Svg, { Path, Image as SvgImage, ClipPath, Defs, G } from 'react-native-sv
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
-import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
+import { levelScore, starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { JIGSAW_TIME_BUDGET_SECONDS } from '@/features/results/lib/game-limits';
 import { useUser } from '@/features/auth/context/user-context';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
@@ -79,8 +81,13 @@ export default function JigsawPuzzleScreen() {
   const activityNum = toNum(params.activityNum, 1);
   const pieceCount = toNum(params.pieceCount, 6);
   const { recordOutcome, refresh: refreshProgress } = useGameProgress();
-  const { addResult } = useStudentResults();
-  const { name: studentName } = useUser();
+  const { addResult, results } = useStudentResults();
+  const { name: studentName, uid } = useUser();
+  // The level's running score, shown on every result pop-up (Adjustment 3, item 5).
+  const levelNow = useMemo(
+    () => levelScore(results, { uid, category, activityType: 'jigsaw', level }),
+    [results, uid, category, level],
+  );
   const { getEffectiveCategoryContent } = useClassContent();
   const { t } = useLanguage();
   const label = t(getCategoryMeta(category).labelKey) || params.label;
@@ -131,6 +138,10 @@ export default function JigsawPuzzleScreen() {
 
   const [placedIds, setPlacedIds] = useState<Set<number>>(new Set());
   const placedRef = useRef(placedIds);
+  /** Whether any piece has been placed this visit; leaving before that is not an attempt. */
+  const startedRef = useRef(false);
+  /** Set when the server has no try left, so the way out is never guarded again. */
+  const [closed, setClosed] = useState(false);
   useEffect(() => {
     placedRef.current = placedIds;
   }, [placedIds]);
@@ -239,6 +250,7 @@ export default function JigsawPuzzleScreen() {
         // The server has no try left for this activity (cap reached or already
         // passed). Retrying here can never succeed, so sync the cards and leave.
         void refreshProgress();
+        setClosed(true);
         Alert.alert(t('notRecordedTitle'), errorMessage(err, t('notRecordedResultMsg')), [
           { text: t('okBtn'), onPress: () => router.back() },
         ], { cancelable: false });
@@ -273,15 +285,23 @@ export default function JigsawPuzzleScreen() {
     recordFailedAttempt(timerResult);
   };
 
-  // Leaving the puzzle unsolved (Back button) counts the same as a timeout
-  // — a 🚩 red-flag "Needs Retry" — matching Quiz's behavior.
-  const handleBackPress = () => {
-    if (phase === 'playing') {
-      const timerResult = timerRef.current?.stop();
-      if (timerResult) recordFailedAttempt(timerResult);
-    } else {
-      router.back();
+  // Every way out while playing (Back button, Android back, iOS swipe) lands
+  // here. Leaving before placing a piece records nothing and the next visit
+  // starts a fresh timer; leaving a started puzzle counts as a failed attempt,
+  // like a timeout (Adjustment 3, item 2).
+  useExitGuard(phase === 'playing' && !closed, () => {
+    if (phaseRef.current !== 'playing') return 'stay';
+    if (decideExit({ inPlay: true, started: startedRef.current }) === 'leave') {
+      timerRef.current?.stop();
+      return 'leave';
     }
+    const timerResult = timerRef.current?.stop();
+    if (timerResult) recordFailedAttempt(timerResult);
+    return 'stay';
+  });
+
+  const handleBackPress = () => {
+    router.back();
   };
 
   const handleContinue = () => {
@@ -328,6 +348,7 @@ export default function JigsawPuzzleScreen() {
           // Dropped inside its correct square — place it (or leave it
           // placed if it already was).
           if (!wasPlaced) {
+            startedRef.current = true;
             const next = new Set(placedRef.current);
             next.add(pieceId);
             placedRef.current = next;
@@ -657,6 +678,7 @@ export default function JigsawPuzzleScreen() {
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
               <Body style={styles.detailLine}>{t('detailPuzzleCount', { num: activityNum, level })}</Body>
+              <BodyStrong style={styles.detailLine}>{t('levelScoreLine', { points: levelNow.points, max: levelNow.maxPoints, done: levelNow.done, of: levelNow.of })}</BodyStrong>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button
@@ -696,6 +718,7 @@ export default function JigsawPuzzleScreen() {
               <Body style={styles.detailLine}>{t('detailCategory', { label })}</Body>
               <Body style={styles.detailLine}>{t('detailActivityTypeJigsawPieces', { count: pieceCount })}</Body>
               <Body style={styles.detailLine}>{t('detailPuzzleCount', { num: activityNum, level })}</Body>
+              <BodyStrong style={styles.detailLine}>{t('levelScoreLine', { points: levelNow.points, max: levelNow.maxPoints, done: levelNow.done, of: levelNow.of })}</BodyStrong>
               {queued && <Caption style={styles.queuedLine}>{t('offlineQueuedNote')}</Caption>}
             </View>
             <Button

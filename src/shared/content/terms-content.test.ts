@@ -24,6 +24,8 @@ describe('terms content', () => {
     expect(body).toContain('9 pieces (3x3 grid)');
     expect(body).toContain('12 pieces (3x4 grid)');
     expect(body).toContain('15 points');
+    // Adjustment 3, item 2.
+    expect(body).toContain('does not use up an attempt');
   });
 
   it('states the real game structure in Tagalog', () => {
@@ -34,6 +36,7 @@ describe('terms content', () => {
     expect(body).toContain('9 piraso (3x3)');
     expect(body).toContain('12 piraso (3x4)');
     expect(body).toContain('15 puntos');
+    expect(body).toContain('Hindi nababawasan ang pagsubok');
   });
 
   it('drops what the game never had', () => {

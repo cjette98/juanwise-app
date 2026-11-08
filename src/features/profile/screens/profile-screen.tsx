@@ -16,7 +16,7 @@ import { Text, TextInput } from '@/shared/components/ui/capped-text';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '@/features/auth/context/user-context';
-import { useStudentResults, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
+import { useStudentResults, totalsFor, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
@@ -135,7 +135,7 @@ export default function ProfileScreen() {
     () => (isTeacher ? [] : results.filter((r) => r.uid === uid)),
     [results, uid, isTeacher]
   );
-  const totalPoints = myResults.reduce((sum, r) => sum + r.points, 0);
+  const totalPoints = totalsFor(myResults).totalPoints;
   const lastResult = useMemo(
     () => [...myResults].sort((a, b) => b.timestamp - a.timestamp)[0] || null,
     [myResults]
@@ -146,7 +146,7 @@ export default function ProfileScreen() {
   const categoryTotals = useMemo(() => {
     const map = new Map<string, number>();
     for (const key of CATEGORY_KEYS) {
-      map.set(key, myResults.filter((r) => r.category === key).reduce((sum, r) => sum + r.points, 0));
+      map.set(key, totalsFor(myResults.filter((r) => r.category === key)).totalPoints);
     }
     return map;
   }, [myResults]);

@@ -16,7 +16,7 @@ import {
   TrophyBadge,
 } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
-import { useStudentResults, ActivityResult, getCanonicalAttempts, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
+import { useStudentResults, ActivityResult, getCanonicalAttempts, totalsFor, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
 import { CATEGORY_META } from '@/shared/content/category-meta';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -85,7 +85,7 @@ function levelStats(attempts: ActivityResult[], level: number) {
 export default function StudentSummaryScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { studentName } = useLocalSearchParams<{ studentName: string }>();
+  const { studentName, uid } = useLocalSearchParams<{ studentName: string; uid?: string }>();
   const { getFilteredResults, ready } = useStudentResults();
 
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -93,8 +93,9 @@ export default function StudentSummaryScreen() {
   const [viewMode, setViewMode] = useState<'summary' | 'history'>('summary');
 
   const allAttempts = useMemo(
-    () => getFilteredResults({}).filter((r) => r.studentName === studentName),
-    [getFilteredResults, studentName]
+    // Matched on uid when the caller passes it; names can repeat in a class.
+    () => getFilteredResults({}).filter((r) => (uid ? r.uid === uid : r.studentName === studentName)),
+    [getFilteredResults, studentName, uid]
   );
 
   // Deduped to one canonical (best/passing) attempt per activity — retries
@@ -104,9 +105,8 @@ export default function StudentSummaryScreen() {
   const canonicalAttempts = useMemo(() => getCanonicalAttempts(allAttempts), [allAttempts]);
 
   const overallTotals = useMemo(() => {
-    const totalPoints = canonicalAttempts.reduce((sum, a) => sum + a.points, 0);
-    const totalTimeUsed = canonicalAttempts.reduce((sum, a) => sum + a.timeUsed, 0);
-    const attempts = canonicalAttempts.length;
+    // Points, time and count from passed activities only, as on the leaderboard.
+    const { totalPoints, totalTimeSec: totalTimeUsed, completed: attempts } = totalsFor(allAttempts);
     const avgTime = attempts > 0 ? totalTimeUsed / attempts : 0;
     const trophy = computeTrophy(totalPoints, totalTimeUsed);
     const starsSum = canonicalAttempts.reduce((sum, a) => {
@@ -149,6 +149,7 @@ export default function StudentSummaryScreen() {
       activityType,
       level,
       viewStudentName: studentName,
+      ...(uid ? { viewStudentUid: uid } : {}),
       // Route params travel as strings; LevelSummary parses this back with toBool().
       readOnly: 'true',
     } });
