@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, Image } from 'react-native';
 import { Text, TextInput } from '@/shared/components/ui/capped-text';
 import { useUser } from '@/features/auth/context/user-context';
-import { useStudentResults } from '@/features/results/context/student-results-context';
+import { useStudentResults, totalsFor } from '@/features/results/context/student-results-context';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useClass } from '@/features/teacher/context/class-context';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
@@ -26,7 +26,7 @@ export default function StudentHome() {
   const [joining, setJoining] = useState(false);
 
   const myResults = useMemo(() => results.filter((r) => r.uid === uid), [results, uid]);
-  const points = myResults.reduce((sum, r) => sum + r.points, 0);
+  const points = totalsFor(myResults).totalPoints;
 
   // The roster is teacher-only, so membership is read off the student's own
   // profile — `POST /classes/join` sets `classId` on it.

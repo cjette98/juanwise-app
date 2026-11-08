@@ -16,10 +16,10 @@ import { Medal } from '@/shared/components/activity-timer';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
 import { nextAttemptSeq, pointsForAttempt } from '@/features/learning/lib/attempt-rules';
-import { averageTriesToPass, computePerformanceScore } from './performance-score';
 import { useLanguage } from '@/shared/i18n/language-context';
+import { canonicalAttempts, inActiveClass } from '../lib/totals';
 
-export { computePerformanceScore } from './performance-score';
+export { isPass, totalsFor, type Totals } from '../lib/totals';
 
 import {
   ACTIVITIES_PER_LEVEL,
@@ -58,37 +58,14 @@ export {
   TROPHY_TIERS,
 };
 export type { Trophy };
+export { averageTriesToPass } from './performance-score';
 
-function computeTrophy(totalPoints: number, totalTimeUsed: number): Trophy {
-  for (const tier of TROPHY_TIERS) {
-    if (totalPoints >= tier.minPoints && totalTimeUsed <= tier.maxTimeSeconds) return tier.trophy;
-  }
-  return null;
-}
-
-const canonicalKey = (r: ActivityResult) =>
-  `${r.studentName}::${r.category}::${r.activityType}::${r.level}::${r.activityNum}`;
-
-// Collapses repeated attempts on the same activity down to ONE canonical
-// result per (student, category, type, level, activity#) — the latest
-// PASSING attempt if the student ever passed it, otherwise their latest
-// attempt (a fail/timeout, 0 points). Without this, retrying an activity
-// multiple times would add its points/time again each time, inflating
-// totals past the real possible max (900 pts / 3,600 sec combined).
+/**
+ * One canonical attempt per activity, by the server's rule: a pass beats a
+ * failure, otherwise the latest attempt counts. See `lib/totals.ts`.
+ */
 export function getCanonicalAttempts(entries: ActivityResult[]): ActivityResult[] {
-  const groups = new Map<string, ActivityResult[]>();
-  for (const r of entries) {
-    const list = groups.get(canonicalKey(r)) || [];
-    list.push(r);
-    groups.set(canonicalKey(r), list);
-  }
-  const canonical: ActivityResult[] = [];
-  for (const list of groups.values()) {
-    const sorted = [...list].sort((a, b) => a.timestamp - b.timestamp);
-    const passed = [...sorted].reverse().find((r) => r.medal);
-    canonical.push(passed || sorted[sorted.length - 1]);
-  }
-  return canonical;
+  return canonicalAttempts(entries);
 }
 
 const RESULTS_CACHE_KEY = 'results';
@@ -98,6 +75,8 @@ export interface ActivityResult {
   /** Firebase uid of the student who made the attempt. */
   uid: string;
   studentName: string;
+  /** The class the student was in when they made it; null with no class. */
+  classId: string | null;
   category: string;
   activityType: 'quiz' | 'jigsaw';
   level: number;
@@ -121,6 +100,7 @@ export function toActivityResult(api: ApiActivityResult): ActivityResult {
     id: api.id,
     uid: api.uid,
     studentName: api.studentName,
+    classId: api.classId ?? null,
     category: api.category,
     activityType: api.activityType,
     level: api.level,
@@ -138,31 +118,6 @@ export function toActivityResult(api: ApiActivityResult): ActivityResult {
 
 export type LearnerPace = 'fast' | 'steady' | 'needs-support';
 
-export interface StudentSummary {
-  studentName: string;
-  attempts: number;
-  totalPoints: number;
-  totalTimeUsed: number;
-  avgTimeUsed: number;
-  fastestTimeUsed: number;
-  timeOuts: number;
-  pace: LearnerPace;
-  trophy: Trophy;
-  avgStars: number;
-  quizCorrect: number;
-  quizWrongOutOf30: number;
-  /**
-   * 0–1 blend of points earned (volume of correct work) and pace, used to
-   * rank the "Top Performers" leaderboard. Weighted 70/30 toward points so a
-   * student who completes many activities isn't out-ranked by one who did
-   * only one or two quickly — see PERFORMANCE_POINTS_WEIGHT below.
-   */
-  performanceScore: number;
-  /** Mean attempt number of passing activities, 1 decimal; null with no passes. */
-  avgTriesToPass: number | null;
-}
-
-
 export interface ResultFilter {
   category?: string;
   activityType?: 'quiz' | 'jigsaw';
@@ -172,6 +127,7 @@ export interface ResultFilter {
 export type ProgressionTrend = 'improving' | 'steady' | 'needs-support' | 'not-enough-data' | 'not-started';
 
 export interface StudentProgression {
+  uid: string;
   studentName: string;
   attempts: ActivityResult[];
   trend: ProgressionTrend;
@@ -193,76 +149,6 @@ function medalToStars(medal: Medal): 0 | 1 | 2 | 3 {
 /** Stars shown after an attempt are derived from the medal the server awarded. */
 export function starsForMedal(medal: Medal): 0 | 1 | 2 | 3 {
   return medalToStars(medal);
-}
-
-// Pure helper — groups a list of results by student and computes the same
-// summary/pace stats used by both the global leaderboard and any filtered
-// (per-category / per-level / per-activity-type) view.
-function summarize(entries: ActivityResult[]): StudentSummary[] {
-  // Dedupe FIRST — a retried activity must only ever count once, using its
-  // best (passing) attempt, so totals can never exceed the real possible
-  // max (900 pts / 3,600 sec combined).
-  const canonical = getCanonicalAttempts(entries);
-
-  const byStudent = new Map<string, ActivityResult[]>();
-  for (const r of canonical) {
-    const list = byStudent.get(r.studentName) || [];
-    list.push(r);
-    byStudent.set(r.studentName, list);
-  }
-
-  const summaries: StudentSummary[] = Array.from(byStudent.entries()).map(
-    ([studentName, list]) => {
-      const attempts = list.length;
-      const totalPoints = list.reduce((sum, e) => sum + e.points, 0);
-      const totalTimeUsed = list.reduce((sum, e) => sum + e.timeUsed, 0);
-      const avgTimeUsed = totalTimeUsed / attempts;
-      const fastestTimeUsed = Math.min(...list.map((e) => e.timeUsed));
-      const timeOuts = list.filter((e) => e.timedOut).length;
-      const quizList = list.filter((e) => e.activityType === 'quiz');
-      const quizCorrect = quizList.filter((e) => e.medal).length;
-      const quizWrongOutOf30 = TOTAL_QUIZ_ACTIVITIES - quizCorrect;
-      const trophy = computeTrophy(totalPoints, totalTimeUsed);
-      const avgStars = list.reduce((sum, e) => sum + medalToStars(e.medal), 0) / attempts;
-
-      // Learner pace is DERIVED directly from the trophy tier — the same
-      // points/time table drives Trophy AND Pace, so they always agree
-      // instead of being two separate, possibly-conflicting metrics:
-      //   🥇 Gold trophy   → 🚀 Fast Learner
-      //   🥈 Silver trophy → 🚶 Steady/Normal Learner
-      //   🥉 Bronze or none → 🐢 Needs Support
-      let pace: LearnerPace = 'needs-support';
-      if (trophy === 'gold') pace = 'fast';
-      else if (trophy === 'silver') pace = 'steady';
-
-      const performanceScore = computePerformanceScore(
-        totalPoints,
-        avgTimeUsed,
-        COMBINED_MAX_POINTS,
-        JIGSAW_TIME_BUDGET_SECONDS,
-      );
-
-      return {
-        studentName,
-        attempts,
-        totalPoints,
-        totalTimeUsed,
-        avgTimeUsed,
-        fastestTimeUsed,
-        timeOuts,
-        trophy,
-        pace,
-        avgStars,
-        quizCorrect,
-        quizWrongOutOf30,
-        performanceScore,
-        avgTriesToPass: averageTriesToPass(list),
-      };
-    }
-  );
-
-  // Top Performers first (used when the UI sorts by "speed" mode).
-  return summaries.sort((a, b) => b.performanceScore - a.performanceScore);
 }
 
 function matchesFilter(r: ActivityResult, filter?: ResultFilter) {
@@ -312,16 +198,12 @@ type StudentResultsContextType = {
    * provider refreshes on it, since a replay also advanced server progress.
    */
   outboxSettledVersion: number;
-  leaderboard: StudentSummary[];
-  /** Same ranking logic as `leaderboard`, but scoped to a category / game type / level
-   *  so per-level, per-activity-type fast/slow rankings can be shown. */
-  getLeaderboard: (filter?: ResultFilter) => StudentSummary[];
   getFilteredResults: (filter?: ResultFilter) => ActivityResult[];
-  /** For a given roster of student names, computes each student's improvement
-   *  trend by comparing their earliest attempts to their most recent ones
-   *  (within an optional filter). Students with no attempts are included with
+  /** For a roster, computes each student's improvement trend by comparing
+   *  their earliest attempts to their most recent ones (within an optional
+   *  filter), matched on uid. Students with no attempts are included with
    *  trend: 'not-started' so non-participants are identifiable too. */
-  getProgression: (studentNames: string[], filter?: ResultFilter) => StudentProgression[];
+  getProgression: (roster: { uid: string; name: string }[], filter?: ResultFilter) => StudentProgression[];
 };
 
 const StudentResultsContext = createContext<StudentResultsContextType | undefined>(undefined);
@@ -331,7 +213,9 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
   const { signedIn, ready: userReady, uid, role, name } = useUser();
   const { classId, ready: classReady } = useClass();
 
-  const [results, setResults] = useState<ActivityResult[]>([]);
+  // Everything fetched for this scope. Students get every class they were
+  // ever in, so `results` below narrows it to the current one.
+  const [fetched, setResults] = useState<ActivityResult[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outboxSettledVersion, setOutboxSettledVersion] = useState(0);
@@ -340,6 +224,16 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
   useEffect(() => () => { mounted.current = false; }, []);
 
   const isTeacher = role === 'teacher' || role === 'admin';
+
+  // The class leaderboard ranks attempts made in the class, and the server
+  // numbers attempts per class, so a student's history is scoped the same way:
+  // the class they are in now, or their unassigned attempts with no class.
+  // Teachers already fetch one class.
+  const results = useMemo(
+    () => (isTeacher ? fetched : inActiveClass(fetched, classId ?? null)),
+    [fetched, isTeacher, classId],
+  );
+
   // Students are pinned to their own results server-side; teachers must scope
   // by a class they own, so there is nothing to fetch before one exists.
   const scopeKey = isTeacher ? classId : uid;
@@ -408,7 +302,7 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
       // offline: a pass is worth the attempt's share (15/10/6), medal by fraction of the budget.
       const queueOffline = async () => {
         if (uid) await enqueueResult(uid, payload);
-        const optimistic = scoreLocally(attempt, uid, name, nextAttemptSeq(results, attempt));
+        const optimistic = scoreLocally(attempt, uid, name, classId ?? null, nextAttemptSeq(results, attempt));
         if (mounted.current) {
           setResults((prev) => {
             const next = [...prev, optimistic];
@@ -455,7 +349,7 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
         return queueOffline();
       }
     },
-    [uid, name, scopeKey, results, refresh],
+    [uid, name, classId, scopeKey, results, refresh],
   );
 
   const clearResults: StudentResultsContextType['clearResults'] = useCallback(async () => {
@@ -472,19 +366,9 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
     }
   }, [classId, refresh, t]);
 
-  const leaderboard = useMemo<StudentSummary[]>(() => summarize(results), [results]);
-
   const getFilteredResults: StudentResultsContextType['getFilteredResults'] = useCallback(
     (filter) => results.filter((r) => matchesFilter(r, filter)),
     [results],
-  );
-
-  const getLeaderboard: StudentResultsContextType['getLeaderboard'] = useCallback(
-    (filter) => {
-      if (!filter || (!filter.category && !filter.activityType && !filter.level)) return leaderboard;
-      return summarize(results.filter((r) => matchesFilter(r, filter)));
-    },
-    [leaderboard, results],
   );
 
   // Compares each student's earliest attempts against their most recent ones
@@ -492,23 +376,25 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
   // `studentNames` with zero matching attempts are still returned so a
   // teacher/admin can spot who hasn't participated at all.
   const getProgression: StudentResultsContextType['getProgression'] = useCallback(
-    (studentNames, filter) => {
+    (roster, filter) => {
       const scoped = results.filter((r) => matchesFilter(r, filter));
       const byStudent = new Map<string, ActivityResult[]>();
       for (const r of scoped) {
-        const list = byStudent.get(r.studentName) || [];
+        const list = byStudent.get(r.uid) || [];
         list.push(r);
-        byStudent.set(r.studentName, list);
+        byStudent.set(r.uid, list);
       }
 
-      const names = new Set<string>(studentNames);
-      for (const n of byStudent.keys()) names.add(n); // include participants not in roster too
+      // Include participants not on the roster too, e.g. a removed student.
+      const names = new Map<string, string>(roster.map((m) => [m.uid, m.name]));
+      for (const [uid, list] of byStudent) if (!names.has(uid)) names.set(uid, list[0]?.studentName ?? '');
 
-      return Array.from(names).map((studentName) => {
-        const attempts = (byStudent.get(studentName) || []).slice().sort((a, b) => a.timestamp - b.timestamp);
+      return Array.from(names, ([uid, studentName]) => {
+        const attempts = (byStudent.get(uid) || []).slice().sort((a, b) => a.timestamp - b.timestamp);
 
         if (attempts.length === 0) {
           return {
+            uid,
             studentName,
             attempts: [],
             trend: 'not-started' as ProgressionTrend,
@@ -523,6 +409,7 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
 
         if (attempts.length < 2) {
           return {
+            uid,
             studentName,
             attempts,
             trend: 'not-enough-data' as ProgressionTrend,
@@ -552,7 +439,7 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
         if (pointsDelta > 2 || timeDelta > 2) trend = 'improving';
         else if (pointsDelta < -2 || timeDelta < -2) trend = 'needs-support';
 
-        return { studentName, attempts, trend, earlyAvgPoints, lateAvgPoints, earlyAvgTime, lateAvgTime, pointsDelta, timeDelta };
+        return { uid, studentName, attempts, trend, earlyAvgPoints, lateAvgPoints, earlyAvgTime, lateAvgTime, pointsDelta, timeDelta };
       });
     },
     [results],
@@ -567,12 +454,10 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
       clearResults,
       refresh,
       outboxSettledVersion,
-      leaderboard,
-      getLeaderboard,
       getFilteredResults,
       getProgression,
     }),
-    [ready, results, error, addResult, clearResults, refresh, outboxSettledVersion, leaderboard, getLeaderboard, getFilteredResults, getProgression],
+    [ready, results, error, addResult, clearResults, refresh, outboxSettledVersion, getFilteredResults, getProgression],
   );
 
   return <StudentResultsContext.Provider value={value}>{children}</StudentResultsContext.Provider>;
@@ -583,7 +468,13 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
  * has to agree with the server, because the queued attempt will be re-scored
  * there and the local row replaced on the next refresh.
  */
-function scoreLocally(attempt: AttemptInput, uid: string, studentName: string, attemptSeq: number): ActivityResult {
+function scoreLocally(
+  attempt: AttemptInput,
+  uid: string,
+  studentName: string,
+  classId: string | null,
+  attemptSeq: number,
+): ActivityResult {
   const budget = attempt.activityType === 'jigsaw' ? JIGSAW_TIME_BUDGET_SECONDS : QUIZ_TIME_BUDGET_SECONDS;
   const timeUsed = Math.max(0, Math.min(Math.round(attempt.timeUsed), budget));
   const passed = !attempt.timedOut && attempt.requiredCount > 0 && attempt.correctCount >= attempt.requiredCount;
@@ -595,6 +486,7 @@ function scoreLocally(attempt: AttemptInput, uid: string, studentName: string, a
     id: `pending-${uid}-${Date.now()}`,
     uid,
     studentName,
+    classId,
     category: attempt.category,
     activityType: attempt.activityType,
     level: attempt.level,

@@ -2,6 +2,7 @@ import { request, uploadToSignedUrl } from './client';
 import { clearSession, setSession } from './session';
 import type {
   AnalyticsFilter,
+  LeaderboardFilter,
   ApiCategory,
   ApiCategoryKey,
   ApiClass,
@@ -369,7 +370,7 @@ export const resultsApi = {
 /* --------------------------------------------------------------- analytics */
 
 export const analyticsApi = {
-  leaderboard(classId: string, filter: AnalyticsFilter = {}, limit = 50): Promise<ApiLeaderboard> {
+  leaderboard(classId: string, filter: LeaderboardFilter = {}, limit = 50): Promise<ApiLeaderboard> {
     return request('/analytics/leaderboard', { query: { classId, ...filter, limit } });
   },
 

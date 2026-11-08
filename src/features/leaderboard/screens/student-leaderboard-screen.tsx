@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import {
   Screen,
@@ -21,19 +21,17 @@ import {
 import { tokens } from '@/shared/theme/tokens';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { beatsPercent } from '@/features/leaderboard/percentile';
+import { boardForType, findMine, isTiedAt, toBoardRows, type Board, type BoardRow } from '@/features/leaderboard/board';
 import {
   TROPHY_TIERS,
   Trophy,
   COMBINED_MAX_POINTS,
   COMBINED_MAX_TIME_SECONDS,
-  JIGSAW_TIME_BUDGET_SECONDS,
   LearnerPace,
-  computePerformanceScore,
-  type StudentSummary,
 } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
-import { analyticsApi, type ApiStudentSummary, type ApiTrophy, type ApiPace } from '@/shared/api';
+import { analyticsApi, type ApiTrophy, type ApiPace } from '@/shared/api';
 import { useRouter } from 'expo-router';
 
 function mapTrophy(trophy: ApiTrophy): Trophy {
@@ -49,37 +47,28 @@ function mapPace(pace: ApiPace): LearnerPace {
   return 'needs-support';
 }
 
-// The class-wide leaderboard only exposes per-student totals, not raw
-// attempts, so fields the personal record screens need (fastest time,
-// timeouts, per-quiz correctness) aren't available here and aren't rendered
-// by this screen.
-function toStudentSummary(item: ApiStudentSummary): StudentSummary {
-  const totalStars = item.goldMedals * 3 + item.silverMedals * 2 + item.bronzeMedals;
-  const avgTimeUsed = item.activitiesCompleted > 0 ? item.totalTimeSec / item.activitiesCompleted : 0;
-  return {
-    studentName: item.studentName,
-    attempts: item.activitiesCompleted,
-    totalPoints: item.totalPoints,
-    totalTimeUsed: item.totalTimeSec,
-    avgTimeUsed,
-    fastestTimeUsed: 0,
-    timeOuts: 0,
-    pace: mapPace(item.pace),
-    trophy: mapTrophy(item.trophy),
-    avgStars: item.activitiesCompleted > 0 ? totalStars / item.activitiesCompleted : 0,
-    quizCorrect: 0,
-    quizWrongOutOf30: 0,
-    avgTriesToPass: null,
-    performanceScore: computePerformanceScore(item.totalPoints, avgTimeUsed, COMBINED_MAX_POINTS, JIGSAW_TIME_BUDGET_SECONDS),
+type GameType = 'quiz' | 'jigsaw';
+
+// Quiz and jigsaw are ranked separately and never mixed (Adjustment 3, item 8):
+// a quiz board by points, a jigsaw board by average time.
+const BOARD_OPTION_KEYS: { value: GameType; labelKey: TranslationKey; icon: 'star' | 'clock' }[] = [
+  { value: 'quiz', labelKey: 'boardPointsTab', icon: 'star' },
+  { value: 'jigsaw', labelKey: 'boardTimeTab', icon: 'clock' },
+];
+
+/** The row's numbers, its board's main measure first. */
+function useStatsLine() {
+  const { t } = useLanguage();
+  return (row: BoardRow, board: Board): string => {
+    const points = t('statPointsShort', { points: row.totalPoints });
+    const failed = row.failedAttempts === null ? null : t('statFailedTries', { failed: row.failedAttempts });
+    const parts =
+      board === 'time'
+        ? [row.avgTimeSec === null ? '—' : t('statAvgTime', { avg: row.avgTimeSec }), points, failed]
+        : [points, formatSeconds(row.totalTimeSec), failed];
+    return parts.filter(Boolean).join(' · ');
   };
 }
-
-type SortMode = 'points' | 'speed';
-
-const SORT_OPTION_KEYS: { value: SortMode; labelKey: TranslationKey; icon: 'star' | 'clock' }[] = [
-  { value: 'points', labelKey: 'points', icon: 'star' },
-  { value: 'speed', labelKey: 'topRankLabel', icon: 'clock' },
-];
 
 /** The tier's own name, so the legend never renders `TROPHY_TIERS.label` (emoji + English). */
 const TIER_NAME_KEY: Record<'gold' | 'silver' | 'bronze', TranslationKey> = {
@@ -154,6 +143,11 @@ function LegendTrophy({ tier }: { tier: Trophy }) {
   return <TrophyBadge tier={tier} size={18} />;
 }
 
+/** Podium colours follow the rank, so two players tied for first both get gold. */
+function rankColor(rank: number): string {
+  return RANK_COLOR[Math.min(3, Math.max(1, rank)) as 1 | 2 | 3];
+}
+
 const PODIUM_HEIGHT: Record<1 | 2 | 3, number> = { 1: 108, 2: 84, 3: 66 };
 const PODIUM_AVATAR: Record<1 | 2 | 3, number> = { 1: 64, 2: 52, 3: 52 };
 
@@ -162,12 +156,14 @@ export default function StudentLeaderboardScreen() {
   const { t } = useLanguage();
   const trophyLabel = useTrophyLabel();
   const paceLabel = (pace: LearnerPace) => t(PACE_META[pace].labelKey);
-  const { name } = useUser();
+  const statsLine = useStatsLine();
+  const { uid } = useUser();
   const { classId, ready: classReady } = useClass();
-  const [leaderboard, setLeaderboard] = useState<StudentSummary[]>([]);
+  const [rows, setRows] = useState<BoardRow[]>([]);
+  const [board, setBoard] = useState<Board>('points');
   const [ready, setReady] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>('points');
-  const [peekStudent, setPeekStudent] = useState<string | null>(null);
+  const [gameType, setGameType] = useState<GameType>('quiz');
+  const [peekUid, setPeekUid] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState(false);
 
   useEffect(() => {
@@ -176,21 +172,21 @@ export default function StudentLeaderboardScreen() {
     (async () => {
       if (!classId) {
         if (!cancelled) {
-          setLeaderboard([]);
+          setRows([]);
           setReady(true);
         }
         return;
       }
+      setReady(false);
       try {
-        const { items } = await analyticsApi.leaderboard(classId);
-        console.error('[DEBUG leaderboard] classId', classId, 'raw items', JSON.stringify(items));
+        const requested = boardForType(gameType);
+        const res = await analyticsApi.leaderboard(classId, { activityType: gameType, board: requested });
         if (cancelled) return;
-        const summaries = items.map(toStudentSummary).sort((a, b) => b.performanceScore - a.performanceScore);
-        console.error('[DEBUG leaderboard] mapped summaries', JSON.stringify(summaries));
-        setLeaderboard(summaries);
-      } catch (err) {
-        console.error('[DEBUG leaderboard] CAUGHT ERROR', err instanceof Error ? err.stack : String(err));
-        if (!cancelled) setLeaderboard([]);
+        // Shown in the server's order with the server's ranks; never re-sorted here.
+        setRows(toBoardRows(res.items));
+        setBoard(res.board ?? requested);
+      } catch {
+        if (!cancelled) setRows([]);
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -198,53 +194,49 @@ export default function StudentLeaderboardScreen() {
     return () => {
       cancelled = true;
     };
-  }, [classId, classReady]);
+  }, [classId, classReady, gameType]);
 
-  const sortOptions: SegmentedOption<SortMode>[] = SORT_OPTION_KEYS.map((o) => ({
+  const boardOptions: SegmentedOption<GameType>[] = BOARD_OPTION_KEYS.map((o) => ({
     value: o.value,
     label: t(o.labelKey),
     icon: o.icon,
   }));
 
-  const sorted = useMemo(() => {
-    const list = [...leaderboard];
-    if (sortMode === 'points') list.sort((a, b) => b.totalPoints - a.totalPoints);
-    // 'speed' is already sorted by performanceScore (points + pace), from the fetch above
-    return list;
-  }, [leaderboard, sortMode]);
+  const mySummary = findMine(rows, uid);
+  const myRank = mySummary?.rank ?? null;
+  const beats = myRank === null ? null : beatsPercent(myRank, rows.length);
 
-  const myRankIndex = sorted.findIndex((s) => s.studentName === name);
-  const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
-  const mySummary = myRankIndex >= 0 ? sorted[myRankIndex] : null;
-  const beats = myRank === null ? null : beatsPercent(myRank, sorted.length);
+  const peekSummary = peekUid ? rows.find((s) => s.uid === peekUid) || null : null;
 
-  const peekSummary = peekStudent ? sorted.find((s) => s.studentName === peekStudent) || null : null;
+  const openSummary = (row: BoardRow) =>
+    router.navigate({ pathname: '/student-summary', params: { studentName: row.studentName, uid: row.uid } });
 
-  const handleRowPress = (studentName: string) => {
-    if (studentName === name) {
-      router.navigate({ pathname: '/student-summary', params: { studentName } });
-    } else {
-      setPeekStudent(studentName);
-    }
+  const handleRowPress = (row: BoardRow) => {
+    if (row.uid === uid) openSummary(row);
+    else setPeekUid(row.uid);
   };
 
-  // Podium is purely a visual read of the first three entries of `sorted` —
-  // whatever mode is active. Never padded: fewer than three real entries
-  // means fewer than three columns.
-  const podiumEntries = sorted.slice(0, 3).map((s, i) => ({ ...s, rank: (i + 1) as 1 | 2 | 3 }));
+  // The podium is the first three rows in the server's order. Plinth height
+  // follows position; the number on it is the server's rank, so tied players
+  // show the same number. Never padded: fewer than three rows, fewer columns.
+  const podiumEntries = rows.slice(0, 3).map((s, i) => ({
+    ...s,
+    position: (i + 1) as 1 | 2 | 3,
+    tied: isTiedAt(rows, i),
+  }));
   const podiumOrder = [podiumEntries[1], podiumEntries[0], podiumEntries[2]].filter(
     (e): e is (typeof podiumEntries)[number] => !!e
   );
 
   // The sheet picks up where the podium leaves off, so nobody is drawn twice.
-  const listEntries = sorted.slice(podiumEntries.length);
+  const listEntries = rows.slice(podiumEntries.length);
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title={t('leaderboard')}
-          subtitle={t('leaderboardSubtitle', { count: leaderboard.length })}
+          subtitle={t('leaderboardSubtitle', { count: rows.length })}
           color={tokens.color.navLeaderboard}
           onBack={() => router.back()}
           right={
@@ -259,12 +251,15 @@ export default function StudentLeaderboardScreen() {
           }
         >
           <Segmented
-            options={sortOptions}
-            value={sortMode}
-            onChange={setSortMode}
+            options={boardOptions}
+            value={gameType}
+            onChange={setGameType}
             tone="onDark"
             style={styles.sortSwitch}
           />
+          <Caption style={styles.rankingRule}>
+            {t(board === 'time' ? 'rankingRuleTime' : 'rankingRulePoints')}
+          </Caption>
 
           {showLegend && (
             <Card style={styles.legendCard}>
@@ -316,7 +311,7 @@ export default function StudentLeaderboardScreen() {
           {mySummary && (
             <TouchableOpacity
               style={styles.bannerTouchable}
-              onPress={() => router.navigate({ pathname: '/student-summary', params: { studentName: name } })}
+              onPress={() => openSummary(mySummary)}
               accessibilityRole="button"
               accessibilityLabel={t('myRankLine', { rank: myRank ?? 0 })}
             >
@@ -338,37 +333,42 @@ export default function StudentLeaderboardScreen() {
             <View style={styles.podiumRow}>
               {podiumOrder.map((entry) => (
                 <TouchableOpacity
-                  key={entry.studentName}
+                  key={entry.uid}
                   style={styles.podiumColumn}
-                  onPress={() => handleRowPress(entry.studentName)}
+                  onPress={() => handleRowPress(entry)}
                   accessibilityRole="button"
                   accessibilityLabel={t('rankEntryA11y', {
                     rank: entry.rank,
                     name: entry.studentName,
                     points: entry.totalPoints,
-                    trophy: trophyLabel(entry.trophy),
+                    trophy: trophyLabel(mapTrophy(entry.trophy)),
                   })}
                 >
                   <View style={styles.podiumAvatarWrap}>
                     <Avatar
                       name={entry.studentName}
-                      size={PODIUM_AVATAR[entry.rank]}
-                      ring={RANK_COLOR[entry.rank]}
+                      size={PODIUM_AVATAR[entry.position]}
+                      ring={rankColor(entry.rank)}
                       ringWidth={3}
                     />
-                    <TrophyBadge tier={entry.trophy} size={26} style={styles.podiumBadge} />
+                    <TrophyBadge tier={mapTrophy(entry.trophy)} size={26} style={styles.podiumBadge} />
                   </View>
                   <BodyStrong numberOfLines={1} style={styles.podiumName}>
-                    {entry.studentName}{entry.studentName === name ? t('youSuffix') : ''}
+                    {entry.studentName}{entry.uid === uid ? t('youSuffix') : ''}
                   </BodyStrong>
+                  {/* Each of the top three shows their own points (client, item 1). */}
                   <Pill label={t('pointsSuffixShort', { points: entry.totalPoints })} tone="translucent" style={styles.podiumPoints} />
+                  {board === 'time' && entry.avgTimeSec !== null && (
+                    <Caption style={styles.podiumMeasure}>{t('statAvgTime', { avg: entry.avgTimeSec })}</Caption>
+                  )}
+                  {entry.tied && <Caption style={styles.podiumMeasure}>{t('tiedLabel')}</Caption>}
                   <View
                     style={[
                       styles.podiumPlinth,
                       {
-                        height: PODIUM_HEIGHT[entry.rank],
+                        height: PODIUM_HEIGHT[entry.position],
                         backgroundColor: entry.rank === 1 ? tokens.color.onDarkChip : tokens.color.onDarkFill,
-                        borderTopColor: RANK_COLOR[entry.rank],
+                        borderTopColor: rankColor(entry.rank),
                       },
                     ]}
                   >
@@ -386,34 +386,37 @@ export default function StudentLeaderboardScreen() {
           <View style={styles.sheetNotch} />
 
           {!ready && <Body style={styles.emptyText}>{t('loading')}</Body>}
-          {ready && sorted.length === 0 && (
+          {ready && rows.length === 0 && (
             <Body style={styles.emptyText}>{t('noActivityYetStudent')}</Body>
           )}
-          {ready && sorted.length > 0 && listEntries.length === 0 && (
+          {ready && rows.length > 0 && listEntries.length === 0 && (
             <Caption style={styles.sheetHint}>{t('allOnPodium')}</Caption>
           )}
 
           <View style={styles.list}>
             {listEntries.map((s, i) => {
-              const isMe = s.studentName === name;
-              const rank = podiumEntries.length + i + 1;
+              const isMe = s.uid === uid;
+              const { rank } = s;
+              const tied = isTiedAt(rows, podiumEntries.length + i);
+              const trophy = mapTrophy(s.trophy);
+              const pace = mapPace(s.pace);
               return (
                 <TouchableOpacity
-                  key={s.studentName}
+                  key={s.uid}
                   style={styles.rowTouchable}
-                  onPress={() => handleRowPress(s.studentName)}
+                  onPress={() => handleRowPress(s)}
                   accessibilityRole="button"
                   accessibilityLabel={t('rankEntryPaceA11y', {
                     rank,
                     name: s.studentName,
                     points: s.totalPoints,
-                    trophy: trophyLabel(s.trophy),
-                    pace: paceLabel(s.pace),
+                    trophy: trophyLabel(trophy),
+                    pace: paceLabel(pace),
                   })}
                 >
                   <Card raised={isMe} style={isMe ? [styles.row, styles.rowMine] : styles.row}>
                     <View style={styles.rankCircle}>
-                      <Caption style={styles.rankText}>{rank}</Caption>
+                      <Caption style={styles.rankText}>{tied ? `=${rank}` : rank}</Caption>
                     </View>
                     <Avatar name={s.studentName} size={44} />
                     <View style={styles.rowMain}>
@@ -421,18 +424,14 @@ export default function StudentLeaderboardScreen() {
                         {s.studentName}{isMe ? t('youSuffix') : ''}
                       </BodyStrong>
                       <Caption style={styles.rowStats} numberOfLines={1}>
-                        {t('rowStatsLine', {
-                          points: s.totalPoints,
-                          time: formatSeconds(s.totalTimeUsed),
-                          attempts: s.attempts,
-                        })}
+                        {statsLine(s, board)}
                       </Caption>
                       <View style={styles.rowMetaRow}>
-                        <PacePill pace={s.pace} />
+                        <PacePill pace={pace} />
                         <StarRow earned={Math.round(s.avgStars)} of={3} size={12} />
                       </View>
                     </View>
-                    <TrophyBadge tier={s.trophy} size={30} />
+                    <TrophyBadge tier={trophy} size={30} />
                   </Card>
                 </TouchableOpacity>
               );
@@ -444,27 +443,26 @@ export default function StudentLeaderboardScreen() {
       {/* Quick public peek — points & time are visible to everyone, same as
           the leaderboard row itself. The full per-category/level breakdown
           is only reachable by tapping your OWN row (see handleRowPress). */}
-      <Modal visible={!!peekStudent} transparent animationType="fade" onRequestClose={() => setPeekStudent(null)}>
+      <Modal visible={!!peekSummary} transparent animationType="fade" onRequestClose={() => setPeekUid(null)}>
         <View style={styles.peekRoot}>
           <View style={styles.peekBackdrop} />
-          <TouchableOpacity style={styles.peekOverlay} activeOpacity={1} onPress={() => setPeekStudent(null)}>
+          <TouchableOpacity style={styles.peekOverlay} activeOpacity={1} onPress={() => setPeekUid(null)}>
             <Card style={styles.peekCard}>
-              {!!peekStudent && <Avatar name={peekStudent} size={64} style={styles.peekAvatar} />}
-              <H3 style={styles.peekName}>{peekStudent}</H3>
+              {!!peekSummary && <Avatar name={peekSummary.studentName} size={64} style={styles.peekAvatar} />}
+              <H3 style={styles.peekName}>{peekSummary?.studentName}</H3>
               {peekSummary && (
                 <>
                   <View style={styles.peekPaceWrap}>
-                    <PacePill pace={peekSummary.pace} />
+                    <PacePill pace={mapPace(peekSummary.pace)} />
                   </View>
                   <View style={styles.peekStatsRow}>
                     <View style={styles.statLineRow}>
-                      <LegendTrophy tier={peekSummary.trophy} />
+                      <LegendTrophy tier={mapTrophy(peekSummary.trophy)} />
                       <BodyStrong style={styles.peekStat}>{t('trophyWord')}</BodyStrong>
                     </View>
-                    <BodyStrong style={styles.peekStat}>{t('pointsSuffixShort', { points: peekSummary.totalPoints })}</BodyStrong>
                     <View style={styles.statLineRow}>
                       <Icon name="clock" size={13} color={tokens.color.inkMuted} />
-                      <BodyStrong style={styles.peekStat}>{formatSeconds(peekSummary.totalTimeUsed)}</BodyStrong>
+                      <BodyStrong style={styles.peekStat}>{statsLine(peekSummary, board)}</BodyStrong>
                     </View>
                   </View>
                   <View style={styles.peekStarsWrap}>
@@ -487,6 +485,7 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: tokens.space.xxl },
   legendToggle: { minHeight: tokens.hit.min, justifyContent: 'center' },
   sortSwitch: { marginTop: tokens.space.md },
+  rankingRule: { marginTop: tokens.space.sm, color: tokens.color.onDark, opacity: 0.85 },
 
   legendCard: { gap: tokens.space.xs, marginTop: tokens.space.md },
   legendTitle: { marginBottom: tokens.space.xs },
@@ -530,6 +529,7 @@ const styles = StyleSheet.create({
   podiumBadge: { position: 'absolute', top: -14 },
   podiumName: { maxWidth: '100%', color: tokens.color.onDark },
   podiumPoints: { paddingHorizontal: tokens.space.sm, paddingVertical: 5 },
+  podiumMeasure: { color: tokens.color.onDark, opacity: 0.85 },
   podiumPlinth: {
     width: '100%',
     marginTop: tokens.space.xs,

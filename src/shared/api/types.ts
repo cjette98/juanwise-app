@@ -448,10 +448,20 @@ export interface ApiStudentSummary {
   trophy: ApiTrophy;
   pace: ApiPace;
   completionPct: number;
+  /** Failed or timed-out attempts in scope. Absent from servers before Adjustment 3. */
+  failedAttempts?: number;
+  /** Mean seconds per passed activity, to 0.1; null before the first pass. Absent from older servers. */
+  avgTimeSec?: number | null;
 }
+
+/** Quiz boards rank by points, jigsaw boards by average time (Adjustment 3, item 8). */
+export type ApiLeaderboardBoard = 'points' | 'time';
 
 export interface ApiLeaderboard {
   classId: string;
+  /** Which board the rows are ranked by. Absent from older servers. */
+  board?: ApiLeaderboardBoard;
+  /** `rank` is shared by players tied on every step (1, 1, 3). */
   items: (ApiStudentSummary & { rank: number })[];
   maxPoints: number;
   maxTimeSec: number;
@@ -475,6 +485,11 @@ export interface AnalyticsFilter {
   category?: ApiCategoryKey;
   activityType?: ApiActivityType;
   level?: number;
+}
+
+/** A leaderboard query may also pick its board; it defaults from the activity type. */
+export interface LeaderboardFilter extends AnalyticsFilter {
+  board?: ApiLeaderboardBoard;
 }
 
 /* ------------------------------------------------------------------- media */

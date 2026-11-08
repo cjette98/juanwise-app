@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { H2, H3, Body, Caption } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
@@ -14,6 +14,8 @@ import {
   ActivityResult,
 } from '@/features/results/context/student-results-context';
 import CATEGORY_META, { getCategoryMeta } from '@/shared/content/category-meta';
+import { analyticsApi, type ApiCategoryKey, type ApiStudentProgression } from '@/shared/api';
+import { formatDuration } from '@/features/leaderboard/teacher-leaderboard-format';
 import { useRouter } from 'expo-router';
 
 const LEVELS = [1, 2, 3, 4, 5];
@@ -44,7 +46,7 @@ function formatDelta(value: number, suffix: string) {
 export default function PerformanceProgressionScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { students } = useClass();
+  const { students, classId } = useClass();
   const { ready, getProgression } = useStudentResults();
 
   const [category, setCategory] = useState<string | null>(null);
@@ -60,16 +62,42 @@ export default function PerformanceProgressionScreen() {
     [category, activityType, level]
   );
 
-  const rosterNames = useMemo(() => students.map((s) => s.name), [students]);
+  const roster = useMemo(() => students.map((s) => ({ uid: s.uid, name: s.name })), [students]);
+
+  // Points, time and completed activities come from the server, the same
+  // numbers the leaderboard shows (Adjustment 3, items 1 and 7). The trend
+  // badge compares the student's earlier and later attempts on the phone.
+  const filterKey = [classId, category, activityType, level].join('|');
+  const [serverRows, setServerRows] = useState<{ key: string; byUid: Map<string, ApiStudentProgression> } | null>(null);
+  useEffect(() => {
+    if (!classId) return;
+    let cancelled = false;
+    analyticsApi
+      .progression(classId, {
+        ...(category ? { category: category as ApiCategoryKey } : {}),
+        ...(activityType ? { activityType } : {}),
+        ...(level ? { level } : {}),
+      })
+      .then((items) => {
+        if (!cancelled) setServerRows({ key: filterKey, byUid: new Map(items.map((i) => [i.uid, i])) });
+      })
+      .catch(() => {
+        if (!cancelled) setServerRows({ key: filterKey, byUid: new Map() });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, category, activityType, level, filterKey]);
+  const totalsByUid = serverRows?.key === filterKey ? serverRows.byUid : null;
 
   const progression = useMemo<StudentProgression[]>(() => {
-    const list = getProgression(rosterNames, filter);
+    const list = getProgression(roster, filter);
     return [...list].sort((a, b) => {
       const orderDiff = TREND_META[a.trend].order - TREND_META[b.trend].order;
       if (orderDiff !== 0) return orderDiff;
       return b.pointsDelta - a.pointsDelta;
     });
-  }, [rosterNames, filter, getProgression]);
+  }, [roster, filter, getProgression]);
 
   const counts = useMemo(() => {
     const base: Record<ProgressionTrend, number> = {
@@ -186,10 +214,18 @@ export default function PerformanceProgressionScreen() {
           const meta = TREND_META[p.trend];
           const hasAttempts = p.attempts.length > 0;
           const catMeta = category ? getCategoryMeta(category) : null;
+          const totals = totalsByUid?.get(p.uid);
           return (
-            <View key={p.studentName} style={styles.card}>
+            <View key={p.uid} style={styles.card}>
               <View style={styles.cardTop}>
-                <H3 style={styles.studentName}>{p.studentName}</H3>
+                <View style={styles.nameBlock}>
+                  <H3 style={styles.studentName}>{p.studentName}</H3>
+                  {totals && (
+                    <Caption style={styles.totalsLine}>
+                      {t('statPointsShort', { points: totals.totalPoints })} · {formatDuration(totals.totalTimeSec)}
+                    </Caption>
+                  )}
+                </View>
                 <View style={[styles.trendBadge, { backgroundColor: meta.color }]}>
                   <Ionicons name={meta.icon as any} size={12} color="#FFF" />
                   <Caption style={styles.trendBadgeText}>{t(meta.labelKey)}</Caption>
@@ -229,7 +265,9 @@ export default function PerformanceProgressionScreen() {
                     </View>
                     <View style={styles.deltaBlock}>
                       <Caption style={styles.deltaLabel}>{t('statActivities')}</Caption>
-                      <H3 style={styles.deltaValue}>{p.attempts.length}</H3>
+                      <H3 style={styles.deltaValue}>
+                        {totals ? `${totals.activitiesCompleted}/${totals.totalActivities}` : '—'}
+                      </H3>
                     </View>
                   </View>
 
@@ -288,7 +326,9 @@ const styles = StyleSheet.create({
 
   card: { backgroundColor: '#FFF', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1.5, borderColor: '#E0D5BE' },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 6 },
+  nameBlock: { flexShrink: 1, gap: 2 },
   studentName: { color: '#1A1A1A' },
+  totalsLine: { color: '#666' },
   trendBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10 },
   trendBadgeText: { color: '#FFF', fontFamily: tokens.font.bodyBold },
 

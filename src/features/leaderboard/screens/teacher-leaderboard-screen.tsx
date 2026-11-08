@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import {
   Screen,
@@ -28,14 +28,26 @@ import {
   LearnerPace,
   COMBINED_MAX_POINTS,
   COMBINED_MAX_TIME_SECONDS,
+  averageTriesToPass,
+  getCanonicalAttempts,
 } from '@/features/results/context/student-results-context';
 import { formatDuration, paceTone } from '@/features/leaderboard/teacher-leaderboard-format';
+import { boardForType, isTiedAt, toBoardRows, type Board, type BoardRow } from '@/features/leaderboard/board';
+import { useClass } from '@/features/teacher/context/class-context';
+import { analyticsApi, type ApiCategoryKey, type ApiPace } from '@/shared/api';
 import CATEGORY_META from '@/shared/content/category-meta';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useRouter } from 'expo-router';
 
-type SortMode = 'speed' | 'points';
-type FilterKey = 'topic' | 'type' | 'level';
+type GameType = 'quiz' | 'jigsaw';
+type FilterKey = 'topic' | 'level';
+
+/** The server's three paces read as the app's three (average → steady, slow/none → needs support). */
+function mapPace(pace: ApiPace): LearnerPace {
+  if (pace === 'fast') return 'fast';
+  if (pace === 'average') return 'steady';
+  return 'needs-support';
+}
 const LEVELS = [1, 2, 3, 4, 5];
 
 /** The tier's own name, so the legend never renders `TROPHY_TIERS.label` (emoji + English). */
@@ -125,34 +137,68 @@ function OptionPill({
 export default function TeacherLeaderboardScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { getLeaderboard, getFilteredResults, ready, clearResults } = useStudentResults();
-  const [sortMode, setSortMode] = useState<SortMode>('speed');
+  const { getFilteredResults, clearResults } = useStudentResults();
+  const { classId } = useClass();
+  // Quiz and jigsaw are ranked separately and never mixed (Adjustment 3, item 8).
+  const [gameType, setGameType] = useState<GameType>('quiz');
   const [category, setCategory] = useState<string | null>(null);
-  const [activityType, setActivityType] = useState<'quiz' | 'jigsaw' | null>(null);
   const [level, setLevel] = useState<number | null>(null);
   const [showLegend, setShowLegend] = useState(false);
   const [openFilter, setOpenFilter] = useState<FilterKey | null>(null);
-
-  const isUnfiltered = !category && !activityType && !level;
+  const [reloadKey, setReloadKey] = useState(0);
+  const [loaded, setLoaded] = useState<{ key: string; rows: BoardRow[]; board: Board } | null>(null);
 
   const filter: ResultFilter = useMemo(
     () => ({
+      activityType: gameType,
       ...(category ? { category } : {}),
-      ...(activityType ? { activityType } : {}),
       ...(level ? { level } : {}),
     }),
-    [category, activityType, level]
+    [category, gameType, level]
   );
 
   const scopedResults = useMemo(() => getFilteredResults(filter), [getFilteredResults, filter]);
-  const leaderboard = useMemo(() => getLeaderboard(filter), [getLeaderboard, filter]);
 
-  const sorted = useMemo(() => {
-    const list = [...leaderboard];
-    if (sortMode === 'points') list.sort((a, b) => b.totalPoints - a.totalPoints);
-    // 'speed' is already sorted by performanceScore (points + pace) from the context
-    return list;
-  }, [leaderboard, sortMode]);
+  // The board is ranked by the server, the same one students and the admin web
+  // see; the phone shows its order and ranks as they come.
+  const requestKey = [classId, gameType, category, level, reloadKey].join('|');
+
+  useEffect(() => {
+    if (!classId) return;
+    let cancelled = false;
+    const requested = boardForType(gameType);
+    analyticsApi
+      .leaderboard(classId, {
+        activityType: gameType,
+        board: requested,
+        ...(category ? { category: category as ApiCategoryKey } : {}),
+        ...(level ? { level } : {}),
+      })
+      .then((res) => {
+        if (!cancelled) setLoaded({ key: requestKey, rows: toBoardRows(res.items), board: res.board ?? requested });
+      })
+      .catch(() => {
+        if (!cancelled) setLoaded({ key: requestKey, rows: [], board: requested });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, gameType, category, level, requestKey]);
+
+  const ready = !classId || loaded?.key === requestKey;
+  const rows = ready && classId ? loaded?.rows ?? [] : [];
+  const board: Board = loaded?.key === requestKey ? loaded.board : boardForType(gameType);
+
+  // Average tries to pass is not on the board, so it is read from the same
+  // canonical attempts the server ranks, per student.
+  const triesByUid = useMemo(() => {
+    const map = new Map<string, number | null>();
+    const canonical = getCanonicalAttempts(scopedResults);
+    for (const uid of new Set(canonical.map((r) => r.uid))) {
+      map.set(uid, averageTriesToPass(canonical.filter((r) => r.uid === uid)));
+    }
+    return map;
+  }, [scopedResults]);
 
   // DELETE /results is scoped to this class and admin-only — a teacher gets a
   // clear 403 message back rather than a button that silently does nothing.
@@ -164,6 +210,7 @@ export default function TeacherLeaderboardScreen() {
         style: 'destructive',
         onPress: async () => {
           const result = await clearResults();
+          setReloadKey((k) => k + 1);
           Alert.alert(result.success ? t('clearSuccessTitle') : t('clearFailTitle'), result.message);
         },
       },
@@ -174,13 +221,11 @@ export default function TeacherLeaderboardScreen() {
 
   const topicMeta = category ? CATEGORY_META.find((c) => c.key === category) : undefined;
   const topicChipLabel = category ? (topicMeta ? t(topicMeta.labelKey) : category) : t('filterTopic');
-  const typeChipLabel =
-    activityType === 'quiz' ? t('gameTypeQuiz') : activityType === 'jigsaw' ? t('gameTypeJigsaw') : t('filterType');
   const levelChipLabel = level ? `${t('level')} ${level}` : t('filterLevel');
 
-  const SORT_OPTIONS: SegmentedOption<SortMode>[] = [
-    { value: 'speed', label: t('sortFastest'), icon: 'clock' },
-    { value: 'points', label: t('sortHighestPoints'), icon: 'star' },
+  const BOARD_OPTIONS: SegmentedOption<GameType>[] = [
+    { value: 'quiz', label: t('boardPointsTab'), icon: 'star' },
+    { value: 'jigsaw', label: t('boardTimeTab'), icon: 'clock' },
   ];
 
   const subtitle = `${scopedResults.length} ${t('activitiesCompleted')}`;
@@ -205,7 +250,10 @@ export default function TeacherLeaderboardScreen() {
             </TouchableOpacity>
           }
         >
-          <Segmented options={SORT_OPTIONS} value={sortMode} onChange={setSortMode} tone="onDark" style={styles.sortSwitch} />
+          <Segmented options={BOARD_OPTIONS} value={gameType} onChange={setGameType} tone="onDark" style={styles.sortSwitch} />
+          <Caption style={styles.rankingRule}>
+            {t(board === 'time' ? 'rankingRuleTime' : 'rankingRulePoints')}
+          </Caption>
 
           {showLegend && (
             <Card style={styles.legendCard}>
@@ -270,13 +318,6 @@ export default function TeacherLeaderboardScreen() {
               onPress={() => toggleFilter('topic')}
             />
             <FilterChip
-              icon="quiz"
-              label={typeChipLabel}
-              active={!!activityType}
-              open={openFilter === 'type'}
-              onPress={() => toggleFilter('type')}
-            />
-            <FilterChip
               icon="chart"
               label={levelChipLabel}
               active={!!level}
@@ -316,38 +357,6 @@ export default function TeacherLeaderboardScreen() {
             </Card>
           )}
 
-          {openFilter === 'type' && (
-            <Card style={styles.filterPanel}>
-              <Label style={styles.filterPanelLabel}>{t('activityTypeLabel')}</Label>
-              <View style={styles.optionRow}>
-                <OptionPill
-                  label={t('allFilter')}
-                  active={!activityType}
-                  onPress={() => {
-                    setActivityType(null);
-                    setOpenFilter(null);
-                  }}
-                />
-                <OptionPill
-                  label={t('gameTypeQuiz')}
-                  active={activityType === 'quiz'}
-                  onPress={() => {
-                    setActivityType(activityType === 'quiz' ? null : 'quiz');
-                    setOpenFilter(null);
-                  }}
-                />
-                <OptionPill
-                  label={t('gameTypeJigsaw')}
-                  active={activityType === 'jigsaw'}
-                  onPress={() => {
-                    setActivityType(activityType === 'jigsaw' ? null : 'jigsaw');
-                    setOpenFilter(null);
-                  }}
-                />
-              </View>
-            </Card>
-          )}
-
           {openFilter === 'level' && (
             <Card style={styles.filterPanel}>
               <Label style={styles.filterPanelLabel}>{t('level')}</Label>
@@ -379,20 +388,24 @@ export default function TeacherLeaderboardScreen() {
           )}
 
           {!ready && <Body style={styles.emptyText}>{t('loadingResults')}</Body>}
-          {ready && sorted.length === 0 && <Body style={styles.emptyText}>{t('noResultsForFilter')}</Body>}
+          {ready && rows.length === 0 && <Body style={styles.emptyText}>{t('noResultsForFilter')}</Body>}
 
           <View style={styles.list}>
-            {sorted.map((s, i) => {
-              const tone = paceTone(s.pace);
+            {rows.map((s, i) => {
+              const tone = paceTone(mapPace(s.pace));
+              const tries = triesByUid.get(s.uid) ?? null;
+              const tied = isTiedAt(rows, i);
               return (
                 <TouchableOpacity
-                  key={s.studentName}
-                  onPress={() => router.navigate({ pathname: '/student-summary', params: { studentName: s.studentName } })}
+                  key={s.uid}
+                  onPress={() =>
+                    router.navigate({ pathname: '/student-summary', params: { studentName: s.studentName, uid: s.uid } })
+                  }
                   accessibilityRole="button"
                 >
                   <Card style={styles.row}>
                     <View style={styles.rankCircle}>
-                      <Caption style={styles.rankText}>{i + 1}</Caption>
+                      <Caption style={styles.rankText}>{tied ? `=${s.rank}` : s.rank}</Caption>
                     </View>
                     <Avatar name={s.studentName} size={44} />
                     <View style={styles.rowMain}>
@@ -405,30 +418,32 @@ export default function TeacherLeaderboardScreen() {
                         <StarRow earned={Math.round(s.avgStars)} size={12} />
                       </View>
                       <Caption style={styles.rowSubStat}>
-                        {t('activityTimeoutStat', { attempts: String(s.attempts), timeouts: String(s.timeOuts) })}
+                        {[
+                          t('statCompleted', { n: s.completed }),
+                          s.failedAttempts === null ? null : t('statFailedTries', { failed: s.failedAttempts }),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </Caption>
-                      {s.avgTriesToPass !== null && (
-                        <Caption style={styles.rowSubStat}>
-                          {t('avgTriesStat', { n: String(s.avgTriesToPass) })}
-                        </Caption>
-                      )}
-                      {isUnfiltered && (
-                        <Caption style={styles.rowSubStat}>
-                          {t('quizCorrectStat', { correct: String(s.quizCorrect) })}
-                        </Caption>
+                      {tries !== null && (
+                        <Caption style={styles.rowSubStat}>{t('avgTriesStat', { n: String(tries) })}</Caption>
                       )}
                     </View>
+                    {/* The board's main measure first: points on a quiz board, average time on a jigsaw board. */}
                     <View style={styles.statsBlock}>
-                      {isUnfiltered && <TrophyGlyph trophy={s.trophy} />}
                       <H3 style={styles.pointsText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                        {isUnfiltered
-                          ? `${s.totalPoints}/${COMBINED_MAX_POINTS} ${t('ptsSuffix')}`
+                        {board === 'time'
+                          ? s.avgTimeSec === null
+                            ? '—'
+                            : t('statAvgTime', { avg: s.avgTimeSec })
                           : `${s.totalPoints} ${t('ptsSuffix')}`}
                       </H3>
                       <View style={styles.durationRow}>
-                        <Icon name="clock" size={12} color={tokens.color.inkMuted} />
+                        <Icon name={board === 'time' ? 'star' : 'clock'} size={12} color={tokens.color.inkMuted} />
                         <Caption style={styles.durationText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                          {formatDuration(s.totalTimeUsed)} {t('totalTimeSuffix')}
+                          {board === 'time'
+                            ? `${s.totalPoints} ${t('ptsSuffix')}`
+                            : `${formatDuration(s.totalTimeSec)} ${t('totalTimeSuffix')}`}
                         </Caption>
                       </View>
                     </View>
@@ -463,6 +478,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rankingRule: { marginTop: tokens.space.sm, color: tokens.color.onDark, opacity: 0.85 },
   sortSwitch: { marginTop: tokens.space.md },
 
   legendCard: { gap: tokens.space.xs, marginTop: tokens.space.md },

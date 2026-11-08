@@ -76,6 +76,8 @@ export default function LevelSummaryScreen() {
     activityType: 'quiz' | 'jigsaw';
     level: string;
     viewStudentName?: string;
+    /** The viewed student's uid; matched before the name, since names can repeat. */
+    viewStudentUid?: string;
     readOnly?: string;
   }>();
   const { category, color, activityType, viewStudentName } = params;
@@ -83,8 +85,9 @@ export default function LevelSummaryScreen() {
   const label = t(getCategoryMeta(category).labelKey) || params.label;
   const level = toNum(params.level, 1);
   const readOnly = toBool(params.readOnly);
-  const { name: loggedInName } = useUser();
+  const { name: loggedInName, uid: loggedInUid } = useUser();
   const studentName = viewStudentName || loggedInName;
+  const studentUid = params.viewStudentUid || (viewStudentName ? undefined : loggedInUid);
   const isReadOnly = !!readOnly;
   const { getFilteredResults } = useStudentResults();
 
@@ -94,9 +97,9 @@ export default function LevelSummaryScreen() {
   const attempts = useMemo(
     () =>
       getFilteredResults({ category, activityType, level })
-        .filter((r) => r.studentName === studentName)
+        .filter((r) => (studentUid ? r.uid === studentUid : r.studentName === studentName))
         .sort((a, b) => a.timestamp - b.timestamp),
-    [getFilteredResults, category, activityType, level, studentName]
+    [getFilteredResults, category, activityType, level, studentName, studentUid]
   );
 
   const perActivity = useMemo(() => {
