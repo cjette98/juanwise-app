@@ -8,7 +8,7 @@
  * out-ranked by one who did only one or two quickly.
  *
  * Pace is normalized against a FIXED per-activity time ceiling (pass the
- * larger activity type's time budget, e.g. jigsaw's 120s — no single
+ * larger activity type's time budget, e.g. 60s — no single
  * attempt's timeUsed can exceed its own budget), not the current cohort's
  * own slowest average. Normalizing against the cohort instead would zero
  * out the slowest student's pace credit entirely, which degenerates badly

@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Text, TextInput } from '@/shared/components/ui/capped-text';
+import { TextInput } from '@/shared/components/ui/capped-text';
+import { H2, H3, Caption } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -110,14 +113,14 @@ export default function PackListScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('managePacksBtn')}</Text>
-        <Text style={styles.headerSubtitle}>{t('packListSubtitle')}</Text>
+        <H2 style={styles.headerTitle}>{t('managePacksBtn')}</H2>
+        <Caption style={styles.headerSubtitle}>{t('packListSubtitle')}</Caption>
       </View>
 
       {!!error && (
         <View style={styles.errorBanner}>
           <Ionicons name="cloud-offline-outline" size={16} color="#FFF" />
-          <Text style={styles.errorBannerText}>{error}</Text>
+          <Caption style={styles.errorBannerText}>{error}</Caption>
         </View>
       )}
 
@@ -125,14 +128,14 @@ export default function PackListScreen() {
         {!ready && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator color="#3B7DD8" />
-            <Text style={styles.loadingText}>{t('packFetching')}</Text>
+            <Caption style={styles.loadingText}>{t('packFetching')}</Caption>
           </View>
         )}
 
         {ready && (
           creating ? (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>{t('newPackBtn')}</Text>
+              <H3 style={styles.cardTitle}>{t('newPackBtn')}</H3>
               <TextInput
                 style={styles.input}
                 value={newName}
@@ -146,17 +149,17 @@ export default function PackListScreen() {
                   onPress={handleCreate}
                   disabled={busyId === '__create__'}
                 >
-                  {busyId === '__create__' ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.actionBtnText}>{t('createBtn')}</Text>}
+                  {busyId === '__create__' ? <ActivityIndicator color="#FFF" size="small" /> : <Caption style={styles.actionBtnText}>{t('createBtn')}</Caption>}
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={() => setCreating(false)}>
-                  <Text style={styles.actionBtnText}>{t('cancelBtn')}</Text>
+                  <Caption style={styles.actionBtnText}>{t('cancelBtn')}</Caption>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
             <TouchableOpacity style={styles.newPackBtn} onPress={() => setCreating(true)}>
               <Ionicons name="add-circle-outline" size={18} color="#3B7DD8" />
-              <Text style={styles.newPackBtnText}>{t('newPackBtn')}</Text>
+              <Caption style={styles.newPackBtnText}>{t('newPackBtn')}</Caption>
             </TouchableOpacity>
           )
         )}
@@ -167,12 +170,12 @@ export default function PackListScreen() {
           return (
             <View key={pack.id} style={styles.card}>
               <View style={styles.cardTop}>
-                <Text style={styles.cardTitle}>{pack.name}</Text>
+                <H3 style={styles.cardTitle}>{pack.name}</H3>
                 <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[pack.status] }]}>
-                  <Text style={styles.statusBadgeText}>{t(STATUS_LABEL_KEY[pack.status])}</Text>
+                  <Caption style={styles.statusBadgeText}>{t(STATUS_LABEL_KEY[pack.status])}</Caption>
                 </View>
               </View>
-              <Text style={styles.cardMeta}>
+              <Caption style={styles.cardMeta}>
                 {t('packVersionMeta', {
                   version: pack.version,
                   usage:
@@ -180,7 +183,7 @@ export default function PackListScreen() {
                       ? t('packUsedByClasses', { count: pack.classCount })
                       : t('packUsedByNone'),
                 })}
-              </Text>
+              </Caption>
 
               <View style={styles.cardActions}>
                 {owned && (
@@ -189,13 +192,13 @@ export default function PackListScreen() {
                       style={[styles.actionBtn, styles.primaryBtn]}
                       onPress={() => router.navigate({ pathname: '/admin-content-manager', params: { packId: pack.id } })}
                     >
-                      <Text style={styles.actionBtnText}>{t('editQuizBtn')}</Text>
+                      <Caption style={styles.actionBtnText}>{t('editQuizBtn')}</Caption>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.actionBtn, styles.purpleBtn]}
                       onPress={() => router.navigate({ pathname: '/jigsaw-content', params: { packId: pack.id } })}
                     >
-                      <Text style={styles.actionBtnText}>{t('editJigsawBtn')}</Text>
+                      <Caption style={styles.actionBtnText}>{t('editJigsawBtn')}</Caption>
                     </TouchableOpacity>
                   </>
                 )}
@@ -204,7 +207,7 @@ export default function PackListScreen() {
                   onPress={() => handleDuplicate(pack)}
                   disabled={busy}
                 >
-                  <Text style={styles.actionBtnText}>{t('copyCode')}</Text>
+                  <Caption style={styles.actionBtnText}>{t('copyCode')}</Caption>
                 </TouchableOpacity>
                 {owned && pack.status === 'draft' && (
                   <TouchableOpacity
@@ -212,7 +215,7 @@ export default function PackListScreen() {
                     onPress={() => handlePublish(pack)}
                     disabled={busy}
                   >
-                    <Text style={styles.actionBtnText}>{t('publishBtn')}</Text>
+                    <Caption style={styles.actionBtnText}>{t('publishBtn')}</Caption>
                   </TouchableOpacity>
                 )}
                 {owned && pack.status !== 'archived' && (
@@ -221,7 +224,7 @@ export default function PackListScreen() {
                     onPress={() => handleArchive(pack)}
                     disabled={busy}
                   >
-                    <Text style={styles.actionBtnText}>{t('archiveBtn')}</Text>
+                    <Caption style={styles.actionBtnText}>{t('archiveBtn')}</Caption>
                   </TouchableOpacity>
                 )}
               </View>
@@ -237,31 +240,31 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5EFE0' },
   header: { backgroundColor: '#3B7DD8', paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
   headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
-  headerSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.9, marginTop: 2 },
+  headerTitle: { color: '#FFF' },
+  headerSubtitle: { color: '#FFF', opacity: 0.9, marginTop: 2 },
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#B23A3A',
     borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginHorizontal: 16, marginTop: 12,
   },
-  errorBannerText: { color: '#FFF', fontSize: 12, flex: 1 },
+  errorBannerText: { color: '#FFF', flex: 1 },
   loadingWrap: { alignItems: 'center', paddingVertical: 24, gap: 8 },
-  loadingText: { fontSize: 12.5, color: '#8E8E93' },
+  loadingText: { color: '#8E8E93' },
   list: { padding: 16, gap: 12 },
   newPackBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     borderWidth: 1.5, borderColor: '#3B7DD8', borderStyle: 'dashed', borderRadius: 14,
     paddingVertical: 12, marginBottom: 4,
   },
-  newPackBtnText: { color: '#3B7DD8', fontWeight: 'bold', fontSize: 13 },
+  newPackBtnText: { color: '#3B7DD8', fontFamily: tokens.font.bodyBold },
   card: { backgroundColor: '#FFF', borderRadius: 14, padding: 14, borderWidth: 1.5, borderColor: '#E0D5BE' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  cardTitle: { fontWeight: 'bold', fontSize: 14, color: '#1A1A1A', flex: 1 },
-  cardMeta: { fontSize: 12, color: '#8E8E93', marginBottom: 10 },
+  cardTitle: { color: '#1A1A1A', flex: 1 },
+  cardMeta: { color: '#8E8E93', marginBottom: 10 },
   statusBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  statusBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+  statusBadgeText: { color: '#FFF', fontFamily: tokens.font.bodyBold },
   input: {
     backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#E0D5BE', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#1A1A1A', marginBottom: 10,
+    paddingHorizontal: 14, paddingVertical: 10, fontFamily: tokens.font.body, fontSize: typeScale.body.fontSize, color: '#1A1A1A', marginBottom: 10,
   },
   cardActions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   actionBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14 },
@@ -272,5 +275,5 @@ const styles = StyleSheet.create({
   archiveBtn: { backgroundColor: '#C4304A' },
   cancelBtn: { backgroundColor: '#8E8E93' },
   busyBtn: { opacity: 0.6 },
-  actionBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  actionBtnText: { color: '#FFF', fontFamily: tokens.font.bodyBold },
 });

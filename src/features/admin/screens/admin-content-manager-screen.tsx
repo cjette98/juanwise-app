@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch, ActivityIndicator } from 'react-native';
-import { Text } from '@/shared/components/ui/capped-text';
+import { H2, H3, Body, BodyStrong, Caption } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
@@ -38,7 +39,7 @@ export default function AdminContentManagerScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>{t('adminNoPackSelected')}</Text>
+          <Caption style={styles.errorBannerText}>{t('adminNoPackSelected')}</Caption>
         </View>
       </SafeAreaView>
     );
@@ -78,8 +79,8 @@ export default function AdminContentManagerScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('contentManagerTitle')}</Text>
-        <Text style={styles.headerSubtitle}>{t('contentManagerSubtitle', { name: pack?.name ?? '...' })}</Text>
+        <H2 style={styles.headerTitle}>{t('contentManagerTitle')}</H2>
+        <Caption style={styles.headerSubtitle}>{t('contentManagerSubtitle', { name: pack?.name ?? '...' })}</Caption>
       </View>
 
       <View style={styles.catRowWrap}>
@@ -94,9 +95,9 @@ export default function AdminContentManagerScreen() {
               style={[styles.catChip, { borderColor: c.color }, category === c.key && { backgroundColor: c.color }]}
               onPress={() => setCategory(c.key)}
             >
-              <Text style={[styles.catChipText, { color: category === c.key ? '#FFF' : c.color }]}>
+              <Caption style={[styles.catChipText, { color: category === c.key ? '#FFF' : c.color }]}>
                 {t(c.labelKey)}
-              </Text>
+              </Caption>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -109,15 +110,15 @@ export default function AdminContentManagerScreen() {
             style={[styles.levelChip, level === lvl && { backgroundColor: activeCategory.color }]}
             onPress={() => setLevel(lvl)}
           >
-            <Text style={[styles.levelChipText, level === lvl && { color: '#FFF' }]}>{t('levelNum', { n: lvl })}</Text>
+            <Caption style={[styles.levelChipText, level === lvl && { color: '#FFF' }]}>{t('levelNum', { n: lvl })}</Caption>
           </TouchableOpacity>
         ))}
       </View>
 
       <View style={styles.miniLessonRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.miniLessonTitle}>{t('miniLessonBeforeQuiz')}</Text>
-          <Text style={styles.miniLessonSub}>{t('miniLessonToggleDesc')}</Text>
+          <BodyStrong style={styles.miniLessonTitle}>{t('miniLessonBeforeQuiz')}</BodyStrong>
+          <Caption style={styles.miniLessonSub}>{t('miniLessonToggleDesc')}</Caption>
         </View>
         <Switch
           value={pack?.showMiniLesson ?? true}
@@ -126,19 +127,19 @@ export default function AdminContentManagerScreen() {
           thumbColor="#FFF"
         />
       </View>
-      <Text style={styles.miniLessonNote}>{t('miniLessonToggleNote')}</Text>
+      <Caption style={styles.miniLessonNote}>{t('miniLessonToggleNote')}</Caption>
 
       {!!error && (
         <View style={styles.errorBanner}>
           <Ionicons name="cloud-offline-outline" size={16} color="#FFF" />
-          <Text style={styles.errorBannerText}>{error}</Text>
+          <Caption style={styles.errorBannerText}>{error}</Caption>
         </View>
       )}
 
       {!ready && (
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={activeCategory.color} />
-          <Text style={styles.loadingText}>{t('adminFetchingContent')}</Text>
+          <Caption style={styles.loadingText}>{t('adminFetchingContent')}</Caption>
         </View>
       )}
 
@@ -149,19 +150,19 @@ export default function AdminContentManagerScreen() {
           return (
             <View key={num} style={styles.card}>
               <View style={styles.cardTop}>
-                <Text style={styles.cardTitle}>{t('questionNumShort', { num })}</Text>
+                <H3 style={styles.cardTitle}>{t('questionNumShort', { num })}</H3>
                 {custom ? (
                   <View style={styles.customBadge}>
-                    <Text style={styles.customBadgeText}>{t('customBadge')}</Text>
+                    <Caption style={styles.customBadgeText}>{t('customBadge')}</Caption>
                   </View>
                 ) : (
                   <View style={styles.defaultBadge}>
-                    <Text style={styles.defaultBadgeText}>{t('defaultBadge')}</Text>
+                    <Caption style={styles.defaultBadgeText}>{t('defaultBadge')}</Caption>
                   </View>
                 )}
               </View>
-              <Text style={styles.cardQuestion} numberOfLines={2}>{q.question}</Text>
-              <Text style={styles.cardAnswer}>{t('answerLabelShort', { answer: q.correctAnswer })}</Text>
+              <Body style={styles.cardQuestion} numberOfLines={2}>{q.question}</Body>
+              <Caption style={styles.cardAnswer}>{t('answerLabelShort', { answer: q.correctAnswer })}</Caption>
               <View style={styles.cardActions}>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: activeCategory.color }]}
@@ -170,12 +171,12 @@ export default function AdminContentManagerScreen() {
                   }
                 >
                   <Ionicons name="create-outline" size={16} color="#FFF" />
-                  <Text style={styles.actionBtnText}>{t('editBtn')}</Text>
+                  <Caption style={styles.actionBtnText}>{t('editBtn')}</Caption>
                 </TouchableOpacity>
                 {custom && (
                   <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => handleDelete(num)}>
                     <Ionicons name="trash-outline" size={16} color="#FFF" />
-                    <Text style={styles.actionBtnText}>{t('deleteBtn')}</Text>
+                    <Caption style={styles.actionBtnText}>{t('deleteBtn')}</Caption>
                   </TouchableOpacity>
                 )}
               </View>
@@ -191,8 +192,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5EFE0' },
   header: { paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
   headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
-  headerSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.9, marginTop: 2 },
+  headerTitle: { color: '#FFF' },
+  headerSubtitle: { color: '#FFF', opacity: 0.9, marginTop: 2 },
   /**
    * One scrollable line of category chips.
    *
@@ -212,37 +213,37 @@ const styles = StyleSheet.create({
     height: 34, paddingHorizontal: 12, borderRadius: 17, borderWidth: 1.5,
     backgroundColor: '#FFF', justifyContent: 'center',
   },
-  catChipText: { fontWeight: 'bold', fontSize: 12 },
+  catChipText: { fontFamily: tokens.font.bodyBold },
   levelRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 12, paddingHorizontal: 12 },
   levelChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#E5DCC8' },
-  levelChipText: { fontWeight: 'bold', fontSize: 12, color: '#5C3A21' },
+  levelChipText: { fontFamily: tokens.font.bodyBold, color: '#5C3A21' },
   miniLessonRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFF',
     marginHorizontal: 16, marginTop: 14, padding: 14, borderRadius: 14,
     borderWidth: 1.5, borderColor: '#E0D5BE',
   },
-  miniLessonTitle: { fontWeight: 'bold', fontSize: 13.5, color: '#1A1A1A' },
-  miniLessonSub: { fontSize: 11.5, color: '#8E8E93', marginTop: 2, lineHeight: 16 },
-  miniLessonNote: { fontSize: 11, color: '#8E8E93', marginTop: 4, paddingHorizontal: 16, lineHeight: 15 },
+  miniLessonTitle: { color: '#1A1A1A' },
+  miniLessonSub: { color: '#8E8E93', marginTop: 2 },
+  miniLessonNote: { color: '#8E8E93', marginTop: 4, paddingHorizontal: 16 },
   errorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#B23A3A',
     borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginHorizontal: 16, marginTop: 12,
   },
-  errorBannerText: { color: '#FFF', fontSize: 12, flex: 1 },
+  errorBannerText: { color: '#FFF', flex: 1 },
   loadingWrap: { alignItems: 'center', paddingVertical: 24, gap: 8 },
-  loadingText: { fontSize: 12.5, color: '#8E8E93' },
+  loadingText: { color: '#8E8E93' },
   list: { padding: 16, gap: 12 },
   card: { backgroundColor: '#FFF', borderRadius: 14, padding: 14, borderWidth: 1.5, borderColor: '#E0D5BE' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  cardTitle: { fontWeight: 'bold', fontSize: 14, color: '#1A1A1A' },
+  cardTitle: { color: '#1A1A1A' },
   customBadge: { backgroundColor: '#2E9E5B', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  customBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+  customBadgeText: { color: '#FFF', fontFamily: tokens.font.bodyBold },
   defaultBadge: { backgroundColor: '#B0B0B0', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  defaultBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
-  cardQuestion: { fontSize: 13.5, color: '#2B2B2B', marginBottom: 4 },
-  cardAnswer: { fontSize: 12, color: '#5C3A21', fontWeight: '600', marginBottom: 10 },
+  defaultBadgeText: { color: '#FFF', fontFamily: tokens.font.bodyBold },
+  cardQuestion: { color: '#2B2B2B', marginBottom: 4 },
+  cardAnswer: { color: '#5C3A21', marginBottom: 10 },
   cardActions: { flexDirection: 'row', gap: 8 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 14 },
   deleteBtn: { backgroundColor: '#C4304A' },
-  actionBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  actionBtnText: { color: '#FFF', fontFamily: tokens.font.bodyBold },
 });

@@ -7,6 +7,7 @@ import { useGameProgress } from '@/features/learning/context/game-progress-conte
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
 import { starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
+import { JIGSAW_TIME_BUDGET_SECONDS } from '@/features/results/lib/game-limits';
 import { useUser } from '@/features/auth/context/user-context';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
@@ -17,15 +18,20 @@ import { generateEdgeMap, getPieceEdges, piecePathD } from '@/features/jigsaw/li
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum } from '@/shared/lib/params';
 import {
-  Screen, ScreenHeader, Card, Button, Icon, Pill, ProgressBar, ScoreBadge, StarRow, H2, Body, BodyStrong, Caption,
+  Screen, ScreenHeader, Card, Button, Icon, Pill, ProgressBar, ScoreBadge, StarRow, ZoomableImage, H2, H3, Body, BodyStrong, Caption, Label,
 } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const BOARD_SIZE = SCREEN_WIDTH * 0.82;
+// Slightly under the old 82% so the reference row above the board and the
+// tray below it both fit, and the tray's pieces (sized from the board) show
+// more at once.
+const BOARD_SIZE = SCREEN_WIDTH * 0.78;
+const REFERENCE_SIZE = 72;
 
-// Jigsaw activity timer — 120 seconds max per activity (per spec).
-const ACTIVITY_DURATION = 120;
+// Jigsaw activity timer — 60 seconds per puzzle, the same as a quiz question
+// (client clarification, 2026-11-07).
+const ACTIVITY_DURATION = JIGSAW_TIME_BUDGET_SECONDS;
 
 function getGrid(pieceCount: number) {
   if (pieceCount === 6) return { rows: 2, cols: 3 };
@@ -43,7 +49,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 // Points and the medal behind the star rating are awarded by the API
-// (`POST /results` → juanwise-be `results/scoring.ts`) out of the 120s budget
+// (`POST /results` → juanwise-be `results/scoring.ts`) out of the 60s budget
 // this screen reports against. Scoring lives in one place now, so the jigsaw
 // results, the leaderboard and the class analytics can never disagree.
 // Max per level is still 15 * 6 activities = 90 pts, the same cap as Quiz.
@@ -413,11 +419,32 @@ export default function JigsawPuzzleScreen() {
           {scoring ? t('scoringPuzzle') : t('dragPiecesHint')}
         </Caption>
 
-        <View style={styles.progressRow}>
-          <View style={styles.progressBarWrap}>
+        {/* The panelists asked for the picture being built to sit on the left,
+            above the board, so the player can check it while placing pieces
+            (Adjustment 3, item 9; layout from the client's mock-up). Tapping it
+            opens it full screen; the timer keeps running meanwhile. */}
+        <View style={styles.topRow}>
+          <View style={styles.referenceBlock}>
+            <ZoomableImage
+              source={puzzleImage}
+              style={styles.referenceThumb}
+              openLabel={t('openPictureLabel')}
+              zoomHint={t('pictureZoomHint')}
+              closeLabel={t('closePictureLabel')}
+            />
+            <View style={styles.referenceText}>
+              <View style={styles.referencePill}>
+                <Pill label={t('jigsawReferenceLabel')} icon="eye" tone="neutral" />
+              </View>
+              <BodyStrong numberOfLines={1}>{t('jigsawReferenceCaption')}</BodyStrong>
+              <Caption numberOfLines={1} style={styles.referenceTap}>{t('jigsawReferenceTap')}</Caption>
+            </View>
+          </View>
+          <View style={styles.progressBlock}>
+            <Label style={styles.progressLabel}>{t('jigsawProgressLabel')}</Label>
+            <H3 style={styles.progressCount}>{placedIds.size}/{pieceCount}</H3>
             <ProgressBar value={placedIds.size / pieceCount} color={cat.base} />
           </View>
-          <Caption style={styles.progressCount}>{placedIds.size}/{pieceCount}</Caption>
         </View>
 
         <View style={styles.boardWrap}>
@@ -498,6 +525,10 @@ export default function JigsawPuzzleScreen() {
           </TouchableOpacity>
 
           <View style={styles.trayFrame}>
+            <View style={styles.trayHeader}>
+              <Label style={styles.trayLabel}>{t('jigsawTrayLabel')}</Label>
+              <Caption style={styles.trayHint}>{t('jigsawTrayHint')}</Caption>
+            </View>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -686,9 +717,27 @@ const styles = StyleSheet.create({
   headerStatsText: { color: tokens.color.gold, fontFamily: tokens.font.bodyBold },
   scrollContent: { alignItems: 'center', paddingBottom: tokens.space.sm },
   hintText: { textAlign: 'center', marginTop: tokens.space.md, marginBottom: tokens.space.xs, paddingHorizontal: tokens.space.xl },
-  progressRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm, width: '100%', paddingHorizontal: tokens.space.xl, marginBottom: tokens.space.sm },
-  progressBarWrap: { flex: 1 },
-  progressCount: { fontFamily: tokens.font.bodyBold, color: tokens.color.inkMuted },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.md,
+    width: BOARD_SIZE,
+    marginBottom: tokens.space.sm,
+  },
+  referenceBlock: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: tokens.space.sm },
+  referenceThumb: {
+    width: REFERENCE_SIZE,
+    height: REFERENCE_SIZE,
+    borderRadius: tokens.radius.sm,
+    borderWidth: 2,
+    borderColor: tokens.color.gold,
+  },
+  referenceText: { flex: 1, gap: 2 },
+  referencePill: { alignSelf: 'flex-start' },
+  referenceTap: { color: tokens.color.inkMuted },
+  progressBlock: { width: 88, alignItems: 'flex-end', gap: 2 },
+  progressLabel: { color: tokens.color.inkMuted },
+  progressCount: { color: tokens.color.ink },
   boardWrap: { alignItems: 'center', justifyContent: 'center', marginTop: tokens.space.xs },
   // Border width is left at 2px (not the spec's 3px): piece drop math snaps
   // against `pieceWidth`/`pieceHeight`, computed from BOARD_SIZE against this
@@ -719,6 +768,15 @@ const styles = StyleSheet.create({
     borderColor: tokens.color.border,
     paddingVertical: tokens.space.sm,
   },
+  trayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: tokens.space.md,
+    marginBottom: tokens.space.xs,
+  },
+  trayLabel: { color: tokens.color.inkMuted },
+  trayHint: { color: tokens.color.inkMuted },
   trayContent: { paddingHorizontal: tokens.space.md, gap: tokens.space.sm, alignItems: 'center' },
   dragOverlay: { ...StyleSheet.absoluteFill, zIndex: 999, elevation: 30 },
   dragOverlayPiece: { position: 'absolute' },

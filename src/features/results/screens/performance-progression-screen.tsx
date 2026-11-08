@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { Text } from '@/shared/components/ui/capped-text';
+import { H2, H3, Body, Caption } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
@@ -88,8 +89,8 @@ export default function PerformanceProgressionScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('performanceProgression').toUpperCase()}</Text>
-        <Text style={styles.headerSubtitle}>{t('performanceSubtitle')}</Text>
+        <H2 style={styles.headerTitle}>{t('performanceProgression').toUpperCase()}</H2>
+        <Caption style={styles.headerSubtitle}>{t('performanceSubtitle')}</Caption>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -100,7 +101,7 @@ export default function PerformanceProgressionScreen() {
             return (
               <View key={key} style={[styles.summaryPill, { backgroundColor: meta.color }]}>
                 <Ionicons name={meta.icon as any} size={13} color="#FFF" />
-                <Text style={styles.summaryPillText}>{counts[key]}</Text>
+                <Caption style={styles.summaryPillText}>{counts[key]}</Caption>
               </View>
             );
           })}
@@ -108,13 +109,13 @@ export default function PerformanceProgressionScreen() {
 
         {/* FILTERS */}
         <View style={styles.filterCard}>
-          <Text style={styles.filterLabel}>{t('topicLabel')}</Text>
+          <Caption style={styles.filterLabel}>{t('topicLabel')}</Caption>
           <View style={styles.chipRow}>
             <TouchableOpacity
               style={[styles.chip, !category && styles.chipActiveNeutral]}
               onPress={() => setCategory(null)}
             >
-              <Text style={[styles.chipText, !category && styles.chipTextActive]}>{t('allFilter')}</Text>
+              <Caption style={[styles.chipText, !category && styles.chipTextActive]}>{t('allFilter')}</Caption>
             </TouchableOpacity>
             {CATEGORY_META.map((c) => {
               const active = category === c.key;
@@ -124,41 +125,41 @@ export default function PerformanceProgressionScreen() {
                   style={[styles.chip, { borderColor: c.color }, active && { backgroundColor: c.color }]}
                   onPress={() => setCategory(active ? null : c.key)}
                 >
-                  <Text style={[styles.chipText, { color: active ? '#FFF' : c.color }]}>{t(c.labelKey)}</Text>
+                  <Caption style={[styles.chipText, { color: active ? '#FFF' : c.color }]}>{t(c.labelKey)}</Caption>
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          <Text style={styles.filterLabel}>{t('activityTypeLabel')}</Text>
+          <Caption style={styles.filterLabel}>{t('activityTypeLabel')}</Caption>
           <View style={styles.chipRow}>
             <TouchableOpacity
               style={[styles.chip, !activityType && styles.chipActiveNeutral]}
               onPress={() => setActivityType(null)}
             >
-              <Text style={[styles.chipText, !activityType && styles.chipTextActive]}>{t('allFilter')}</Text>
+              <Caption style={[styles.chipText, !activityType && styles.chipTextActive]}>{t('allFilter')}</Caption>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.chip, styles.gameChip, activityType === 'quiz' && styles.gameChipActive]}
               onPress={() => setActivityType(activityType === 'quiz' ? null : 'quiz')}
             >
-              <Text style={[styles.chipText, activityType === 'quiz' && { color: '#FFF' }]}>{t('gameTypeQuiz')}</Text>
+              <Caption style={[styles.chipText, activityType === 'quiz' && { color: '#FFF' }]}>{t('gameTypeQuiz')}</Caption>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.chip, styles.gameChip, activityType === 'jigsaw' && styles.gameChipActive]}
               onPress={() => setActivityType(activityType === 'jigsaw' ? null : 'jigsaw')}
             >
-              <Text style={[styles.chipText, activityType === 'jigsaw' && { color: '#FFF' }]}>{t('gameTypeJigsaw')}</Text>
+              <Caption style={[styles.chipText, activityType === 'jigsaw' && { color: '#FFF' }]}>{t('gameTypeJigsaw')}</Caption>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.filterLabel}>{t('level')}</Text>
+          <Caption style={styles.filterLabel}>{t('level')}</Caption>
           <View style={styles.chipRow}>
             <TouchableOpacity
               style={[styles.chip, !level && styles.chipActiveNeutral]}
               onPress={() => setLevel(null)}
             >
-              <Text style={[styles.chipText, !level && styles.chipTextActive]}>{t('allFilter')}</Text>
+              <Caption style={[styles.chipText, !level && styles.chipTextActive]}>{t('allFilter')}</Caption>
             </TouchableOpacity>
             {LEVELS.map((lvl) => {
               const active = level === lvl;
@@ -168,7 +169,7 @@ export default function PerformanceProgressionScreen() {
                   style={[styles.chip, styles.gameChip, active && styles.gameChipActive]}
                   onPress={() => setLevel(active ? null : lvl)}
                 >
-                  <Text style={[styles.chipText, active && { color: '#FFF' }]}>{t('levelChipShort', { n: lvl })}</Text>
+                  <Caption style={[styles.chipText, active && { color: '#FFF' }]}>{t('levelChipShort', { n: lvl })}</Caption>
                 </TouchableOpacity>
               );
             })}
@@ -176,9 +177,9 @@ export default function PerformanceProgressionScreen() {
         </View>
 
         {/* STUDENT LIST */}
-        {!ready && <Text style={styles.emptyText}>{t('loading')}</Text>}
+        {!ready && <Body style={styles.emptyText}>{t('loading')}</Body>}
         {ready && progression.length === 0 && (
-          <Text style={styles.emptyText}>{t('noStudentsYetPerf')}</Text>
+          <Body style={styles.emptyText}>{t('noStudentsYetPerf')}</Body>
         )}
 
         {progression.map((p) => {
@@ -188,10 +189,10 @@ export default function PerformanceProgressionScreen() {
           return (
             <View key={p.studentName} style={styles.card}>
               <View style={styles.cardTop}>
-                <Text style={styles.studentName}>{p.studentName}</Text>
+                <H3 style={styles.studentName}>{p.studentName}</H3>
                 <View style={[styles.trendBadge, { backgroundColor: meta.color }]}>
                   <Ionicons name={meta.icon as any} size={12} color="#FFF" />
-                  <Text style={styles.trendBadgeText}>{t(meta.labelKey)}</Text>
+                  <Caption style={styles.trendBadgeText}>{t(meta.labelKey)}</Caption>
                 </View>
               </View>
 
@@ -199,36 +200,36 @@ export default function PerformanceProgressionScreen() {
                 <>
                   <View style={styles.deltaRow}>
                     <View style={styles.deltaBlock}>
-                      <Text style={styles.deltaLabel}>{t('statPoints')}</Text>
-                      <Text
+                      <Caption style={styles.deltaLabel}>{t('statPoints')}</Caption>
+                      <H3
                         style={[
                           styles.deltaValue,
                           { color: p.pointsDelta > 0 ? '#2E9E5B' : p.pointsDelta < 0 ? '#C4304A' : '#666' },
                         ]}
                       >
                         {formatDelta(p.pointsDelta, ' pts')}
-                      </Text>
-                      <Text style={styles.deltaSub}>
+                      </H3>
+                      <Caption style={styles.deltaSub}>
                         {p.earlyAvgPoints.toFixed(1)} → {p.lateAvgPoints.toFixed(1)}
-                      </Text>
+                      </Caption>
                     </View>
                     <View style={styles.deltaBlock}>
-                      <Text style={styles.deltaLabel}>{t('statSpeed')}</Text>
-                      <Text
+                      <Caption style={styles.deltaLabel}>{t('statSpeed')}</Caption>
+                      <H3
                         style={[
                           styles.deltaValue,
                           { color: p.timeDelta > 0 ? '#2E9E5B' : p.timeDelta < 0 ? '#C4304A' : '#666' },
                         ]}
                       >
                         {formatDelta(p.timeDelta, 's')}
-                      </Text>
-                      <Text style={styles.deltaSub}>
+                      </H3>
+                      <Caption style={styles.deltaSub}>
                         {p.earlyAvgTime.toFixed(1)}s → {p.lateAvgTime.toFixed(1)}s
-                      </Text>
+                      </Caption>
                     </View>
                     <View style={styles.deltaBlock}>
-                      <Text style={styles.deltaLabel}>{t('statActivities')}</Text>
-                      <Text style={styles.deltaValue}>{p.attempts.length}</Text>
+                      <Caption style={styles.deltaLabel}>{t('statActivities')}</Caption>
+                      <H3 style={styles.deltaValue}>{p.attempts.length}</H3>
                     </View>
                   </View>
 
@@ -245,9 +246,9 @@ export default function PerformanceProgressionScreen() {
                   </View>
                 </>
               ) : (
-                <Text style={styles.noAttemptsText}>
+                <Caption style={styles.noAttemptsText}>
                   {catMeta ? t('noAttemptsInCategory', { category: t(catMeta.labelKey) }) : t('noAttemptsAtAll')}
-                </Text>
+                </Caption>
               )}
             </View>
           );
@@ -264,41 +265,41 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
   },
   headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 19 },
-  headerSubtitle: { color: '#FFF', fontSize: 11.5, opacity: 0.9, marginTop: 4, lineHeight: 15 },
+  headerTitle: { color: '#FFF' },
+  headerSubtitle: { color: '#FFF', opacity: 0.9, marginTop: 4 },
 
   scrollContent: { padding: 16, paddingBottom: 40 },
 
   summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16, justifyContent: 'center' },
   summaryPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14 },
-  summaryPillText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  summaryPillText: { color: '#FFF', fontFamily: tokens.font.bodyBold },
 
   filterCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#E0D5BE' },
-  filterLabel: { fontSize: 12, fontWeight: 'bold', color: '#333', marginTop: 6, marginBottom: 8 },
+  filterLabel: { fontFamily: tokens.font.bodyBold, color: '#333', marginTop: 6, marginBottom: 8 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1.5, borderColor: '#CCC', backgroundColor: '#FFF' },
-  chipText: { fontWeight: 'bold', fontSize: 11.5, color: '#5C3A21' },
+  chipText: { fontFamily: tokens.font.bodyBold, color: '#5C3A21' },
   chipTextActive: { color: '#FFF' },
   chipActiveNeutral: { backgroundColor: '#5C3A21', borderColor: '#5C3A21' },
   gameChip: { borderColor: '#9B4FD6' },
   gameChipActive: { backgroundColor: '#9B4FD6' },
 
-  emptyText: { textAlign: 'center', color: '#8E8E93', marginTop: 20, fontSize: 13 },
+  emptyText: { textAlign: 'center', color: '#8E8E93', marginTop: 20 },
 
   card: { backgroundColor: '#FFF', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1.5, borderColor: '#E0D5BE' },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 6 },
-  studentName: { fontWeight: 'bold', fontSize: 14.5, color: '#1A1A1A' },
+  studentName: { color: '#1A1A1A' },
   trendBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10 },
-  trendBadgeText: { color: '#FFF', fontSize: 10.5, fontWeight: 'bold' },
+  trendBadgeText: { color: '#FFF', fontFamily: tokens.font.bodyBold },
 
   deltaRow: { flexDirection: 'row', justifyContent: 'space-between' },
   deltaBlock: { alignItems: 'center', flex: 1 },
-  deltaLabel: { fontSize: 10.5, color: '#8E8E93', fontWeight: '600' },
-  deltaValue: { fontSize: 15, fontWeight: '900', marginTop: 2 },
-  deltaSub: { fontSize: 10, color: '#8E8E93', marginTop: 2 },
+  deltaLabel: { color: '#8E8E93' },
+  deltaValue: { fontFamily: tokens.font.display, marginTop: 2 },
+  deltaSub: { color: '#8E8E93', marginTop: 2 },
 
   dotsRow: { flexDirection: 'row', gap: 5, marginTop: 12, flexWrap: 'wrap' },
   medalDot: { width: 10, height: 10, borderRadius: 5 },
 
-  noAttemptsText: { fontSize: 12, color: '#8E8E93', fontStyle: 'italic' },
+  noAttemptsText: { color: '#8E8E93', fontStyle: 'italic' },
 });

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
-import { Text, TextInput } from '@/shared/components/ui/capped-text';
+import { TextInput } from '@/shared/components/ui/capped-text';
+import { H3, Body, BodyStrong, Caption } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
+import { typeScale } from '@/shared/theme/typography';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAdminContent } from '@/features/admin/context/admin-content-context';
@@ -36,10 +39,10 @@ function BilingualInput(props: {
   const inputStyle = multiline ? [styles.input, styles.multiline] : styles.input;
   return (
     <>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.langLabel}>{t('contentLangEnglish')}</Text>
+      <Caption style={styles.label}>{label}</Caption>
+      <Caption style={styles.langLabel}>{t('contentLangEnglish')}</Caption>
       <ClearableTextInput style={inputStyle} value={enValue} onChangeText={onEn} multiline={multiline} placeholder={placeholder} />
-      <Text style={styles.langLabel}>{t('contentLangTagalog')}</Text>
+      <Caption style={styles.langLabel}>{t('contentLangTagalog')}</Caption>
       <ClearableTextInput style={inputStyle} value={tlValue} onChangeText={onTl} multiline={multiline} placeholder={placeholder} />
     </>
   );
@@ -50,8 +53,8 @@ function LangColumns({ withRemove }: { withRemove?: boolean }) {
   const { t } = useLanguage();
   return (
     <View style={styles.poolRow}>
-      <Text style={[styles.langLabel, styles.langColumn]}>{t('contentLangEnglish')}</Text>
-      <Text style={[styles.langLabel, styles.langColumn]}>{t('contentLangTagalog')}</Text>
+      <Caption style={[styles.langLabel, styles.langColumn]}>{t('contentLangEnglish')}</Caption>
+      <Caption style={[styles.langLabel, styles.langColumn]}>{t('contentLangTagalog')}</Caption>
       {withRemove && <View style={styles.removeSpacer} />}
     </View>
   );
@@ -129,7 +132,7 @@ export default function QuestionEditorScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>{t('adminNoPackSelected')}</Text>
+          <H3 style={styles.headerTitle}>{t('adminNoPackSelected')}</H3>
         </View>
       </SafeAreaView>
     );
@@ -323,13 +326,13 @@ export default function QuestionEditorScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { backgroundColor: categoryColor || '#3B7DD8' }]}>
-        <Text style={styles.headerTitle}>
+        <H3 style={styles.headerTitle}>
           {t('questionEditorTitle', { label: categoryLabel, level, num: activityNum })}
-        </Text>
+        </H3>
       </View>
 
       <ScrollView contentContainerStyle={styles.form}>
-        <Text style={styles.label}>{t('questionTypeLabel')}</Text>
+        <Caption style={styles.label}>{t('questionTypeLabel')}</Caption>
         <View style={styles.typeRow}>
           {QUESTION_TYPES.map((key) => (
             <TouchableOpacity
@@ -337,9 +340,9 @@ export default function QuestionEditorScreen() {
               style={[styles.typeChip, type === key && styles.typeChipActive]}
               onPress={() => requestTypeChange(key)}
             >
-              <Text style={[styles.typeChipText, type === key && styles.typeChipTextActive]}>
+              <Caption style={[styles.typeChipText, type === key && styles.typeChipTextActive]}>
                 {t(TYPE_LABEL_KEYS[key])}
-              </Text>
+              </Caption>
             </TouchableOpacity>
           ))}
         </View>
@@ -365,7 +368,7 @@ export default function QuestionEditorScreen() {
 
         {type === 'multiple-choice' && (
           <>
-            <Text style={styles.label}>{t('choicesLabel')}</Text>
+            <Caption style={styles.label}>{t('choicesLabel')}</Caption>
             <LangColumns />
             {tl.choices.map((_, i) => (
               <View key={i} style={styles.poolRow}>
@@ -392,7 +395,7 @@ export default function QuestionEditorScreen() {
 
         {type === 'enumeration' && (
           <>
-            <Text style={styles.label}>{t('requiredAnswersLabel')}</Text>
+            <Caption style={styles.label}>{t('requiredAnswersLabel')}</Caption>
             <ClearableTextInput
               style={styles.input}
               value={requiredAnswers}
@@ -400,13 +403,13 @@ export default function QuestionEditorScreen() {
               placeholder={t('requiredAnswersPlaceholder')}
               keyboardType="number-pad"
             />
-            <Text style={styles.helperNote}>{t('requiredAnswersNote')}</Text>
+            <Caption style={styles.helperNote}>{t('requiredAnswersNote')}</Caption>
 
             <View style={styles.poolHeaderRow}>
-              <Text style={styles.label}>{t('answerPoolLabel', { min: MIN_ENUMERATION_POOL })}</Text>
-              <Text style={styles.poolCount}>
+              <Caption style={styles.label}>{t('answerPoolLabel', { min: MIN_ENUMERATION_POOL })}</Caption>
+              <Caption style={styles.poolCount}>
                 {t('poolFilledCount', { count: tl.answerPool.filter((a) => a.trim()).length })}
-              </Text>
+              </Caption>
             </View>
             <LangColumns withRemove />
             {tl.answerPool.map((_, i) => (
@@ -424,12 +427,12 @@ export default function QuestionEditorScreen() {
                   placeholder={t('poolAnswerPlaceholder', { n: i + 1 })}
                 />
                 <TouchableOpacity style={styles.removePoolButton} onPress={() => removePoolSlot(i)}>
-                  <Text style={styles.removePoolButtonText}>✕</Text>
+                  <Caption style={styles.removePoolButtonText}>✕</Caption>
                 </TouchableOpacity>
               </View>
             ))}
             <TouchableOpacity style={styles.addPoolButton} onPress={addPoolSlot}>
-              <Text style={styles.addPoolButtonText}>{t('addPoolAnswerBtn')}</Text>
+              <Caption style={styles.addPoolButtonText}>{t('addPoolAnswerBtn')}</Caption>
             </TouchableOpacity>
           </>
         )}
@@ -448,15 +451,15 @@ export default function QuestionEditorScreen() {
         {type === 'identification' && (
           <>
             <View style={styles.poolHeaderRow}>
-              <Text style={styles.label}>{t('otherAcceptedLabel')}</Text>
-              <Text style={styles.poolCount}>
+              <Caption style={styles.label}>{t('otherAcceptedLabel')}</Caption>
+              <Caption style={styles.poolCount}>
                 {t('acceptedCount', {
                   count: tl.acceptedAnswers.filter((a) => a.trim()).length,
                   max: MAX_ACCEPTED_ANSWERS,
                 })}
-              </Text>
+              </Caption>
             </View>
-            <Text style={styles.helperNote}>{t('acceptedAnswersNote')}</Text>
+            <Caption style={styles.helperNote}>{t('acceptedAnswersNote')}</Caption>
             {tl.acceptedAnswers.length > 0 && <LangColumns withRemove />}
             {tl.acceptedAnswers.map((_, i) => (
               <View key={i} style={styles.poolRow}>
@@ -473,12 +476,12 @@ export default function QuestionEditorScreen() {
                   placeholder={t('otherAcceptedPlaceholder', { n: i + 1 })}
                 />
                 <TouchableOpacity style={styles.removePoolButton} onPress={() => removeAcceptedAnswer(i)}>
-                  <Text style={styles.removePoolButtonText}>✕</Text>
+                  <Caption style={styles.removePoolButtonText}>✕</Caption>
                 </TouchableOpacity>
               </View>
             ))}
             <TouchableOpacity style={styles.addPoolButton} onPress={addAcceptedAnswer}>
-              <Text style={styles.addPoolButtonText}>{t('addAcceptedBtn')}</Text>
+              <Caption style={styles.addPoolButtonText}>{t('addAcceptedBtn')}</Caption>
             </TouchableOpacity>
           </>
         )}
@@ -503,13 +506,13 @@ export default function QuestionEditorScreen() {
           multiline
         />
 
-        <Text style={styles.label}>{t('lessonImageLabel')}</Text>
-        <Text style={styles.helperNote}>{t('lessonImageNote')}</Text>
+        <Caption style={styles.label}>{t('lessonImageLabel')}</Caption>
+        <Caption style={styles.helperNote}>{t('lessonImageNote')}</Caption>
         {miniLessonImageUrl ? (
           <Image source={{ uri: miniLessonImageUrl }} style={styles.imagePreview} />
         ) : (
           <View style={styles.imageEmpty}>
-            <Text style={styles.imageEmptyText}>{t('noLessonImage')}</Text>
+            <Caption style={styles.imageEmptyText}>{t('noLessonImage')}</Caption>
           </View>
         )}
         <View style={styles.imageRow}>
@@ -521,14 +524,14 @@ export default function QuestionEditorScreen() {
             {uploadingImage ? (
               <ActivityIndicator color="#FFF" size="small" />
             ) : (
-              <Text style={styles.imageButtonText}>
+              <BodyStrong style={styles.imageButtonText}>
                 {miniLessonImageUrl ? t('changePictureBtn') : t('choosePictureBtn')}
-              </Text>
+              </BodyStrong>
             )}
           </TouchableOpacity>
           {!!miniLessonImageUrl && !uploadingImage && (
             <TouchableOpacity style={styles.imageRemoveButton} onPress={() => setMiniLessonImageUrl(null)}>
-              <Text style={styles.imageRemoveButtonText}>{t('removeBtn')}</Text>
+              <BodyStrong style={styles.imageRemoveButtonText}>{t('removeBtn')}</BodyStrong>
             </TouchableOpacity>
           )}
         </View>
@@ -541,11 +544,11 @@ export default function QuestionEditorScreen() {
           {saving ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.saveButtonText}>{t('saveQuestionBtn')}</Text>
+            <H3 style={styles.saveButtonText}>{t('saveQuestionBtn')}</H3>
           )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()} disabled={saving}>
-          <Text style={styles.cancelButtonText}>{t('cancelBtn')}</Text>
+          <Body style={styles.cancelButtonText}>{t('cancelBtn')}</Body>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -555,52 +558,52 @@ export default function QuestionEditorScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5EFE0' },
   header: { paddingVertical: 16, paddingHorizontal: 16, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
-  headerTitle: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
+  headerTitle: { color: '#FFF' },
   form: { padding: 18 },
-  label: { fontSize: 12, fontWeight: 'bold', color: '#5C3A21', marginTop: 14, marginBottom: 6 },
+  label: { fontFamily: tokens.font.bodyBold, color: '#5C3A21', marginTop: 14, marginBottom: 6 },
   imagePreview: { width: '100%', height: 170, borderRadius: 14, backgroundColor: '#EFE6D4', borderWidth: 2, borderColor: '#E0D5BE' },
   imageEmpty: { width: '100%', height: 84, borderRadius: 14, borderWidth: 2, borderStyle: 'dashed', borderColor: '#D9C89E', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
-  imageEmptyText: { fontSize: 12.5, color: '#8E8E93', textAlign: 'center', lineHeight: 18 },
+  imageEmptyText: { color: '#8E8E93', textAlign: 'center' },
   imageRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   imageButton: { flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: 'center', justifyContent: 'center', minHeight: 46 },
   imageButtonBusy: { opacity: 0.7 },
-  imageButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 13.5 },
+  imageButtonText: { color: '#FFF' },
   imageRemoveButton: { paddingVertical: 13, paddingHorizontal: 20, borderRadius: 14, backgroundColor: '#F2EADB', alignItems: 'center', justifyContent: 'center', minHeight: 46 },
-  imageRemoveButtonText: { color: '#8E2136', fontWeight: 'bold', fontSize: 13.5 },
+  imageRemoveButtonText: { color: '#8E2136' },
   input: {
     backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#E0D5BE', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#1A1A1A', marginBottom: 8,
+    paddingHorizontal: 14, paddingVertical: 10, fontFamily: tokens.font.body, fontSize: typeScale.body.fontSize, color: '#1A1A1A', marginBottom: 8,
   },
   multiline: { minHeight: 70, textAlignVertical: 'top' },
   readOnlyValue: {
     backgroundColor: '#F0EADC', borderWidth: 1.5, borderColor: '#E0D5BE', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#5C3A21', marginBottom: 8,
+    paddingHorizontal: 14, paddingVertical: 10, fontFamily: tokens.font.body, fontSize: typeScale.body.fontSize, color: '#5C3A21', marginBottom: 8,
   },
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   typeChip: { flexGrow: 1, flexBasis: 100, paddingVertical: 10, borderRadius: 14, borderWidth: 1.5, borderColor: '#E0D5BE', alignItems: 'center', backgroundColor: '#FFF' },
   typeChipActive: { backgroundColor: '#3B7DD8', borderColor: '#3B7DD8' },
-  typeChipText: { fontWeight: 'bold', fontSize: 12, color: '#5C3A21' },
+  typeChipText: { fontFamily: tokens.font.bodyBold, color: '#5C3A21' },
   typeChipTextActive: { color: '#FFF' },
-  helperNote: { fontSize: 11.5, color: '#8E8E93', marginTop: -4, marginBottom: 6, lineHeight: 16 },
+  helperNote: { color: '#8E8E93', marginTop: -4, marginBottom: 6 },
   poolHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 6 },
-  poolCount: { fontSize: 11.5, color: '#3E9E4F', fontWeight: 'bold' },
+  poolCount: { color: '#3E9E4F', fontFamily: tokens.font.bodyBold },
   poolRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   langColumn: { flex: 1, marginBottom: 8 },
-  langLabel: { fontSize: 11.5, fontWeight: 'bold', color: '#8E8E93', marginBottom: 4 },
+  langLabel: { fontFamily: tokens.font.bodyBold, color: '#8E8E93', marginBottom: 4 },
   removeSpacer: { width: 30 },
   removePoolButton: {
     width: 30, height: 30, borderRadius: 15, backgroundColor: '#FCEAEA',
     alignItems: 'center', justifyContent: 'center', marginBottom: 8,
   },
-  removePoolButtonText: { color: '#C4304A', fontWeight: 'bold', fontSize: 13 },
+  removePoolButtonText: { color: '#C4304A', fontFamily: tokens.font.bodyBold },
   addPoolButton: {
     borderWidth: 1.5, borderColor: '#3B7DD8', borderStyle: 'dashed', borderRadius: 12,
     paddingVertical: 10, alignItems: 'center', marginTop: 4, marginBottom: 8,
   },
-  addPoolButtonText: { color: '#3B7DD8', fontWeight: 'bold', fontSize: 12.5 },
+  addPoolButtonText: { color: '#3B7DD8', fontFamily: tokens.font.bodyBold },
   saveButton: { marginTop: 24, paddingVertical: 15, borderRadius: 25, alignItems: 'center' },
   saveButtonBusy: { opacity: 0.7 },
-  saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
+  saveButtonText: { color: '#FFF' },
   cancelButton: { marginTop: 10, paddingVertical: 12, alignItems: 'center' },
-  cancelButtonText: { color: '#8E8E93', fontWeight: '600' },
+  cancelButtonText: { color: '#8E8E93' },
 });

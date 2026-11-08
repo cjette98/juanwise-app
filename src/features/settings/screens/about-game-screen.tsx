@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
-import { Text } from '@/shared/components/ui/capped-text';
+import { H2, H3, Body, Caption } from '@/shared/components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
@@ -37,20 +37,20 @@ export default function AboutGameScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('aboutGameLabel')}</Text>
+        <H2 style={styles.headerTitle}>{t('aboutGameLabel')}</H2>
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.appCard}>
           <Image source={images.appIcon} style={styles.appIcon} />
           <View style={styles.appInfo}>
-            <Text style={styles.appName}>JuanWise</Text>
-            <Text style={styles.appVersion}>
+            <H3 style={styles.appName}>JuanWise</H3>
+            <Caption style={styles.appVersion}>
               {t('versionLabel')} {APP_VERSION}
-            </Text>
-            <Text style={styles.appCopyright}>
+            </Caption>
+            <Caption style={styles.appCopyright}>
               © {COPYRIGHT_YEARS} JuanWise. {t('copyrightLabel')}
-            </Text>
+            </Caption>
           </View>
         </View>
 
@@ -62,7 +62,7 @@ export default function AboutGameScreen() {
               onPress={r.onPress}
               activeOpacity={0.7}
             >
-              <Text style={styles.rowLabel}>{r.label}</Text>
+              <Body style={styles.rowLabel}>{r.label}</Body>
               <Ionicons name="chevron-forward" size={18} color="#B0B0B0" />
             </TouchableOpacity>
           ))}
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
   },
   headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FCD116', fontWeight: 'bold', fontSize: 19 },
+  headerTitle: { color: '#FCD116' },
   body: { padding: 20, paddingBottom: 48 },
 
   appCard: {
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
   },
   appIcon: { width: 52, height: 52, borderRadius: 14, marginRight: 14 },
   appInfo: { flex: 1 },
-  appName: { fontSize: 17, fontWeight: 'bold', color: '#1A1A1A' },
-  appVersion: { fontSize: 12, color: '#8E8E93', marginTop: 2 },
-  appCopyright: { fontSize: 11, color: '#B0B0B0', marginTop: 6 },
+  appName: { color: '#1A1A1A' },
+  appVersion: { color: '#8E8E93', marginTop: 2 },
+  appCopyright: { color: '#B0B0B0', marginTop: 6 },
 
   cardList: { backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: '#E0D5BE', overflow: 'hidden' },
   row: {
@@ -98,5 +98,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F0E9D8',
   },
   rowLast: { borderBottomWidth: 0 },
-  rowLabel: { fontSize: 14.5, color: '#1A1A1A' },
+  rowLabel: { color: '#1A1A1A' },
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from '@/shared/components/ui/capped-text';
+import { H2, Body, BodyStrong } from '@/shared/components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useLanguage } from '@/shared/i18n/language-context';
@@ -13,10 +14,10 @@ export default function ComingSoonScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.emoji}>🚧</Text>
-      <Text style={styles.title}>{title || t('comingSoonTitle')}</Text>
-      <Text style={styles.subtitle}>{t('comingSoonSubtitle')}</Text>
+      <H2 style={styles.title}>{title || t('comingSoonTitle')}</H2>
+      <Body style={styles.subtitle}>{t('comingSoonSubtitle')}</Body>
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backButtonText}>{t('backBtn')}</Text>
+        <BodyStrong style={styles.backButtonText}>{t('backBtn')}</BodyStrong>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -25,8 +26,8 @@ export default function ComingSoonScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5EFE0', alignItems: 'center', justifyContent: 'center', padding: 24 },
   emoji: { fontSize: 48, marginBottom: 12 },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#5C3A21', marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 13, color: '#8E8E93', textAlign: 'center', marginBottom: 24 },
+  title: { color: '#5C3A21', marginBottom: 8, textAlign: 'center' },
+  subtitle: { color: '#8E8E93', textAlign: 'center', marginBottom: 24 },
   backButton: { backgroundColor: '#5C3A21', paddingVertical: 12, paddingHorizontal: 28, borderRadius: 20 },
-  backButtonText: { color: '#FFF', fontWeight: 'bold' },
+  backButtonText: { color: '#FFF' },
 });

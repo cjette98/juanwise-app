@@ -21,37 +21,43 @@ import { useLanguage } from '@/shared/i18n/language-context';
 
 export { computePerformanceScore } from './performance-score';
 
-// ─── Scoring reference ───────────────────────────────────────────────────────
-// Points and medals are now awarded by the server (juanwise-be
-// `results/scoring.ts`) from what the client reports — correctCount,
-// requiredCount, timeUsed and timedOut — so a modified payload cannot mint
-// points. The ceilings below still describe the game and drive the trophy
-// tiers, and they match `shared/constants.ts` on the backend exactly.
-//
-// Quiz:   15 pts max per activity, 60s budget,  6 activities/level, 5 levels → 450 pts / 1,800 sec
-// Jigsaw: 15 pts max per activity, 120s budget, 6 activities/level, 5 levels → 450 pts / 3,600 sec
-// Combined: 900 pts, 5,400 sec
-export const POINTS_PER_ACTIVITY = 15;
-export const ACTIVITIES_PER_LEVEL = 6;
-export const LEVELS_PER_TYPE = 5;
-export const POINTS_PER_LEVEL = POINTS_PER_ACTIVITY * ACTIVITIES_PER_LEVEL; // 90
-export const QUIZ_MAX_POINTS = POINTS_PER_LEVEL * LEVELS_PER_TYPE; // 450
-export const JIGSAW_MAX_POINTS = POINTS_PER_LEVEL * LEVELS_PER_TYPE; // 450
-export const COMBINED_MAX_POINTS = QUIZ_MAX_POINTS + JIGSAW_MAX_POINTS; // 900
-export const QUIZ_TIME_BUDGET_SECONDS = 60;
-export const JIGSAW_TIME_BUDGET_SECONDS = 120;
-export const QUIZ_MAX_TIME_SECONDS = QUIZ_TIME_BUDGET_SECONDS * ACTIVITIES_PER_LEVEL * LEVELS_PER_TYPE; // 1,800
-export const JIGSAW_MAX_TIME_SECONDS = JIGSAW_TIME_BUDGET_SECONDS * ACTIVITIES_PER_LEVEL * LEVELS_PER_TYPE; // 3,600
-export const COMBINED_MAX_TIME_SECONDS = QUIZ_MAX_TIME_SECONDS + JIGSAW_MAX_TIME_SECONDS; // 5,400
-export const TOTAL_QUIZ_ACTIVITIES = ACTIVITIES_PER_LEVEL * LEVELS_PER_TYPE; // 30
+import {
+  ACTIVITIES_PER_LEVEL,
+  COMBINED_MAX_POINTS,
+  COMBINED_MAX_TIME_SECONDS,
+  JIGSAW_MAX_POINTS,
+  JIGSAW_MAX_TIME_SECONDS,
+  JIGSAW_TIME_BUDGET_SECONDS,
+  LEVELS_PER_TYPE,
+  POINTS_PER_ACTIVITY,
+  POINTS_PER_LEVEL,
+  QUIZ_MAX_POINTS,
+  QUIZ_MAX_TIME_SECONDS,
+  QUIZ_TIME_BUDGET_SECONDS,
+  TOTAL_QUIZ_ACTIVITIES,
+  TROPHY_TIERS,
+  type Trophy,
+} from '../lib/game-limits';
 
-export type Trophy = 'gold' | 'silver' | 'bronze' | null;
-
-export const TROPHY_TIERS: { trophy: Exclude<Trophy, null>; label: string; minPoints: number; maxTimeSeconds: number; timeLabel: string }[] = [
-  { trophy: 'gold', label: '🥇 Gold Trophy', minPoints: 450, maxTimeSeconds: 3600, timeLabel: '≤ 3,600 sec (60 mins)' },
-  { trophy: 'silver', label: '🥈 Silver Trophy', minPoints: 300, maxTimeSeconds: 4500, timeLabel: '3,601–4,500 sec' },
-  { trophy: 'bronze', label: '🥉 Bronze Trophy', minPoints: 150, maxTimeSeconds: 5400, timeLabel: '4,501–5,400 sec' },
-];
+// The game's limits and trophy tiers live in `lib/game-limits.ts` (pure, tested);
+// they are re-exported here so existing imports keep working.
+export {
+  ACTIVITIES_PER_LEVEL,
+  COMBINED_MAX_POINTS,
+  COMBINED_MAX_TIME_SECONDS,
+  JIGSAW_MAX_POINTS,
+  JIGSAW_MAX_TIME_SECONDS,
+  JIGSAW_TIME_BUDGET_SECONDS,
+  LEVELS_PER_TYPE,
+  POINTS_PER_ACTIVITY,
+  POINTS_PER_LEVEL,
+  QUIZ_MAX_POINTS,
+  QUIZ_MAX_TIME_SECONDS,
+  QUIZ_TIME_BUDGET_SECONDS,
+  TOTAL_QUIZ_ACTIVITIES,
+  TROPHY_TIERS,
+};
+export type { Trophy };
 
 function computeTrophy(totalPoints: number, totalTimeUsed: number): Trophy {
   for (const tier of TROPHY_TIERS) {
@@ -68,7 +74,7 @@ const canonicalKey = (r: ActivityResult) =>
 // PASSING attempt if the student ever passed it, otherwise their latest
 // attempt (a fail/timeout, 0 points). Without this, retrying an activity
 // multiple times would add its points/time again each time, inflating
-// totals past the real possible max (900 pts / 5,400 sec combined).
+// totals past the real possible max (900 pts / 3,600 sec combined).
 export function getCanonicalAttempts(entries: ActivityResult[]): ActivityResult[] {
   const groups = new Map<string, ActivityResult[]>();
   for (const r of entries) {
@@ -195,7 +201,7 @@ export function starsForMedal(medal: Medal): 0 | 1 | 2 | 3 {
 function summarize(entries: ActivityResult[]): StudentSummary[] {
   // Dedupe FIRST — a retried activity must only ever count once, using its
   // best (passing) attempt, so totals can never exceed the real possible
-  // max (900 pts / 5,400 sec combined).
+  // max (900 pts / 3,600 sec combined).
   const canonical = getCanonicalAttempts(entries);
 
   const byStudent = new Map<string, ActivityResult[]>();

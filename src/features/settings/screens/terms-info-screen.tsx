@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { Text } from '@/shared/components/ui/capped-text';
+import { H2, H3, Body } from '@/shared/components/ui';
+import { tokens } from '@/shared/theme/tokens';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
@@ -18,23 +19,26 @@ export default function TermsInfoScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
           <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('termsConditionsLabel')}</Text>
+        <H2 style={styles.headerTitle}>{t('termsConditionsLabel')}</H2>
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.sectionTitle}>{content.consentTitle}</Text>
-        <Text style={styles.bodyText}>{content.consentBody}</Text>
+        <H3 style={styles.sectionTitle}>{content.consentTitle}</H3>
+        <Body style={styles.bodyText}>{content.consentBody}</Body>
 
-        <Text style={styles.sectionTitle}>{content.mechanicsTitle}</Text>
-        <Text style={styles.bodyText}>{content.mechanicsBody}</Text>
+        <H3 style={styles.sectionTitle}>{content.mechanicsTitle}</H3>
+        <Body style={styles.bodyText}>{content.mechanicsBody}</Body>
 
-        <Text style={styles.sectionTitle}>{content.conductTitle}</Text>
+        <H3 style={styles.sectionTitle}>{content.conductTitle}</H3>
 
-        <Text style={styles.subTitle}>{content.playerRulesTitle}</Text>
-        <Text style={styles.bodyText}>{content.playerRules}</Text>
+        <Body style={styles.subTitle}>{content.playerRulesTitle}</Body>
+        <Body style={styles.bodyText}>{content.playerRules}</Body>
 
-        <Text style={styles.subTitle}>{content.adminRulesTitle}</Text>
-        <Text style={styles.bodyText}>{content.adminRules}</Text>
+        <Body style={styles.subTitle}>{content.adminRulesTitle}</Body>
+        <Body style={styles.bodyText}>{content.adminRules}</Body>
+
+        <Body style={styles.subTitle}>{content.mainAdminRulesTitle}</Body>
+        <Body style={styles.bodyText}>{content.mainAdminRules}</Body>
       </ScrollView>
     </SafeAreaView>
   );
@@ -47,9 +51,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
   },
   headerBack: { marginBottom: 4 },
-  headerTitle: { color: '#FCD116', fontWeight: 'bold', fontSize: 19 },
+  headerTitle: { color: '#FCD116' },
   body: { padding: 20, paddingBottom: 48 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#8B2E1F', marginTop: 14, marginBottom: 6 },
-  subTitle: { fontSize: 13.5, fontWeight: 'bold', color: '#0038A8', marginTop: 10, marginBottom: 4 },
-  bodyText: { fontSize: 13.5, color: '#2B2B2B', lineHeight: 20 },
+  sectionTitle: { color: '#8B2E1F', marginTop: 14, marginBottom: 6 },
+  subTitle: { fontFamily: tokens.font.bodyBold, color: '#0038A8', marginTop: 10, marginBottom: 4 },
+  bodyText: { color: '#2B2B2B' },
 });
