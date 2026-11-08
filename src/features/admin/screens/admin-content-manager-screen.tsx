@@ -8,6 +8,7 @@ import { useAdminContent } from '@/features/admin/context/admin-content-context'
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { CATEGORY_META as CATEGORIES } from '@/shared/content/category-meta';
+import { readableColumn } from '@/shared/theme/layout';
 
 const LEVELS = [1, 2, 3, 4, 5];
 const ACTIVITIES = [1, 2, 3, 4, 5, 6];
@@ -143,7 +144,7 @@ export default function AdminContentManagerScreen() {
         </View>
       )}
 
-      <ScrollView contentContainerStyle={styles.list}>
+      <ScrollView contentContainerStyle={[styles.list, readableColumn]}>
         {ready && ACTIVITIES.map((num) => {
           const q = getEffectiveQuestion(packId, category, level, num);
           const custom = isOverridden(packId, category, level, num);

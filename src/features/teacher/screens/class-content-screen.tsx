@@ -8,6 +8,7 @@ import { classesApi, errorMessage, type AssignPackRequest } from '@/shared/api';
 import { Screen, ScreenHeader, Card, Button, Pill, Icon, H2, Body, BodyStrong, Caption, Label } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
 import { AssignPackDialog } from './assign-pack-dialog';
+import { readableColumn } from '@/shared/theme/layout';
 
 export default function ClassContentScreen() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function ClassContentScreen() {
     <Screen>
       <ScreenHeader title={t('classContent')} color={tokens.color.primary} onBack={() => router.back()} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, readableColumn]}>
         <Card raised style={styles.packCard}>
           {hasPack ? (
             <>

@@ -17,6 +17,7 @@ import CATEGORY_META, { getCategoryMeta } from '@/shared/content/category-meta';
 import { analyticsApi, type ApiCategoryKey, type ApiStudentProgression } from '@/shared/api';
 import { formatDuration } from '@/features/leaderboard/teacher-leaderboard-format';
 import { useRouter } from 'expo-router';
+import { readableColumn } from '@/shared/theme/layout';
 
 const LEVELS = [1, 2, 3, 4, 5];
 
@@ -121,7 +122,7 @@ export default function PerformanceProgressionScreen() {
         <Caption style={styles.headerSubtitle}>{t('performanceSubtitle')}</Caption>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, readableColumn]}>
         {/* SUMMARY PILLS */}
         <View style={styles.summaryRow}>
           {(Object.keys(TREND_META) as ProgressionTrend[]).map((key) => {

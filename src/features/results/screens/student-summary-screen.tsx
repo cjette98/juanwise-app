@@ -21,6 +21,7 @@ import { CATEGORY_META } from '@/shared/content/category-meta';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { activityNaming } from '@/features/learning/lib/activity-naming';
+import { readableColumn } from '@/shared/theme/layout';
 
 const LEVELS = [1, 2, 3, 4, 5];
 const ACTIVITY_TYPES: { key: 'quiz' | 'jigsaw'; labelKey: TranslationKey; icon: IconName }[] = [
@@ -166,7 +167,7 @@ export default function StudentSummaryScreen() {
         onBack={() => router.back()}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, readableColumn]}>
         <View style={styles.statsRow}>
           <Card style={styles.statCard}>
             <TrophyBadge tier={overallTotals.trophy} size={20} mutedColor={tokens.color.inkFaint} />

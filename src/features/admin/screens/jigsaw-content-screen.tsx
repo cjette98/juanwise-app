@@ -11,6 +11,7 @@ import { useAdminContent } from '@/features/admin/context/admin-content-context'
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { CATEGORY_META as CATEGORIES } from '@/shared/content/category-meta';
+import { readableColumn } from '@/shared/theme/layout';
 
 export default function JigsawContentScreen() {
   const router = useRouter();
@@ -124,7 +125,7 @@ export default function JigsawContentScreen() {
         </View>
       )}
 
-      <ScrollView contentContainerStyle={styles.list}>
+      <ScrollView contentContainerStyle={[styles.list, readableColumn]}>
         {!ready && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator color="#9B4FD6" />

@@ -20,6 +20,7 @@ import {
 } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
 import { typeScale } from '@/shared/theme/typography';
+import { readableColumn } from '@/shared/theme/layout';
 
 export default function ClassOverviewScreen() {
   const router = useRouter();
@@ -115,7 +116,7 @@ export default function ClassOverviewScreen() {
       </ScreenHeader>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, readableColumn]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={tokens.color.primary} />
         }
