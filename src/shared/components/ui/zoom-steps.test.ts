@@ -1,33 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import { ZOOM_STEPS, centredScrollOffset, nextZoomIndex } from './zoom-steps';
+import { MAX_ZOOM, MIN_ZOOM, clampPan, clampZoom, stepZoom } from './zoom-steps';
 
 /**
- * Item 3.3 of the client evaluation. The zoomed picture sits in the middle of
- * a canvas the screen's size times the zoom, and the viewer used to open that
- * canvas at its top-left corner — at 2x and 3x a child saw mostly the dark
- * letterbox and had to scroll to find the picture they had just tapped.
+ * Correction 1, F8: the mini-lesson picture opened but its details could not
+ * be zoomed on Android, where a scroll view does not pinch. The viewer now
+ * pinches, drags and double-taps; these are the limits it keeps to.
  */
 
-const phone = { width: 390, height: 844 };
-
-describe('centredScrollOffset', () => {
-  it('does not scroll at 1x, where the picture already fits the screen', () => {
-    expect(centredScrollOffset(phone, 1)).toEqual({ x: 0, y: 0 });
-  });
-
-  it('scrolls to the middle of the canvas at 2x', () => {
-    expect(centredScrollOffset(phone, 2)).toEqual({ x: 195, y: 422 });
-  });
-
-  it('scrolls to the middle of the canvas at 3x', () => {
-    expect(centredScrollOffset(phone, 3)).toEqual({ x: 390, y: 844 });
+describe('clampZoom', () => {
+  it('keeps the zoom between 1x and 4x', () => {
+    expect(clampZoom(0.4)).toBe(MIN_ZOOM);
+    expect(clampZoom(2.2)).toBe(2.2);
+    expect(clampZoom(9)).toBe(MAX_ZOOM);
   });
 });
 
-describe('nextZoomIndex', () => {
-  it('steps 1x, 2x, 3x and back to 1x', () => {
-    const seen = [0];
-    for (let i = 0; i < ZOOM_STEPS.length; i++) seen.push(nextZoomIndex(seen[seen.length - 1]));
-    expect(seen.map((i) => ZOOM_STEPS[i])).toEqual([1, 2, 3, 1]);
+describe('stepZoom', () => {
+  it('moves one whole step and stops at either end', () => {
+    expect(stepZoom(1, 1)).toBe(2);
+    expect(stepZoom(2.4, 1)).toBe(3);
+    expect(stepZoom(4, 1)).toBe(4);
+    expect(stepZoom(1, -1)).toBe(1);
+  });
+});
+
+describe('clampPan', () => {
+  it('does not move an unzoomed picture', () => {
+    expect(clampPan(50, 1, 390)).toBe(0);
+  });
+
+  it('stops at the edge of the picture at 2x', () => {
+    // A 390-wide frame at 2x shows half the picture, so it can move 195 either way.
+    expect(clampPan(300, 2, 390)).toBe(195);
+    expect(clampPan(-300, 2, 390)).toBe(-195);
+    expect(clampPan(100, 2, 390)).toBe(100);
   });
 });

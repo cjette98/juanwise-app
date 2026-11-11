@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Screen, ScreenHeader, Card, Button, Pill, Icon, ZoomableImage, H2, Body, BodyStrong, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { useStudentResults } from '@/features/results/context/student-results-context';
@@ -18,6 +18,8 @@ interface LessonCard {
   activityNum: number;
   source: 'quiz' | 'jigsaw';
   text: string;
+  /** The puzzle's own name (e.g. "Manunggul Jar") when the activity has its own picture. */
+  name: string | null;
   /** Ready for <Image source={...}> — a require() id or a { uri } object. */
   image: any;
   timestamp: number;
@@ -45,13 +47,21 @@ export default function MiniLessonsScreen() {
       const existing = byKey.get(key);
       if (existing && existing.timestamp >= r.timestamp) continue;
 
-      const categoryContent = getEffectiveCategoryContent(r.category);
+      // A jigsaw activity can carry its own picture, name, definition and
+      // mini-lesson, set per activity on the web; pass the slot so those win
+      // over the category's (Correction 1, F8).
+      const categoryContent =
+        r.activityType === 'jigsaw'
+          ? getEffectiveCategoryContent(r.category, r.level, r.activityNum)
+          : getEffectiveCategoryContent(r.category);
       const question =
         r.activityType === 'quiz'
           ? getEffectiveQuestion(r.category, r.level, r.activityNum)
           : null;
 
-      const text = question ? quizLessonText(question) : categoryContent.context;
+      const text = question
+        ? quizLessonText(question)
+        : [categoryContent.definition, categoryContent.context].filter(Boolean).join('\n\n');
       // A quiz activity shows the picture the admin uploaded for that exact
       // mini-lesson. Anything without one — every jigsaw activity, and every
       // question nobody has illustrated — keeps the category picture, which is
@@ -67,6 +77,7 @@ export default function MiniLessonsScreen() {
         activityNum: r.activityNum,
         source: r.activityType,
         text,
+        name: question ? null : categoryContent.title,
         image,
         timestamp: r.timestamp,
       });
@@ -76,6 +87,30 @@ export default function MiniLessonsScreen() {
   }, [results, uid, getEffectiveQuestion, getEffectiveCategoryContent]);
 
   const [featured, ...rest] = lessons;
+  // Rows show two lines of their lesson until tapped open (Correction 1, F8).
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (key: string) =>
+    setExpanded((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const zoomLabels = {
+    openLabel: t('openPictureLabel'),
+    zoomHint: t('pictureZoomHint'),
+    closeLabel: t('closePictureLabel'),
+    zoomInLabel: t('zoomInLabel'),
+    zoomOutLabel: t('zoomOutLabel'),
+  };
+  const lessonTitle = (lesson: LessonCard) =>
+    [
+      t(getCategoryMeta(lesson.category).labelKey),
+      t(activityNaming(lesson.source).levelLine, { level: lesson.level, num: lesson.activityNum }),
+      lesson.name,
+    ]
+      .filter(Boolean)
+      .join(' · ');
 
   return (
     <Screen>
@@ -102,9 +137,8 @@ export default function MiniLessonsScreen() {
             <ZoomableImage
               source={featured.image}
               style={styles.bannerImage}
-              openLabel={t('openPictureLabel')}
-              zoomHint={t('pictureZoomHint')}
-              closeLabel={t('closePictureLabel')}
+              {...zoomLabels}
+              details={{ title: lessonTitle(featured), text: featured.text }}
             />
             <View style={styles.bannerBody}>
               <Pill
@@ -124,32 +158,42 @@ export default function MiniLessonsScreen() {
           </Card>
         )}
 
-        {rest.map((lesson) => (
-          <Card key={lesson.key} style={styles.rowCard}>
-            <ZoomableImage
-              source={lesson.image}
-              style={styles.rowImage}
-              openLabel={t('openPictureLabel')}
-              zoomHint={t('pictureZoomHint')}
-              closeLabel={t('closePictureLabel')}
-            />
-            <View style={styles.rowBody}>
-              <Pill
-                label={t(getCategoryMeta(lesson.category).labelKey)}
-                tone="translucent"
-                style={{ backgroundColor: categoryColor(lesson.category).base, borderColor: 'transparent' }}
+        {rest.map((lesson) => {
+          const isOpen = expanded.has(lesson.key);
+          return (
+            <Card key={lesson.key} style={styles.rowCard}>
+              <ZoomableImage
+                source={lesson.image}
+                style={styles.rowImage}
+                {...zoomLabels}
+                details={{ title: lessonTitle(lesson), text: lesson.text }}
               />
-              <BodyStrong numberOfLines={1}>
-                {t(activityNaming(lesson.source).levelLine, { level: lesson.level, num: lesson.activityNum })}
-              </BodyStrong>
-              <View style={styles.sourceRow}>
-                <Icon name={lesson.source === 'quiz' ? 'quiz' : 'puzzle'} size={12} color={tokens.color.inkMuted} />
-                <Caption style={styles.sourceLabel}>{lesson.source === 'quiz' ? t('gameTypeQuiz') : t('gameTypeJigsaw')}</Caption>
+              <View style={styles.rowBody}>
+                <Pill
+                  label={t(getCategoryMeta(lesson.category).labelKey)}
+                  tone="translucent"
+                  style={{ backgroundColor: categoryColor(lesson.category).base, borderColor: 'transparent' }}
+                />
+                <BodyStrong numberOfLines={1}>
+                  {t(activityNaming(lesson.source).levelLine, { level: lesson.level, num: lesson.activityNum })}
+                </BodyStrong>
+                <View style={styles.sourceRow}>
+                  <Icon name={lesson.source === 'quiz' ? 'quiz' : 'puzzle'} size={12} color={tokens.color.inkMuted} />
+                  <Caption style={styles.sourceLabel}>{lesson.source === 'quiz' ? t('gameTypeQuiz') : t('gameTypeJigsaw')}</Caption>
+                </View>
+                <Pressable
+                  onPress={() => toggle(lesson.key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isOpen }}
+                  style={styles.rowTextWrap}
+                >
+                  <Body numberOfLines={isOpen ? undefined : 2} style={styles.rowText}>{lesson.text}</Body>
+                  <Caption style={styles.rowMore}>{t(isOpen ? 'showLessLesson' : 'showFullLesson')}</Caption>
+                </Pressable>
               </View>
-              <Body numberOfLines={2} style={styles.rowText}>{lesson.text}</Body>
-            </View>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </ScrollView>
     </Screen>
   );
@@ -169,5 +213,7 @@ const styles = StyleSheet.create({
   rowCard: { flexDirection: 'row', gap: tokens.space.sm, padding: tokens.space.md },
   rowImage: { width: 68, height: 68, borderRadius: tokens.radius.md },
   rowBody: { flex: 1, gap: tokens.space.xs / 2, alignItems: 'flex-start' },
+  rowTextWrap: { alignSelf: 'stretch', gap: 2, minHeight: tokens.hit.min },
   rowText: { color: tokens.color.inkBody },
+  rowMore: { color: tokens.color.navLessons, fontFamily: tokens.font.bodyBold },
 });

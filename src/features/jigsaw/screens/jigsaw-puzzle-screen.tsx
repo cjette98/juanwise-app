@@ -461,6 +461,8 @@ export default function JigsawPuzzleScreen() {
               openLabel={t('openPictureLabel')}
               zoomHint={t('pictureZoomHint')}
               closeLabel={t('closePictureLabel')}
+              zoomInLabel={t('zoomInLabel')}
+              zoomOutLabel={t('zoomOutLabel')}
             />
             <View style={styles.referenceText}>
               <View style={styles.referencePill}>

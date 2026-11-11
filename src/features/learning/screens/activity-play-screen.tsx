@@ -382,6 +382,8 @@ export default function ActivityPlayScreen() {
                 openLabel={t('openPictureLabel')}
                 zoomHint={t('pictureZoomHint')}
                 closeLabel={t('closePictureLabel')}
+                zoomInLabel={t('zoomInLabel')}
+                zoomOutLabel={t('zoomOutLabel')}
               />
             )}
             <Body style={styles.hintText}>{q.hint}</Body>
