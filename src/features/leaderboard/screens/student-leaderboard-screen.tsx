@@ -209,7 +209,7 @@ export default function StudentLeaderboardScreen() {
   const peekSummary = peekUid ? rows.find((s) => s.uid === peekUid) || null : null;
 
   const openSummary = (row: BoardRow) =>
-    router.navigate({ pathname: '/student-summary', params: { studentName: row.studentName, uid: row.uid } });
+    router.navigate({ pathname: '/student-summary', params: { studentName: row.studentName, uid: row.uid, board: gameType } });
 
   const handleRowPress = (row: BoardRow) => {
     if (row.uid === uid) openSummary(row);

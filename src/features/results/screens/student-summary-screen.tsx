@@ -16,7 +16,7 @@ import {
   TrophyBadge,
 } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
-import { useStudentResults, ActivityResult, getCanonicalAttempts, totalsFor, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
+import { useStudentResults, ActivityResult, activitySlots, getCanonicalAttempts, isPass, totalsFor, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
 import { CATEGORY_META } from '@/shared/content/category-meta';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -66,27 +66,26 @@ function computeTrophy(totalPoints: number, totalTimeUsed: number): Trophy {
   return null;
 }
 
-// Same "passing attempt per activity #" logic used by LevelSummaryScreen —
-// kept in sync here so level totals shown in this drill-down match exactly
-// what the student saw on their own Level Summary screen.
-function levelStats(attempts: ActivityResult[], level: number) {
-  const forLevel = attempts.filter((a) => a.level === level);
-  const perActivity = [1, 2, 3, 4, 5, 6].map((num) => {
-    const forActivity = forLevel.filter((a) => a.activityNum === num);
-    const passingAttempt = [...forActivity].reverse().find((a) => a.medal) || null;
-    return passingAttempt;
-  });
-  const passedCount = perActivity.filter(Boolean).length;
-  const totalPoints = perActivity.reduce((sum, a) => sum + (a?.points ?? 0), 0);
-  const totalTime = perActivity.reduce((sum, a) => sum + (a?.timeUsed ?? 0), 0);
-  const attempted = forLevel.length > 0;
-  return { passedCount, totalPoints, totalTime, attempted, medal: medalForPoints(totalPoints) };
+// The same canonical-attempt rule as the leaderboard and Level Summary
+// (lib/totals.ts), so a level's points here add up to the board's.
+function levelStats(attempts: ActivityResult[], slot: { category: string; activityType: 'quiz' | 'jigsaw'; level: number }) {
+  const slots = activitySlots(attempts, slot);
+  const { totalPoints, totalTimeSec, completed } = totalsFor(slots.filter((a): a is ActivityResult => a !== null));
+  return {
+    slots,
+    passedCount: completed,
+    totalPoints,
+    totalTime: totalTimeSec,
+    attempted: slots.some(Boolean),
+    medal: medalForPoints(totalPoints),
+  };
 }
 
 export default function StudentSummaryScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { studentName, uid } = useLocalSearchParams<{ studentName: string; uid?: string }>();
+  // `board` is the leaderboard tab the record was opened from, so its card is highlighted.
+  const { studentName, uid, board } = useLocalSearchParams<{ studentName: string; uid?: string; board?: 'quiz' | 'jigsaw' }>();
   const { getFilteredResults, ready } = useStudentResults();
 
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -99,38 +98,45 @@ export default function StudentSummaryScreen() {
     [getFilteredResults, studentName, uid]
   );
 
-  // Deduped to one canonical (best/passing) attempt per activity — retries
-  // must not be summed multiple times. Used for every total/stat below.
-  // The raw `allAttempts` is kept only for the chronological History feed,
-  // which is meant to show every attempt including retries.
-  const canonicalAttempts = useMemo(() => getCanonicalAttempts(allAttempts), [allAttempts]);
-
+  // Every total below goes through totalsFor (lib/totals.ts), the server's
+  // rule: one canonical attempt per activity, and points, time and "done"
+  // from passed activities only. The raw `allAttempts` is kept for the
+  // History feed, which shows every attempt including retries.
   const overallTotals = useMemo(() => {
-    // Points, time and count from passed activities only, as on the leaderboard.
     const { totalPoints, totalTimeSec: totalTimeUsed, completed: attempts } = totalsFor(allAttempts);
-    const avgTime = attempts > 0 ? totalTimeUsed / attempts : 0;
     const trophy = computeTrophy(totalPoints, totalTimeUsed);
-    const starsSum = canonicalAttempts.reduce((sum, a) => {
+    const starsSum = getCanonicalAttempts(allAttempts).filter(isPass).reduce((sum, a) => {
       const stars = a.medal === 'gold' ? 3 : a.medal === 'silver' ? 2 : a.medal === 'bronze' ? 1 : 0;
       return sum + stars;
     }, 0);
     const avgStars = attempts > 0 ? starsSum / attempts : 0;
     const pace: 'fast' | 'steady' | 'needs-support' =
       trophy === 'gold' ? 'fast' : trophy === 'silver' ? 'steady' : 'needs-support';
-    return { totalPoints, totalTimeUsed, attempts, avgTime, trophy, avgStars, pace };
-  }, [canonicalAttempts]);
+    return { totalPoints, totalTimeUsed, attempts, trophy, avgStars, pace };
+  }, [allAttempts]);
+
+  // One per game, so the record reads the same as the leaderboard tab it was
+  // opened from: the Quiz board ranks quiz points only, the Jigsaw board
+  // jigsaw average time only (Correction 1, F5).
+  const gameTotals = useMemo(
+    () => ({
+      quiz: totalsFor(allAttempts.filter((a) => a.activityType === 'quiz')),
+      jigsaw: totalsFor(allAttempts.filter((a) => a.activityType === 'jigsaw')),
+    }),
+    [allAttempts]
+  );
 
   const categoryTotals = useMemo(() => {
-    const map = new Map<string, { totalPoints: number; attempts: number }>();
+    const map = new Map<string, Record<'quiz' | 'jigsaw', ReturnType<typeof totalsFor>>>();
     for (const c of CATEGORY_META) {
-      const inCat = canonicalAttempts.filter((a) => a.category === c.key);
+      const inCat = allAttempts.filter((a) => a.category === c.key);
       map.set(c.key, {
-        totalPoints: inCat.reduce((sum, a) => sum + a.points, 0),
-        attempts: inCat.length,
+        quiz: totalsFor(inCat.filter((a) => a.activityType === 'quiz')),
+        jigsaw: totalsFor(inCat.filter((a) => a.activityType === 'jigsaw')),
       });
     }
     return map;
-  }, [canonicalAttempts]);
+  }, [allAttempts]);
 
   const historyFeed = useMemo(
     () => [...allAttempts].sort((a, b) => b.timestamp - a.timestamp),
@@ -190,6 +196,32 @@ export default function StudentSummaryScreen() {
             <Caption>{t('totalTimeLabel')}</Caption>
           </Card>
         </View>
+
+        <View style={styles.statsRow}>
+          {ACTIVITY_TYPES.map((type) => {
+            const g = gameTotals[type.key];
+            const highlighted = board === type.key;
+            return (
+              <Card key={type.key} style={highlighted ? [styles.gameCard, styles.gameCardActive] : styles.gameCard}>
+                <View style={styles.gameCardHead}>
+                  <Icon name={type.icon} size={15} color={tokens.color.navLeaderboard} />
+                  <Caption style={styles.gameCardTitle}>{t(type.key === 'quiz' ? 'boardPointsTab' : 'boardTimeTab')}</Caption>
+                </View>
+                <BodyStrong>
+                  {type.key === 'quiz'
+                    ? t('pointsSuffixShort', { points: g.totalPoints })
+                    : g.avgTimeSec === null ? '—' : t('avgSecondsValue', { avg: g.avgTimeSec })}
+                </BodyStrong>
+                <Caption>
+                  {type.key === 'quiz'
+                    ? t('gameDoneTime', { done: g.completed, time: formatTime(g.totalTimeSec) })
+                    : t('gameDonePoints', { done: g.completed, points: g.totalPoints })}
+                </Caption>
+              </Card>
+            );
+          })}
+        </View>
+        <Caption style={styles.boardNote}>{t('fullRecordBoardNote')}</Caption>
 
         <View style={styles.paceRow}>
           <Pill
@@ -276,7 +308,6 @@ export default function StudentSummaryScreen() {
               const isExpanded = expandedCategory === c.key;
               const totals = categoryTotals.get(c.key)!;
               const currentType = activeType[c.key] || 'quiz';
-              const typedAttempts = allAttempts.filter((a) => a.category === c.key && a.activityType === currentType);
               const catColor = categoryColor(c.key).base;
 
               return (
@@ -285,11 +316,19 @@ export default function StudentSummaryScreen() {
                     <View style={[styles.categoryDot, { backgroundColor: catColor }]} />
                     <View style={styles.categoryHeaderMain}>
                       <BodyStrong style={{ color: catColor }}>{t(c.labelKey)}</BodyStrong>
-                      <Caption>
-                        {totals.attempts > 0
-                          ? t('categoryTotalsLine', { points: totals.totalPoints, attempts: totals.attempts })
-                          : t('noActivityShort')}
-                      </Caption>
+                      {ACTIVITY_TYPES.map((type) => {
+                        const tt = totals[type.key];
+                        return (
+                          <View key={type.key} style={styles.categoryTypeLine}>
+                            <Icon name={type.icon} size={13} color={tokens.color.inkMuted} />
+                            <Caption>
+                              {tt.completed > 0 || tt.failedAttempts > 0
+                                ? t('categoryTypeLine', { points: tt.totalPoints, done: tt.completed, time: formatTime(tt.totalTimeSec) })
+                                : t('noActivityShort')}
+                            </Caption>
+                          </View>
+                        );
+                      })}
                     </View>
                     <View style={isExpanded ? styles.chevronExpanded : undefined}>
                       <Icon name="chevronRight" size={18} color={catColor} strokeWidth={2.4} />
@@ -321,7 +360,7 @@ export default function StudentSummaryScreen() {
                       </View>
 
                       {LEVELS.map((lvl) => {
-                        const stats = levelStats(typedAttempts, lvl);
+                        const stats = levelStats(allAttempts, { category: c.key, activityType: currentType, level: lvl });
                         return (
                           <TouchableOpacity
                             key={lvl}
@@ -334,6 +373,23 @@ export default function StudentSummaryScreen() {
                               {stats.attempted && (
                                 <View style={styles.levelRowProgress}>
                                   <ProgressBar value={stats.passedCount / 6} color={catColor} height={6} />
+                                </View>
+                              )}
+                              {stats.attempted && (
+                                <View style={styles.activityStrip}>
+                                  {stats.slots.map((a, i) => (
+                                    <View
+                                      key={i}
+                                      style={[
+                                        styles.activityCell,
+                                        a && isPass(a) && { borderColor: catColor },
+                                        a && !isPass(a) && styles.activityCellFailed,
+                                      ]}
+                                    >
+                                      <Caption style={styles.activityCellLabel}>{t('activityShort', { n: i + 1 })}</Caption>
+                                      <Caption style={styles.activityCellValue}>{a ? a.points : '–'}</Caption>
+                                    </View>
+                                  ))}
                                 </View>
                               )}
                             </View>
@@ -368,6 +424,11 @@ const styles = StyleSheet.create({
 
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: tokens.space.sm },
   statCard: { flexBasis: '47%', flexGrow: 1, alignItems: 'center', gap: tokens.space.xs / 2, paddingVertical: tokens.space.md },
+  gameCard: { flexBasis: '47%', flexGrow: 1, alignItems: 'center', gap: 2, paddingVertical: tokens.space.sm, borderWidth: 2, borderColor: 'transparent' },
+  gameCardActive: { borderColor: tokens.color.navLeaderboard },
+  gameCardHead: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2 },
+  gameCardTitle: { color: tokens.color.navLeaderboard, fontFamily: tokens.font.bodyBold },
+  boardNote: { textAlign: 'center' },
 
   paceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: tokens.space.sm, flexWrap: 'wrap' },
   paceStarsWrap: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2 },
@@ -397,6 +458,7 @@ const styles = StyleSheet.create({
   categoryHeader: { flexDirection: 'row', alignItems: 'center', padding: tokens.space.md, gap: tokens.space.sm, minHeight: tokens.hit.min },
   categoryDot: { width: 12, height: 12, borderRadius: 6 },
   categoryHeaderMain: { flex: 1, gap: 2 },
+  categoryTypeLine: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2 },
   chevronExpanded: { transform: [{ rotate: '90deg' }] },
 
   categoryBody: { paddingHorizontal: tokens.space.md, paddingBottom: tokens.space.md, gap: tokens.space.sm },
@@ -414,6 +476,14 @@ const styles = StyleSheet.create({
   levelRowLeft: { flex: 1, gap: 4, paddingRight: tokens.space.sm },
   levelRowLabel: { color: tokens.color.ink, fontFamily: tokens.font.bodyBold },
   levelRowProgress: { maxWidth: 120 },
+  activityStrip: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
+  activityCell: {
+    minWidth: 30, alignItems: 'center', paddingVertical: 2, paddingHorizontal: 4,
+    borderRadius: tokens.radius.sm, borderWidth: 1.5, borderColor: tokens.color.inkDisabled, backgroundColor: tokens.color.surface,
+  },
+  activityCellFailed: { borderColor: tokens.color.danger, borderStyle: 'dashed' },
+  activityCellLabel: { color: tokens.color.inkMuted },
+  activityCellValue: { fontFamily: tokens.font.bodyBold, color: tokens.color.ink },
   levelRowStats: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
   levelRowStat: { color: tokens.color.ink, fontFamily: tokens.font.bodyBold },
   levelRowPoints: { color: tokens.color.points },

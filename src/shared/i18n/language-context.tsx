@@ -660,8 +660,13 @@ const en = {
   viewHistoryToggle: 'History (All Activities)',
   historyRowQuestion: 'Level {level} · Question {num} · {date}',
   historyRowPuzzle: 'Level {level} · Puzzle {num} · {date}',
-  categoryTotalsLine: '{points} pts · {attempts} activities',
+  categoryTypeLine: '{points} pts · {done}/30 done · {time}',
   passedOfSix: '{passed}/6',
+  gameDoneTime: '{done} done · {time}',
+  gameDonePoints: '{done} done · {points} pts',
+  avgSecondsValue: '{avg}s avg',
+  activityShort: 'A{n}',
+  fullRecordBoardNote: 'These match the Quiz · Points and Jigsaw · Time leaderboards. The totals above add both games together.',
 
   // --- Performance progression extras ---
   performanceSubtitle: 'Compares the earliest answers against the most recent ones to show who is improving.',
@@ -1349,8 +1354,13 @@ const tl: Record<TranslationKey, string> = {
   viewHistoryToggle: 'Kasaysayan (Lahat ng Gawain)',
   historyRowQuestion: 'Level {level} · Tanong {num} · {date}',
   historyRowPuzzle: 'Level {level} · Puzzle {num} · {date}',
-  categoryTotalsLine: '{points} puntos · {attempts} gawain',
+  categoryTypeLine: '{points} puntos · {done}/30 natapos · {time}',
   passedOfSix: '{passed}/6',
+  gameDoneTime: '{done} natapos · {time}',
+  gameDonePoints: '{done} natapos · {points} puntos',
+  avgSecondsValue: '{avg}s avg',
+  activityShort: 'G{n}',
+  fullRecordBoardNote: 'Tugma ang mga ito sa leaderboard ng Quiz · Puntos at Jigsaw · Oras. Pinagsama ng kabuuan sa itaas ang dalawang laro.',
 
   // --- Performance progression extras ---
   performanceSubtitle: 'Hinahambing ang unang mga sagot laban sa pinakabagong mga sagot para makita kung sino ang umuunlad.',

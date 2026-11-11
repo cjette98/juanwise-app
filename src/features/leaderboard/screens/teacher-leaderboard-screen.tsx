@@ -400,7 +400,7 @@ export default function TeacherLeaderboardScreen() {
                 <TouchableOpacity
                   key={s.uid}
                   onPress={() =>
-                    router.navigate({ pathname: '/student-summary', params: { studentName: s.studentName, uid: s.uid } })
+                    router.navigate({ pathname: '/student-summary', params: { studentName: s.studentName, uid: s.uid, board: gameType } })
                   }
                   accessibilityRole="button"
                 >
