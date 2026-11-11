@@ -16,7 +16,7 @@ import { Text, TextInput } from '@/shared/components/ui/capped-text';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '@/features/auth/context/user-context';
-import { useStudentResults, totalsFor, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
+import { useStudentResults, totalsFor, CATEGORY_MAX_POINTS } from '@/features/results/context/student-results-context';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
@@ -144,7 +144,8 @@ export default function ProfileScreen() {
     () => (isTeacher ? [] : results.filter((r) => r.uid === uid)),
     [results, uid, isTeacher]
   );
-  const totalPoints = totalsFor(myResults).totalPoints;
+  // Passed activities, as the leaderboard and Full Record count them (Correction 1, F1).
+  const { totalPoints, completed } = totalsFor(myResults);
   const lastResult = useMemo(
     () => [...myResults].sort((a, b) => b.timestamp - a.timestamp)[0] || null,
     [myResults]
@@ -421,7 +422,7 @@ export default function ProfileScreen() {
             </Card>
             <Card style={styles.statCard}>
               <Icon name="check" size={20} color={tokens.color.success} />
-              <H3 style={styles.statValue}>{myResults.length}</H3>
+              <H3 style={styles.statValue}>{completed}</H3>
               <Label style={styles.statLabel} numberOfLines={1}>{t('completed')}</Label>
             </Card>
             <Card style={styles.statCard}>
@@ -449,7 +450,7 @@ export default function ProfileScreen() {
                     <Caption>{categoryTotals.get(key) || 0} {t('ptsSuffix')}</Caption>
                   </View>
                   <ProgressBar
-                    value={(categoryTotals.get(key) || 0) / COMBINED_MAX_POINTS}
+                    value={(categoryTotals.get(key) || 0) / CATEGORY_MAX_POINTS}
                     color={categoryColor(key).base}
                   />
                 </View>

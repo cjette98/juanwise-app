@@ -24,13 +24,15 @@ export default function JigsawResultsScreen() {
     [results, uid]
   );
 
-  const { totalPoints } = totalsFor(jigsawResults);
+  // The list shows every attempt, retries included; the header counts what
+  // the leaderboard counts, one passed activity each (Correction 1, F1).
+  const { totalPoints, completed } = totalsFor(jigsawResults);
 
   return (
     <Screen>
       <ScreenHeader
         title={t('jigsawResultsTitle')}
-        subtitle={t('jigsawResultsSubtitle', { count: jigsawResults.length, points: totalPoints })}
+        subtitle={t('jigsawResultsSubtitle', { count: completed, points: totalPoints })}
         color={tokens.color.navJigsaw}
         onBack={() => router.back()}
       />

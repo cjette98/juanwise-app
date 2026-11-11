@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  COMBINED_MAX_POINTS,
   COMBINED_MAX_TIME_SECONDS,
+  QUIZ_MAX_POINTS,
+  countedTime,
   JIGSAW_TIME_BUDGET_SECONDS,
   QUIZ_TIME_BUDGET_SECONDS,
   TROPHY_TIERS,
@@ -15,24 +18,32 @@ describe('game limits', () => {
     expect(timeBudgetFor('jigsaw')).toBe(60);
   });
 
-  it('caps the combined time at 60 s × 6 activities × 5 levels × 2 types', () => {
-    expect(COMBINED_MAX_TIME_SECONDS).toBe(3600);
+  it('uses the ceilings of the client reference sheet: 360 activities (Correction 1, F3)', () => {
+    expect(QUIZ_MAX_POINTS).toBe(2700);
+    expect(COMBINED_MAX_POINTS).toBe(5400);
+    expect(COMBINED_MAX_TIME_SECONDS).toBe(21600);
+  });
+
+  it('counts an attempt as taking 1 s to its budget (F2)', () => {
+    expect(countedTime({ activityType: 'quiz', timeUsed: 0 })).toBe(1);
+    expect(countedTime({ activityType: 'jigsaw', timeUsed: 110 })).toBe(60);
+    expect(countedTime({ activityType: 'jigsaw', timeUsed: 37 })).toBe(37);
   });
 
   // Must match TROPHY_TIERS in juanwise-be src/shared/constants.ts.
   it('keeps trophy time allowances at 2/3, 5/6 and all of the ceiling', () => {
     expect(TROPHY_TIERS.map((t) => [t.trophy, t.minPoints, t.maxTimeSeconds])).toEqual([
-      ['gold', 450, 2400],
-      ['silver', 300, 3000],
-      ['bronze', 150, 3600],
+      ['gold', 2700, 14400],
+      ['silver', 1800, 18000],
+      ['bronze', 900, 21600],
     ]);
   });
 
   it('labels each tier with its time limit', () => {
     expect(TROPHY_TIERS.map((t) => t.timeLabel)).toEqual([
-      '≤ 2,400 sec (40 min)',
-      '≤ 3,000 sec (50 min)',
-      '≤ 3,600 sec (60 min)',
+      '≤ 14,400 sec (4 h)',
+      '≤ 18,000 sec (5 h)',
+      '≤ 21,600 sec (6 h)',
     ]);
   });
 });
