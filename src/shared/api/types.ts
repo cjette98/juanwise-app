@@ -212,6 +212,9 @@ export interface ApiJigsawItem {
   context_tl: string | null;
 }
 
+/** `id` is omitted for a picture the server has not stored yet. */
+export type JigsawItemInput = Omit<ApiJigsawItem, 'id'> & { id?: string };
+
 /** The three cuts the puzzle screen can lay out: 2×3, 3×3 and 3×4. */
 export type ApiJigsawPieceCount = 6 | 9 | 12;
 

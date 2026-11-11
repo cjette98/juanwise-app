@@ -32,6 +32,9 @@ import type {
   RegisterRequest,
   SubmitResultRequest,
   UpdateCategoryRequest,
+  ApiJigsawItem,
+  ApiJigsawPieceCount,
+  JigsawItemInput,
   UpdateIdentityRequest,
   UpdateProfileRequest,
   UploadUrlRequest,
@@ -274,6 +277,19 @@ export const contentApi = {
 
   updateCategory(packId: string, key: ApiCategoryKey, patch: UpdateCategoryRequest): Promise<ApiCategory> {
     return request(`/packs/${encodeURIComponent(packId)}/categories/${key}`, { method: 'PUT', body: patch });
+  },
+
+  /**
+   * Replaces a category's jigsaw pictures, activity assignments and cuts
+   * together, as the web console does, so an activity can never point at a
+   * picture removed in the same edit.
+   */
+  replaceJigsaws(
+    packId: string,
+    key: ApiCategoryKey,
+    body: { items: JigsawItemInput[]; slots: Record<string, string>; pieces: Record<string, ApiJigsawPieceCount> },
+  ): Promise<{ items: ApiJigsawItem[]; slots: Record<string, string>; pieces: Record<string, ApiJigsawPieceCount> }> {
+    return request(`/packs/${encodeURIComponent(packId)}/categories/${key}/jigsaws`, { method: 'PUT', body });
   },
 
   async questions(

@@ -17,6 +17,7 @@ import { getQuizQuestion, QuizQuestion } from '@/shared/content/quiz-content';
 import categoryContent from '@/shared/content/category-content';
 import { useUser } from '@/features/auth/context/user-context';
 import { toUpsertRequest } from '@/features/admin/lib/question-mapping';
+import type { JigsawSet } from '@/features/admin/lib/jigsaw-slots';
 import {
   resolveEffectiveCategoryContent,
   resolveEffectiveQuestion,
@@ -96,6 +97,13 @@ type AdminContentContextType = {
     uri: string,
     mimeType?: string,
   ) => Promise<ActionResult & { url?: string }>;
+
+  /** A category's pictures, slots and cuts as they stand (Correction 1, N1). */
+  getJigsawSet: (packId: string, category: string) => JigsawSet;
+  /** Saves the whole set; the screen builds it with `lib/jigsaw-slots`. */
+  saveJigsawSet: (packId: string, category: string, set: JigsawSet, message: string) => Promise<ActionResult>;
+  /** Uploads a jigsaw picture and returns its public URL. */
+  uploadJigsawImage: (category: string, uri: string, mimeType?: string) => Promise<ActionResult & { url?: string }>;
 
   // Per-pack "show mini-lesson before quiz" toggle.
   setShowMiniLesson: (packId: string, value: boolean) => Promise<ActionResult>;
@@ -325,6 +333,55 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
     [t],
   );
 
+  const getJigsawSet: AdminContentContextType['getJigsawSet'] = useCallback(
+    (packId, category) => {
+      const api = stateFor(packId).categories[category];
+      return { items: api?.jigsaws ?? [], slots: api?.jigsawSlots ?? {}, pieces: api?.jigsawPieces ?? {} };
+    },
+    [stateFor],
+  );
+
+  const saveJigsawSet: AdminContentContextType['saveJigsawSet'] = useCallback(
+    async (packId, category, set, message) => {
+      try {
+        const saved = await contentApi.replaceJigsaws(packId, category as ApiCategoryKey, set);
+        // A pack nobody has edited yet may have no stored category to merge
+        // into; read it back whole so the new picture shows at once.
+        if (!stateFor(packId).categories[category]) {
+          await refreshPack(packId);
+          return { success: true, message };
+        }
+        if (mounted.current) {
+          setPacks((prev) => {
+            const current = prev[packId] ?? EMPTY_PACK_STATE;
+            const existing = current.categories[category];
+            if (!existing) return prev;
+            const updated = { ...existing, jigsaws: saved.items, jigsawSlots: saved.slots, jigsawPieces: saved.pieces };
+            const next = { ...current, categories: { ...current.categories, [category]: updated } };
+            writeCache(packCacheKey(packId), next);
+            return { ...prev, [packId]: next };
+          });
+        }
+        return { success: true, message };
+      } catch (err) {
+        return { success: false, message: errorMessage(err, t('jigsawSaveFailedMsg')) };
+      }
+    },
+    [stateFor, refreshPack, t],
+  );
+
+  const uploadJigsawImage: AdminContentContextType['uploadJigsawImage'] = useCallback(
+    async (category, uri, mimeType) => {
+      try {
+        const url = await mediaApi.upload(uri, 'category-image', { categoryKey: category, mimeType });
+        return { success: true, message: t('imageUploadedMsg'), url };
+      } catch (err) {
+        return { success: false, message: errorMessage(err, t('imageUploadFailedMsg')) };
+      }
+    },
+    [t],
+  );
+
   const setShowMiniLesson: AdminContentContextType['setShowMiniLesson'] = useCallback(
     async (packId, value) => {
       const previous = stateFor(packId).pack;
@@ -360,12 +417,16 @@ export function AdminContentProvider({ children }: { children: React.ReactNode }
       setCategoryContext,
       resetCategoryImage,
       uploadQuestionImage,
+      getJigsawSet,
+      saveJigsawSet,
+      uploadJigsawImage,
       setShowMiniLesson,
     }),
     [
       isPackReady, error, ensurePackLoaded, refreshPack, getPack, getEffectiveQuestion, isOverridden,
       upsertQuestion, deleteQuestionOverride, getEffectiveCategoryContent, getCategoryContexts, getJigsawPieceCount,
-      setCategoryImageUri, setCategoryContext, resetCategoryImage, uploadQuestionImage, setShowMiniLesson,
+      setCategoryImageUri, setCategoryContext, resetCategoryImage, uploadQuestionImage,
+      getJigsawSet, saveJigsawSet, uploadJigsawImage, setShowMiniLesson,
     ],
   );
 
