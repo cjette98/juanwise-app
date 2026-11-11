@@ -712,6 +712,10 @@ const en = {
 
   // --- Performance progression extras ---
   performanceSubtitle: 'Compares the earliest answers against the most recent ones to show who is improving.',
+  perfGroupClass: 'In this class ({n})',
+  perfGroupGuests: 'Guests ({n})',
+  perfGuestsHint: 'Students who left or were removed from this class and now play as guests. Their results from this class are kept here.',
+  noGuestsPerf: 'No guests have results in this class.',
   levelChipShort: 'Lvl {n}',
   noAttemptsInCategory: 'No activities answered yet in {category}.',
   noAttemptsAtAll: 'No activities answered yet.',
@@ -1448,6 +1452,10 @@ const tl: Record<TranslationKey, string> = {
 
   // --- Performance progression extras ---
   performanceSubtitle: 'Hinahambing ang unang mga sagot laban sa pinakabagong mga sagot para makita kung sino ang umuunlad.',
+  perfGroupClass: 'Nasa klase ({n})',
+  perfGroupGuests: 'Guest ({n})',
+  perfGuestsHint: 'Mga estudyanteng umalis o tinanggal sa klaseng ito at naglalaro na bilang guest. Nananatili rito ang mga resulta nila mula sa klaseng ito.',
+  noGuestsPerf: 'Walang guest na may resulta sa klaseng ito.',
   levelChipShort: 'Lvl {n}',
   noAttemptsInCategory: 'Wala pang sinagutang gawain sa {category}.',
   noAttemptsAtAll: 'Wala pang sinagutang gawain.',
