@@ -9,13 +9,10 @@ import {
 
 /**
  * How far the phone's font-size setting may stretch text that does not come
- * from a design-system variant. Those screens size their own text, so there is
- * no variant to pick a ceiling from; this one sits between the label and body
- * caps in `typography.ts`. Uncapped, the largest setting is roughly three
- * times the base size, which broke the teacher's headings mid-word and grew
- * the login fields past their boxes (evaluation item 3.2).
+ * from a design-system variant: not at all, like the variants in
+ * `typography.ts`, so every phone draws the same size (Correction 1, F7).
  */
-export const PLAIN_TEXT_MAX_FONT_MULTIPLIER = 1.3;
+export const PLAIN_TEXT_MAX_FONT_MULTIPLIER = 1;
 
 /**
  * React Native's `Text` and `TextInput` with that cap as the default. A caller
