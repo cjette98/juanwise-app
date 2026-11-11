@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyAttemptToTrack,
   nextAttemptSeq,
-  pointsForAttempt,
+  scorePass,
   slotStatus,
   triesLeft,
   type LocalTrack,
@@ -10,9 +10,17 @@ import {
 
 const empty: LocalTrack = { unlockedLevel: 1, completed: [], failed: [], exhausted: [], attempts: {} };
 
-describe('pointsForAttempt', () => {
-  it('pays 15 / 10 / 6 and nothing past the cap', () => {
-    expect([1, 2, 3, 4, 0].map(pointsForAttempt)).toEqual([15, 10, 6, 0, 0]);
+describe('scorePass (Correction 1, F4)', () => {
+  // The reference sheet's trace cases, as juanwise-be scores them.
+  it.each([
+    [18, 1, 15, 3],
+    [37, 1, 10, 2],
+    [55, 1, 5, 1],
+    [18, 2, 10, 2],
+    [50, 2, 0, 0],
+    [18, 3, 0, 0],
+  ])('%is on try %i: %i points, %i stars', (time, seq, points, stars) => {
+    expect(scorePass(time, seq)).toEqual({ points, stars });
   });
 });
 

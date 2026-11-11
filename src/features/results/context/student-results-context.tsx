@@ -15,7 +15,7 @@ import {
 import { Medal } from '@/shared/components/activity-timer';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
-import { nextAttemptSeq, pointsForAttempt } from '@/features/learning/lib/attempt-rules';
+import { nextAttemptSeq, scorePass } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { canonicalAttempts, inActiveClass } from '../lib/totals';
 
@@ -483,8 +483,8 @@ function scoreLocally(
   const timeUsed = Math.max(MIN_ACTIVITY_TIME_SECONDS, Math.min(Math.round(attempt.timeUsed), budget));
   const passed = !attempt.timedOut && attempt.requiredCount > 0 && attempt.correctCount >= attempt.requiredCount;
 
-  const fraction = timeUsed / budget;
-  const medal: Medal = !passed ? null : fraction <= 0.5 ? 'gold' : fraction <= 0.75 ? 'silver' : 'bronze';
+  const score = passed ? scorePass(timeUsed, attemptSeq) : { points: 0, stars: 0 };
+  const medal: Medal = score.stars === 3 ? 'gold' : score.stars === 2 ? 'silver' : score.stars === 1 ? 'bronze' : null;
 
   return {
     id: `pending-${uid}-${Date.now()}`,
@@ -496,7 +496,7 @@ function scoreLocally(
     level: attempt.level,
     activityNum: attempt.activityNum,
     medal,
-    points: passed ? pointsForAttempt(attemptSeq) : 0,
+    points: score.points,
     timeUsed,
     timedOut: attempt.timedOut,
     timestamp: Date.now(),
