@@ -5,7 +5,8 @@
 //
 // - One canonical attempt per activity slot (uid, category, type, level, #):
 //   a pass always beats a failure, otherwise the latest attempt wins.
-// - Points, time and "completed" come from passed activities only.
+// - Points, time and "completed" come from passed activities only, each
+//   attempt's time held within 1 s and its budget (`countedTime`).
 // - Every failed or timed-out attempt counts toward `failedAttempts`, including
 //   ones the player later retried and passed.
 // - History is scoped to the class the player is in now, as the class
@@ -13,7 +14,7 @@
 //
 // Pure on purpose (no React, no Expo), so it can be unit-tested.
 
-import { ACTIVITIES_PER_LEVEL, POINTS_PER_LEVEL } from './game-limits';
+import { ACTIVITIES_PER_LEVEL, POINTS_PER_LEVEL, countedTime } from './game-limits';
 
 /** The fields of a recorded attempt these totals read. */
 export interface ScoredAttempt {
@@ -71,7 +72,7 @@ export function canonicalAttempts<T extends ScoredAttempt>(entries: T[]): T[] {
 export function totalsFor(entries: ScoredAttempt[]): Totals {
   const passed = canonicalAttempts(entries).filter(isPass);
   const totalPoints = passed.reduce((sum, e) => sum + e.points, 0);
-  const totalTimeSec = passed.reduce((sum, e) => sum + e.timeUsed, 0);
+  const totalTimeSec = passed.reduce((sum, e) => sum + countedTime(e), 0);
   const completed = passed.length;
   return {
     totalPoints,

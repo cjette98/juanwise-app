@@ -23,12 +23,14 @@ export { activitySlots, isPass, levelScore, totalsFor, type LevelScore, type Tot
 
 import {
   ACTIVITIES_PER_LEVEL,
+  CATEGORY_MAX_POINTS,
   COMBINED_MAX_POINTS,
   COMBINED_MAX_TIME_SECONDS,
   JIGSAW_MAX_POINTS,
   JIGSAW_MAX_TIME_SECONDS,
   JIGSAW_TIME_BUDGET_SECONDS,
   LEVELS_PER_TYPE,
+  MIN_ACTIVITY_TIME_SECONDS,
   POINTS_PER_ACTIVITY,
   POINTS_PER_LEVEL,
   QUIZ_MAX_POINTS,
@@ -43,12 +45,14 @@ import {
 // they are re-exported here so existing imports keep working.
 export {
   ACTIVITIES_PER_LEVEL,
+  CATEGORY_MAX_POINTS,
   COMBINED_MAX_POINTS,
   COMBINED_MAX_TIME_SECONDS,
   JIGSAW_MAX_POINTS,
   JIGSAW_MAX_TIME_SECONDS,
   JIGSAW_TIME_BUDGET_SECONDS,
   LEVELS_PER_TYPE,
+  MIN_ACTIVITY_TIME_SECONDS,
   POINTS_PER_ACTIVITY,
   POINTS_PER_LEVEL,
   QUIZ_MAX_POINTS,
@@ -476,7 +480,7 @@ function scoreLocally(
   attemptSeq: number,
 ): ActivityResult {
   const budget = attempt.activityType === 'jigsaw' ? JIGSAW_TIME_BUDGET_SECONDS : QUIZ_TIME_BUDGET_SECONDS;
-  const timeUsed = Math.max(0, Math.min(Math.round(attempt.timeUsed), budget));
+  const timeUsed = Math.max(MIN_ACTIVITY_TIME_SECONDS, Math.min(Math.round(attempt.timeUsed), budget));
   const passed = !attempt.timedOut && attempt.requiredCount > 0 && attempt.correctCount >= attempt.requiredCount;
 
   const fraction = timeUsed / budget;

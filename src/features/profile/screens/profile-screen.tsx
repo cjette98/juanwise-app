@@ -16,7 +16,7 @@ import { Text, TextInput } from '@/shared/components/ui/capped-text';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '@/features/auth/context/user-context';
-import { useStudentResults, totalsFor, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
+import { useStudentResults, totalsFor, CATEGORY_MAX_POINTS } from '@/features/results/context/student-results-context';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { errorMessage } from '@/shared/api';
 import { useRouter } from 'expo-router';
@@ -450,7 +450,7 @@ export default function ProfileScreen() {
                     <Caption>{categoryTotals.get(key) || 0} {t('ptsSuffix')}</Caption>
                   </View>
                   <ProgressBar
-                    value={(categoryTotals.get(key) || 0) / COMBINED_MAX_POINTS}
+                    value={(categoryTotals.get(key) || 0) / CATEGORY_MAX_POINTS}
                     color={categoryColor(key).base}
                   />
                 </View>
