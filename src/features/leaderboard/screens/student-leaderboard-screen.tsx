@@ -264,6 +264,7 @@ export default function StudentLeaderboardScreen() {
           {showLegend && (
             <Card style={styles.legendCard}>
               <BodyStrong style={styles.legendTitle}>{t('trophyGuideIntroNoFilter')}</BodyStrong>
+              <Caption style={styles.legendFoot}>{t('trophySameEverywhere')}</Caption>
               {TROPHY_TIERS.map((tier) => (
                 <View key={tier.trophy} style={styles.legendRow}>
                   <Caption style={styles.legendRowDetailStrong}>{t(TIER_NAME_KEY[tier.trophy])}</Caption>

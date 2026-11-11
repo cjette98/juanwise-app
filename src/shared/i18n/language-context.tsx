@@ -251,10 +251,10 @@ const en = {
   activitiesCompleted: 'activities completed',
   clearSuccessTitle: 'Done',
   clearFailTitle: 'Not Cleared',
-  trophyGuideIntro: 'How to earn a Trophy (Combined Quiz & Jigsaw, no filter)',
+  trophyGuideIntro: 'How to earn a Trophy (whole record: Quiz + Jigsaw)',
   legendPointsAndTime: '{points}+ pts · ≤ {time}',
   trophyMaxPossible:
-    'Max possible: {points} pts in {seconds} sec. Trophy only appears when "All" is the filter for Topic, Activity Type, and Level.',
+    "Max possible: {points} pts in {seconds} sec. A trophy always counts the student's whole record, whatever the filter.",
   trophyPaceTitle: 'Trophy = Pace (same basis)',
   legendBronzeOrNone: 'Bronze / None',
   starsExplain:
@@ -406,7 +406,8 @@ const en = {
   // --- Student leaderboard ---
   topRankLabel: 'Top',
   noTrophyLabel: 'no trophy',
-  trophyGuideIntroNoFilter: 'How to earn a Trophy (Combined Quiz & Jigsaw)',
+  trophyGuideIntroNoFilter: 'How to earn a Trophy (your whole record: Quiz + Jigsaw)',
+  trophySameEverywhere: 'Your trophy is the same on both tabs and on your Full Record. The tab only changes the ranking order.',
   starsExplainShort: 'Stars = average stars earned per activity',
   myRankLine: 'Your rank: #{rank}. Tap for your full record.',
   onlyOneWithResults: 'You are the only one with results so far!',
@@ -945,10 +946,10 @@ const tl: Record<TranslationKey, string> = {
   activitiesCompleted: 'kabuuang gawaing natapos',
   clearSuccessTitle: 'Tapos na',
   clearFailTitle: 'Hindi Nabura',
-  trophyGuideIntro: 'Paano makakuha ng Tropeo (Combined Quiz & Jigsaw, walang filter)',
+  trophyGuideIntro: 'Paano makakuha ng Tropeo (buong record: Quiz + Jigsaw)',
   legendPointsAndTime: '{points}+ puntos · ≤ {time}',
   trophyMaxPossible:
-    'Max posible: {points} puntos sa {seconds} sec. Ang Tropeo ay makikita lamang kapag "Lahat" ang filter sa Kategorya, Uri ng Gawain, at Level.',
+    'Max posible: {points} puntos sa {seconds} sec. Laging binibilang ng Tropeo ang buong record ng estudyante, anuman ang filter.',
   trophyPaceTitle: 'Tropeo = Pace (parehong batayan)',
   legendBronzeOrNone: 'Tanso / Wala',
   starsExplain:
@@ -1100,7 +1101,8 @@ const tl: Record<TranslationKey, string> = {
   // --- Student leaderboard ---
   topRankLabel: 'Nangunguna',
   noTrophyLabel: 'walang tropeo',
-  trophyGuideIntroNoFilter: 'Paano makakuha ng Tropeo (Combined Quiz & Jigsaw)',
+  trophyGuideIntroNoFilter: 'Paano makakuha ng Tropeo (buong record mo: Quiz + Jigsaw)',
+  trophySameEverywhere: 'Pareho ang tropeo mo sa dalawang tab at sa Kompletong Record. Ang tab ay nagbabago lang ng pagkakasunod ng ranggo.',
   starsExplainShort: 'Bituin = katamtamang bituin kada gawain',
   myRankLine: 'Ranggo mo: pang-{rank}. Tap para sa buong record.',
   onlyOneWithResults: 'Ikaw pa lang ang may resulta sa ngayon!',

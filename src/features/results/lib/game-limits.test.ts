@@ -28,11 +28,11 @@ describe('game limits', () => {
     ]);
   });
 
-  it('labels each tier with its time range', () => {
+  it('labels each tier with its time limit', () => {
     expect(TROPHY_TIERS.map((t) => t.timeLabel)).toEqual([
-      '≤ 2,400 sec (40 mins)',
-      '2,401–3,000 sec',
-      '3,001–3,600 sec',
+      '≤ 2,400 sec (40 min)',
+      '≤ 3,000 sec (50 min)',
+      '≤ 3,600 sec (60 min)',
     ]);
   });
 });

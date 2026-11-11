@@ -34,7 +34,8 @@ export function timeBudgetFor(activityType: 'quiz' | 'jigsaw'): number {
 export type Trophy = 'gold' | 'silver' | 'bronze' | null;
 
 // Time allowances are 2/3, 5/6 and all of COMBINED_MAX_TIME_SECONDS, as on the
-// backend. They were 3,600 / 4,500 / 5,400 when a jigsaw had 120 s.
+// backend. They were 3,600 / 4,500 / 5,400 when a jigsaw had 120 s. A tier
+// needs its points within its time, so each label is an upper bound, not a range.
 export const TROPHY_TIERS: {
   trophy: Exclude<Trophy, null>;
   label: string;
@@ -42,7 +43,7 @@ export const TROPHY_TIERS: {
   maxTimeSeconds: number;
   timeLabel: string;
 }[] = [
-  { trophy: 'gold', label: '🥇 Gold Trophy', minPoints: 450, maxTimeSeconds: 2400, timeLabel: '≤ 2,400 sec (40 mins)' },
-  { trophy: 'silver', label: '🥈 Silver Trophy', minPoints: 300, maxTimeSeconds: 3000, timeLabel: '2,401–3,000 sec' },
-  { trophy: 'bronze', label: '🥉 Bronze Trophy', minPoints: 150, maxTimeSeconds: 3600, timeLabel: '3,001–3,600 sec' },
+  { trophy: 'gold', label: '🥇 Gold Trophy', minPoints: 450, maxTimeSeconds: 2400, timeLabel: '≤ 2,400 sec (40 min)' },
+  { trophy: 'silver', label: '🥈 Silver Trophy', minPoints: 300, maxTimeSeconds: 3000, timeLabel: '≤ 3,000 sec (50 min)' },
+  { trophy: 'bronze', label: '🥉 Bronze Trophy', minPoints: 150, maxTimeSeconds: 3600, timeLabel: '≤ 3,600 sec (60 min)' },
 ];
