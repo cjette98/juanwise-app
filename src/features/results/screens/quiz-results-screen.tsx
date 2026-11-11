@@ -24,13 +24,15 @@ export default function QuizResultsScreen() {
     [results, uid]
   );
 
-  const { totalPoints } = totalsFor(quizResults);
+  // The list shows every attempt, retries included; the header counts what
+  // the leaderboard counts, one passed activity each (Correction 1, F1).
+  const { totalPoints, completed } = totalsFor(quizResults);
 
   return (
     <Screen>
       <ScreenHeader
         title={t('quizResultsTitle')}
-        subtitle={t('quizResultsSubtitle', { count: quizResults.length, points: totalPoints })}
+        subtitle={t('quizResultsSubtitle', { count: completed, points: totalPoints })}
         color={tokens.color.navQuiz}
         onBack={() => router.back()}
       />

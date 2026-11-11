@@ -144,7 +144,8 @@ export default function ProfileScreen() {
     () => (isTeacher ? [] : results.filter((r) => r.uid === uid)),
     [results, uid, isTeacher]
   );
-  const totalPoints = totalsFor(myResults).totalPoints;
+  // Passed activities, as the leaderboard and Full Record count them (Correction 1, F1).
+  const { totalPoints, completed } = totalsFor(myResults);
   const lastResult = useMemo(
     () => [...myResults].sort((a, b) => b.timestamp - a.timestamp)[0] || null,
     [myResults]
@@ -421,7 +422,7 @@ export default function ProfileScreen() {
             </Card>
             <Card style={styles.statCard}>
               <Icon name="check" size={20} color={tokens.color.success} />
-              <H3 style={styles.statValue}>{myResults.length}</H3>
+              <H3 style={styles.statValue}>{completed}</H3>
               <Label style={styles.statLabel} numberOfLines={1}>{t('completed')}</Label>
             </Card>
             <Card style={styles.statCard}>
