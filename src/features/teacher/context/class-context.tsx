@@ -68,6 +68,8 @@ type ClassContextType = {
   generateCode: () => Promise<ActionResult & { code?: string }>;
   setCustomCode: (code: string) => Promise<ActionResult>;
   joinClass: (code: string) => Promise<ActionResult>;
+  /** The student leaves their class and plays as a guest (Correction 1, N3). */
+  leaveClass: () => Promise<ActionResult>;
   removeStudent: (uid: string) => Promise<ActionResult>;
 };
 
@@ -233,6 +235,22 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
     [refreshProfile, t],
   );
 
+  const leaveClass: ClassContextType['leaveClass'] = useCallback(async () => {
+    try {
+      await classesApi.leave();
+      if (mounted.current) {
+        setCurrentClass(null);
+        writeCache(CLASS_CACHE_KEY, null);
+      }
+      // The student's `classId` is cleared, so results and leaderboards switch
+      // to the guest scope.
+      await refreshProfile();
+      return { success: true, message: t('leftClassMsg') };
+    } catch (err) {
+      return { success: false, message: errorMessage(err, t('leaveClassFailedMsg')) };
+    }
+  }, [refreshProfile, t]);
+
   const removeStudent: ClassContextType['removeStudent'] = useCallback(
     async (uid) => {
       if (!currentClass) return { success: false, message: t('noClassYetMsg') };
@@ -266,9 +284,10 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
       generateCode,
       setCustomCode,
       joinClass,
+      leaveClass,
       removeStudent,
     }),
-    [ready, currentClass, students, error, refresh, generateCode, setCustomCode, joinClass, removeStudent],
+    [ready, currentClass, students, error, refresh, generateCode, setCustomCode, joinClass, leaveClass, removeStudent],
   );
 
   return <ClassContext.Provider value={value}>{children}</ClassContext.Provider>;

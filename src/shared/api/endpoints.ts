@@ -153,6 +153,11 @@ export const classesApi = {
     return request('/classes/join', { method: 'POST', body: { code } });
   },
 
+  /** The student leaves the class they joined (Correction 1, N3). */
+  leave(): Promise<void> {
+    return request('/classes/leave', { method: 'POST' });
+  },
+
   members(
     id: string,
     query: { includeRemoved?: boolean; limit?: number; cursor?: string } = {},

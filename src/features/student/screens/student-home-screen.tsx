@@ -7,7 +7,7 @@ import { useLanguage } from '@/shared/i18n/language-context';
 import { useClass } from '@/features/teacher/context/class-context';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useRouter } from 'expo-router';
-import { Screen, ScreenHeader, Card, Button, Pill, Icon, BottomNav, H3 } from '@/shared/components/ui';
+import { Screen, ScreenHeader, Card, Button, Pill, Icon, BottomNav, H3, Body } from '@/shared/components/ui';
 import { tokens } from '@/shared/theme/tokens';
 import { typeScale } from '@/shared/theme/typography';
 
@@ -18,12 +18,16 @@ export default function StudentHome() {
   const { name, avatar, photoUri, uid, classId, grade, section } = useUser();
   const { results } = useStudentResults();
   const { t } = useLanguage();
-  const { joinClass } = useClass();
+  const { joinClass, leaveClass, currentClass } = useClass();
   const { unlockedLevel } = useGameProgress();
 
   const [codeModalVisible, setCodeModalVisible] = useState(false);
   const [codeInput, setCodeInput] = useState('');
   const [joining, setJoining] = useState(false);
+  // An in-app confirmation rather than Alert.alert, whose buttons do nothing on web.
+  const [leaveModalVisible, setLeaveModalVisible] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const myResults = useMemo(() => results.filter((r) => r.uid === uid), [results, uid]);
   const points = totalsFor(myResults).totalPoints;
@@ -64,6 +68,22 @@ export default function StudentHome() {
     }
   };
 
+  const handleLeave = async () => {
+    if (leaving) return;
+    setLeaving(true);
+    setLeaveError(null);
+    try {
+      const result = await leaveClass();
+      if (!result.success) {
+        setLeaveError(result.message);
+        return;
+      }
+      setLeaveModalVisible(false);
+    } finally {
+      setLeaving(false);
+    }
+  };
+
   // Same "Grade: X — Y" convention as class-overview-screen.tsx; no dedicated
   // greeting copy exists in the language file, so the header's title carries
   // the student's name and this class line sits as its subtitle.
@@ -98,7 +118,21 @@ export default function StudentHome() {
           <View style={styles.headerControls}>
             <Pill label={`${points} ${t('points')}`} icon="star" tone="gold" />
             {isJoined ? (
-              <Pill label={t('enrolledStatus')} icon="check" tone="success" />
+              <>
+                <Pill label={t('enrolledStatus')} icon="check" tone="success" />
+                <TouchableOpacity
+                  style={styles.joinTarget}
+                  onPress={() => {
+                    setLeaveError(null);
+                    setLeaveModalVisible(true);
+                  }}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('leaveClassBtn')}
+                >
+                  <Pill label={t('leaveClassBtn')} icon="close" tone="translucent" />
+                </TouchableOpacity>
+              </>
             ) : (
               <TouchableOpacity style={styles.joinTarget} onPress={() => setCodeModalVisible(true)} activeOpacity={0.85}>
                 <Pill label={t('enterCode')} icon="key" tone="translucent" />
@@ -190,6 +224,36 @@ export default function StudentHome() {
           </Card>
         </View>
       </Modal>
+
+      <Modal visible={leaveModalVisible} transparent animationType="fade" onRequestClose={() => setLeaveModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBackdrop} />
+          <Card style={styles.modalCard}>
+            <H3 style={styles.modalTitle}>
+              {t('leaveClassTitle', { className: currentClass?.name || t('classCodeLabel') })}
+            </H3>
+            <Body style={styles.modalText}>{t('leaveClassMsg')}</Body>
+            {leaveError && <Body style={styles.modalError}>{leaveError}</Body>}
+            <View style={styles.modalBtnRow}>
+              <Button
+                label={t('leaveClassConfirm')}
+                onPress={handleLeave}
+                busy={leaving}
+                color={tokens.color.red}
+                shadowColor={tokens.color.dangerInk}
+                style={styles.modalBtn}
+              />
+              <Button
+                label={t('cancelCode')}
+                onPress={() => setLeaveModalVisible(false)}
+                variant="secondary"
+                disabled={leaving}
+                style={styles.modalBtn}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -241,7 +305,9 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   modalCard: { width: '85%', alignItems: 'center', gap: tokens.space.md },
-  modalTitle: { color: tokens.color.primary },
+  modalTitle: { color: tokens.color.primary, textAlign: 'center' },
+  modalText: { textAlign: 'center' },
+  modalError: { textAlign: 'center', color: tokens.color.dangerInk },
   modalInput: {
     borderWidth: 2,
     borderColor: tokens.color.primary,

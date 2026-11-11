@@ -98,6 +98,13 @@ const en = {
   gmailShort: 'Gmail',
   enterCode: 'Enter Class Code',
   enrolledStatus: 'Enrolled ✓',
+  leaveClassBtn: 'Leave class',
+  leaveClassTitle: 'Leave {className}?',
+  leaveClassMsg:
+    "You will leave your teacher's class list and play as a guest. Your past results stay with the class. To come back you need the class code again.",
+  leaveClassConfirm: 'Leave',
+  leftClassMsg: 'You left the class.',
+  leaveClassFailedMsg: 'Could not leave the class. Check your connection and try again.',
 
   gameTypeQuiz: 'Quiz',
   gameTypeJigsaw: 'Jigsaw Puzzle',
@@ -801,6 +808,13 @@ const tl: Record<TranslationKey, string> = {
   gmailShort: 'Gmail',
   enterCode: 'Ilagay ang Class Code',
   enrolledStatus: 'Naka-enroll na ✓',
+  leaveClassBtn: 'Umalis sa klase',
+  leaveClassTitle: 'Umalis sa {className}?',
+  leaveClassMsg:
+    'Aalis ka sa listahan ng klase ng guro mo at maglalaro bilang guest. Mananatili sa klase ang mga dati mong resulta. Para bumalik, kailangan mo ulit ang class code.',
+  leaveClassConfirm: 'Umalis',
+  leftClassMsg: 'Umalis ka na sa klase.',
+  leaveClassFailedMsg: 'Hindi ka nakaalis sa klase. Tingnan ang koneksyon at subukan ulit.',
 
   gameTypeQuiz: 'Quiz',
   gameTypeJigsaw: 'Jigsaw Puzzle',
