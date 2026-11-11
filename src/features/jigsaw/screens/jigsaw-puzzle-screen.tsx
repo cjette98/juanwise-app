@@ -8,7 +8,7 @@ import Svg, { Path, Image as SvgImage, ClipPath, Defs, G } from 'react-native-sv
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
-import { levelScore, starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
+import { isPass, levelScore, starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { JIGSAW_TIME_BUDGET_SECONDS } from '@/features/results/lib/game-limits';
 import { useUser } from '@/features/auth/context/user-context';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
@@ -237,7 +237,8 @@ export default function JigsawPuzzleScreen() {
         stars: starsForMedal(recorded.medal),
       });
 
-      if (recorded.medal) {
+      // A pass can be worth 0 points and no medal after failed tries (F4).
+      if (isPass(recorded)) {
         recordOutcome(category, 'jigsaw', level, activityNum, true, recorded.attemptSeq, { queued });
         setTimeout(() => setPhase('success'), 250);
       } else {

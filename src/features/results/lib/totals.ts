@@ -29,6 +29,8 @@ export interface ScoredAttempt {
   timedOut: boolean;
   attemptSeq: number;
   timestamp: number;
+  correctCount?: number;
+  requiredCount?: number;
 }
 
 export interface Totals {
@@ -43,9 +45,20 @@ export interface Totals {
   avgTimeSec: number | null;
 }
 
-/** A pass is any attempt that earned points; a fail or timeout earns 0. */
-export function isPass(entry: { points: number }): boolean {
-  return entry.points > 0;
+/**
+ * A pass is every answer right before the timer ran out, as on the server.
+ * Under the reference sheet's scoring a pass can be worth 0 points (a second
+ * try in 41-60 s), so points no longer tell a pass from a failure. A row
+ * without the counts falls back to the old reading, where every pass scored.
+ */
+export function isPass(entry: {
+  points: number;
+  timedOut: boolean;
+  correctCount?: number;
+  requiredCount?: number;
+}): boolean {
+  if (!entry.requiredCount) return entry.points > 0;
+  return !entry.timedOut && (entry.correctCount ?? 0) >= entry.requiredCount;
 }
 
 function slotKey(e: ScoredAttempt): string {

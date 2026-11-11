@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { useStudentResults, ActivityResult } from '@/features/results/context/student-results-context';
+import { useStudentResults, ActivityResult, isPass } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum, toBool } from '@/shared/lib/params';
@@ -106,14 +106,14 @@ export default function LevelSummaryScreen() {
     return [1, 2, 3, 4, 5, 6].map((num) => {
       const forActivity = attempts.filter((a) => a.activityNum === num);
       const firstAttempt = forActivity[0] || null;
-      // The attempt that actually unlocked this activity (medal set = pass).
-      const passingAttempt = [...forActivity].reverse().find((a) => a.medal) || null;
+      // The attempt that actually unlocked this activity.
+      const passingAttempt = [...forActivity].reverse().find(isPass) || null;
       return {
         num,
         firstAttempt,
         passingAttempt,
         exhausted: !passingAttempt && forActivity.length >= MAX_ATTEMPTS,
-        firstAttemptCorrect: !!firstAttempt?.medal,
+        firstAttemptCorrect: !!firstAttempt && isPass(firstAttempt),
       };
     });
   }, [attempts]);

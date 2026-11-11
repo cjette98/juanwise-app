@@ -4,16 +4,30 @@
  * ends. The server stays the authority; `refresh()` reconciles afterwards.
  */
 export const MAX_ATTEMPTS = 3;
-export const ATTEMPT_POINT_SHARES = [1, 0.7, 0.4] as const;
 
-const POINTS_PER_ACTIVITY = 15;
 const ACTIVITIES_PER_LEVEL = 6;
 const MAX_LEVEL = 5;
 
-/** 15 / 10 / 6 for attempts 1-3; anything outside that range pays nothing. */
-export function pointsForAttempt(attemptSeq: number): number {
-  if (!Number.isInteger(attemptSeq) || attemptSeq < 1 || attemptSeq > MAX_ATTEMPTS) return 0;
-  return Math.floor(POINTS_PER_ACTIVITY * ATTEMPT_POINT_SHARES[attemptSeq - 1]);
+/**
+ * The client's reference sheet (Correction 1, F4), as juanwise-be
+ * `results/scoring.ts` scores it: base points and time stars by finish time,
+ * less 5 after one failed try and 15 after two, never below 0. Stars are the
+ * lower of the time stars and the points stars.
+ */
+export const TIME_WINDOWS = [
+  { maxSec: 20, points: 15, stars: 3 },
+  { maxSec: 40, points: 10, stars: 2 },
+  { maxSec: 60, points: 5, stars: 1 },
+] as const;
+export const FAILED_TRY_PENALTIES = [5, 10, 10] as const;
+
+/** Points and stars for a pass that took `timeUsed` seconds on try `attemptSeq`. */
+export function scorePass(timeUsed: number, attemptSeq: number): { points: number; stars: 0 | 1 | 2 | 3 } {
+  const window = TIME_WINDOWS.find((w) => timeUsed <= w.maxSec) ?? TIME_WINDOWS[TIME_WINDOWS.length - 1];
+  const penalty = FAILED_TRY_PENALTIES.slice(0, Math.max(0, attemptSeq - 1)).reduce((sum, p) => sum + p, 0);
+  const points = Math.max(0, window.points - penalty);
+  const pointStars = points >= 15 ? 3 : points >= 10 ? 2 : points >= 5 ? 1 : 0;
+  return { points, stars: Math.min(window.stars, pointStars) as 0 | 1 | 2 | 3 };
 }
 
 export type SlotStatus = 'open' | 'passed' | 'exhausted';

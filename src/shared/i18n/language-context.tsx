@@ -269,7 +269,7 @@ const en = {
   trophyPaceTitle: 'Trophy = Pace (same basis)',
   legendBronzeOrNone: 'Bronze / None',
   starsExplain:
-    'Stars = average stars earned per activity (3 stars = fastest/correct, 1 star = passed only, 0 stars = wrong/timeout).',
+    'Stars = average stars per activity. A pass in 20 s or less earns 15 points and 3 stars, in 40 s 10 points and 2 stars, in 60 s 5 points and 1 star. Each failed try first takes points off (5 after one, 15 after two), and stars never beat the points.',
   sortFastest: 'Top Performers',
   sortHighestPoints: 'Highest Points',
   loadingResults: 'Loading...',
@@ -712,6 +712,10 @@ const en = {
 
   // --- Performance progression extras ---
   performanceSubtitle: 'Compares the earliest answers against the most recent ones to show who is improving.',
+  perfGroupClass: 'In this class ({n})',
+  perfGroupGuests: 'Guests ({n})',
+  perfGuestsHint: 'Students who left or were removed from this class and now play as guests. Their results from this class are kept here.',
+  noGuestsPerf: 'No guests have results in this class.',
   levelChipShort: 'Lvl {n}',
   noAttemptsInCategory: 'No activities answered yet in {category}.',
   noAttemptsAtAll: 'No activities answered yet.',
@@ -1005,7 +1009,7 @@ const tl: Record<TranslationKey, string> = {
   trophyPaceTitle: 'Tropeo = Pace (parehong batayan)',
   legendBronzeOrNone: 'Tanso / Wala',
   starsExplain:
-    'Bituin = katamtamang bituin kada gawain (3 bituin pinakamabilis/tama, 1 bituin pumasa lang, 0 bituin mali/naubusan ng oras).',
+    'Bituin = katamtamang bituin kada gawain. Pumasa sa 20 s o mas mabilis: 15 puntos at 3 bituin; sa 40 s: 10 puntos at 2 bituin; sa 60 s: 5 puntos at 1 bituin. Bawat bigong subok ay nagbabawas muna ng puntos (5 pagkatapos ng isa, 15 pagkatapos ng dalawa), at hindi lalampas ang bituin sa puntos.',
   sortFastest: 'Nangungunang Estudyante',
   sortHighestPoints: 'Pinakamataas na Puntos',
   loadingResults: 'Naglo-load...',
@@ -1448,6 +1452,10 @@ const tl: Record<TranslationKey, string> = {
 
   // --- Performance progression extras ---
   performanceSubtitle: 'Hinahambing ang unang mga sagot laban sa pinakabagong mga sagot para makita kung sino ang umuunlad.',
+  perfGroupClass: 'Nasa klase ({n})',
+  perfGroupGuests: 'Guest ({n})',
+  perfGuestsHint: 'Mga estudyanteng umalis o tinanggal sa klaseng ito at naglalaro na bilang guest. Nananatili rito ang mga resulta nila mula sa klaseng ito.',
+  noGuestsPerf: 'Walang guest na may resulta sa klaseng ito.',
   levelChipShort: 'Lvl {n}',
   noAttemptsInCategory: 'Wala pang sinagutang gawain sa {category}.',
   noAttemptsAtAll: 'Wala pang sinagutang gawain.',
