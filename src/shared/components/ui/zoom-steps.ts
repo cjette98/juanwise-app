@@ -1,21 +1,29 @@
-/** 1x fills the screen; each tap steps up, and the third tap comes back. */
-export const ZOOM_STEPS = [1, 2, 3] as const;
+// Pure on purpose (no React), so it can be unit-tested. Each function is also a
+// worklet: the viewer calls them from gesture callbacks on the UI thread.
 
-export function nextZoomIndex(index: number): number {
-  return (index + 1) % ZOOM_STEPS.length;
+/** 1x fits the picture to the frame; a pinch can take it to 4x. */
+export const MIN_ZOOM = 1;
+export const MAX_ZOOM = 4;
+/** Where a double-tap on an unzoomed picture lands. */
+export const DOUBLE_TAP_ZOOM = 2.5;
+
+export function clampZoom(scale: number): number {
+  'worklet';
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale));
+}
+
+/** The + and − buttons move one whole step, stopping at either end. */
+export function stepZoom(scale: number, direction: 1 | -1): number {
+  'worklet';
+  return clampZoom(Math.round(scale) + direction);
 }
 
 /**
- * Where to scroll so the zoomed canvas opens on its middle. The canvas is the
- * screen's size times the zoom and the picture is centred in it, so the
- * middle of the canvas is the middle of the picture.
+ * How far a picture zoomed about its centre may be dragged along one axis
+ * before its edge comes inside the frame's edge. At 1x it cannot move.
  */
-export function centredScrollOffset(
-  screen: { width: number; height: number },
-  zoom: number,
-): { x: number; y: number } {
-  return {
-    x: (screen.width * zoom - screen.width) / 2,
-    y: (screen.height * zoom - screen.height) / 2,
-  };
+export function clampPan(offset: number, scale: number, frameSize: number): number {
+  'worklet';
+  const max = Math.max(0, (frameSize * (scale - 1)) / 2);
+  return Math.min(max, Math.max(-max, offset));
 }

@@ -29,6 +29,8 @@ import {
   filterGradeInput,
   filterNameInput,
   filterSectionInput,
+  identityChanges,
+  identityError,
   isFullName,
   isGradeLevel,
   isSection,
@@ -81,12 +83,13 @@ type FieldDef = {
   draft: string;
   onChangeText: (v: string) => void;
   keyboardType?: 'default' | 'numeric' | 'email-address';
+  maxLength?: number;
   /**
-   * Identity, not a preference. `PATCH /users/me` refuses role, username,
-   * email, LRN and teacher ID — changing them would desynchronise the username
-   * reservation and the Firebase Auth record — so they render read-only.
+   * Username, email, LRN or teacher ID. Editable since Correction 1 (F9), but
+   * saved through `PATCH /users/me/identity` and confirmed with the current
+   * password, so the row says so while editing.
    */
-  readOnly?: boolean;
+  identity?: boolean;
 };
 
 export default function ProfileScreen() {
@@ -107,6 +110,7 @@ export default function ProfileScreen() {
     teacherId,
     depedGmail,
     updateProfile,
+    updateIdentity,
     uploadPhoto,
     requestPasswordReset,
     logout,
@@ -124,6 +128,11 @@ export default function ProfileScreen() {
   const [draftAge, setDraftAge] = useState(age);
   const [draftGrade, setDraftGrade] = useState(grade);
   const [draftSection, setDraftSection] = useState(section);
+  const [draftUsername, setDraftUsername] = useState(username);
+  const [draftEmail, setDraftEmail] = useState(email);
+  const [draftLrn, setDraftLrn] = useState(lrn);
+  const [draftTeacherId, setDraftTeacherId] = useState(teacherId);
+  const [currentPassword, setCurrentPassword] = useState('');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -160,6 +169,11 @@ export default function ProfileScreen() {
     setDraftAge(age);
     setDraftGrade(grade);
     setDraftSection(section);
+    setDraftUsername(username);
+    setDraftEmail(isTeacher ? depedGmail || email : email);
+    setDraftLrn(lrn);
+    setDraftTeacherId(teacherId);
+    setCurrentPassword('');
     expand();
     setEditing(true);
   };
@@ -169,8 +183,19 @@ export default function ProfileScreen() {
     setEditing(false);
   };
 
-  // PATCH /users/me. Only the editable half is sent — identity fields are
-  // fixed at registration and the API rejects them.
+  // What the user changed among username, email, LRN and teacher ID; a
+  // non-empty result asks for the current password before Save.
+  const pendingIdentity = identityChanges(
+    { username, email: isTeacher ? depedGmail || email : email, lrn, teacherId },
+    { username: draftUsername, email: draftEmail, lrn: draftLrn, teacherId: draftTeacherId },
+    isTeacher,
+  );
+  const identityChanged = Object.keys(pendingIdentity).length > 0;
+
+  // PATCH /users/me/identity for username, email, LRN and teacher ID, then
+  // PATCH /users/me for the rest. Identity goes first: it is the one that can
+  // be refused (a wrong password, a username someone holds), and nothing else
+  // is saved if it is.
   const saveProfile = async () => {
     const requiredValues = isTeacher
       ? [draftName, draftGrade, draftSection]
@@ -192,9 +217,19 @@ export default function ProfileScreen() {
       Alert.alert(t('requiredFieldTitle'), t('invalidSectionMsg'));
       return;
     }
+    const identityProblem = identityError(pendingIdentity, isTeacher);
+    if (identityProblem) {
+      Alert.alert(t('requiredFieldTitle'), t(identityProblem));
+      return;
+    }
+    if (identityChanged && !currentPassword) {
+      Alert.alert(t('requiredFieldTitle'), t('currentPasswordRequiredMsg'));
+      return;
+    }
 
     setSaving(true);
     try {
+      if (identityChanged) await updateIdentity({ currentPassword, ...pendingIdentity });
       await updateProfile({
         name: draftName.trim(),
         grade: draftGrade.trim(),
@@ -203,7 +238,11 @@ export default function ProfileScreen() {
       });
       expand();
       setEditing(false);
-      Alert.alert(t('profileUpdatedTitle'), t('profileUpdatedMsg'));
+      setCurrentPassword('');
+      Alert.alert(
+        t('profileUpdatedTitle'),
+        pendingIdentity.username ? t('usernameChangedMsg', { username: pendingIdentity.username }) : t('profileUpdatedMsg'),
+      );
     } catch (err) {
       Alert.alert(t('requiredFieldTitle'), errorMessage(err));
     } finally {
@@ -302,12 +341,10 @@ export default function ProfileScreen() {
 
   const handleAvatarPress = () => setAvatarModalVisible(true);
 
-  const noop = () => {};
-
   const fields: FieldDef[] = isTeacher
     ? [
         { key: 'fullName', label: t('fullName'), icon: 'user', value: name, draft: draftName, onChangeText: (text: string) => setDraftName(filterNameInput(text)) },
-        { key: 'teacherId', label: t('teacherId'), icon: 'bookmark', value: teacherId, draft: teacherId, onChangeText: noop, readOnly: true },
+        { key: 'teacherId', label: t('teacherId'), icon: 'bookmark', value: teacherId, draft: draftTeacherId, onChangeText: (text: string) => setDraftTeacherId(text.replace(/\D/g, '')), keyboardType: 'numeric', maxLength: 7, identity: true },
         {
           key: 'gradeSection',
           label: t('gradeSectionLabel'),
@@ -318,12 +355,12 @@ export default function ProfileScreen() {
         },
         // `email` is the same column server-side — falling back to it keeps the
         // row populated for any staff role, not just `teacher`.
-        { key: 'depedGmail', label: t('depedGmail'), icon: 'flag', value: depedGmail || email, draft: depedGmail || email, onChangeText: noop, keyboardType: 'email-address', readOnly: true },
-        { key: 'username', label: t('username'), icon: 'user', value: username, draft: username, onChangeText: noop, readOnly: true },
+        { key: 'depedGmail', label: t('depedGmail'), icon: 'flag', value: depedGmail || email, draft: draftEmail, onChangeText: setDraftEmail, keyboardType: 'email-address', identity: true },
+        { key: 'username', label: t('username'), icon: 'user', value: username, draft: draftUsername, onChangeText: setDraftUsername, maxLength: 30, identity: true },
       ]
     : [
         { key: 'fullName', label: t('fullName'), icon: 'user', value: name, draft: draftName, onChangeText: (text: string) => setDraftName(filterNameInput(text)) },
-        { key: 'lrn', label: t('lrn'), icon: 'bookmark', value: lrn, draft: lrn, onChangeText: noop, keyboardType: 'numeric', readOnly: true },
+        { key: 'lrn', label: t('lrn'), icon: 'bookmark', value: lrn, draft: draftLrn, onChangeText: (text: string) => setDraftLrn(text.replace(/\D/g, '')), keyboardType: 'numeric', maxLength: 12, identity: true },
         { key: 'age', label: t('age'), icon: 'clock', value: age, draft: draftAge, onChangeText: setDraftAge, keyboardType: 'numeric' },
         {
           key: 'gradeSection',
@@ -333,8 +370,8 @@ export default function ProfileScreen() {
           draft: draftGrade,
           onChangeText: setDraftGrade,
         },
-        { key: 'email', label: t('email'), icon: 'flag', value: email, draft: email, onChangeText: noop, keyboardType: 'email-address', readOnly: true },
-        { key: 'username', label: t('username'), icon: 'user', value: username, draft: username, onChangeText: noop, readOnly: true },
+        { key: 'email', label: t('email'), icon: 'flag', value: email, draft: draftEmail, onChangeText: setDraftEmail, keyboardType: 'email-address', identity: true },
+        { key: 'username', label: t('username'), icon: 'user', value: username, draft: draftUsername, onChangeText: setDraftUsername, maxLength: 30, identity: true },
       ];
 
   const settingsItems: { key: string; label: string; icon: IconName; color: string; onPress: () => void }[] = [
@@ -435,16 +472,8 @@ export default function ProfileScreen() {
                 <View style={styles.cardBody}>
                   <Label style={styles.cardLabel}>{f.label}</Label>
 
-                  {!editing || f.readOnly ? (
-                    <>
-                      <BodyStrong numberOfLines={1}>{f.value || '—'}</BodyStrong>
-                      {editing && f.readOnly && (
-                        <View style={styles.lockedHint}>
-                          <Icon name="lock" size={11} color={tokens.color.inkFaint} />
-                          <Caption style={styles.lockedHintText}>{t('fieldLockedHint')}</Caption>
-                        </View>
-                      )}
-                    </>
+                  {!editing ? (
+                    <BodyStrong numberOfLines={1}>{f.value || '—'}</BodyStrong>
                   ) : isGradeSection ? (
                     <View style={styles.inlineRow}>
                       <TextInput
@@ -466,21 +495,49 @@ export default function ProfileScreen() {
                       />
                     </View>
                   ) : (
-                    <TextInput
-                      style={styles.cardInput}
-                      value={f.draft}
-                      onChangeText={f.onChangeText}
-                      keyboardType={f.keyboardType || 'default'}
-                      maxLength={f.key === 'fullName' ? MAX_FULL_NAME : undefined}
-                      placeholder={f.label}
-                      placeholderTextColor={tokens.color.inkFaint}
-                    />
+                    <>
+                      <TextInput
+                        style={styles.cardInput}
+                        value={f.draft}
+                        onChangeText={f.onChangeText}
+                        keyboardType={f.keyboardType || 'default'}
+                        autoCapitalize={f.identity ? 'none' : 'sentences'}
+                        autoCorrect={!f.identity}
+                        maxLength={f.key === 'fullName' ? MAX_FULL_NAME : f.maxLength}
+                        placeholder={f.label}
+                        placeholderTextColor={tokens.color.inkFaint}
+                      />
+                      {f.identity && (
+                        <View style={styles.lockedHint}>
+                          <Icon name="lock" size={11} color={tokens.color.inkFaint} />
+                          <Caption style={styles.lockedHintText}>{t('identityFieldHint')}</Caption>
+                        </View>
+                      )}
+                    </>
                   )}
                 </View>
               </View>
             );
           })}
         </Card>
+
+        {editing && identityChanged && (
+          <Card style={styles.passwordCard}>
+            <Label style={styles.cardLabel}>{t('currentPasswordLabel')}</Label>
+            <TextInput
+              style={styles.cardInput}
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder={t('currentPasswordLabel')}
+              placeholderTextColor={tokens.color.inkFaint}
+              accessibilityLabel={t('currentPasswordLabel')}
+            />
+            <Caption>{t('currentPasswordHint')}</Caption>
+          </Card>
+        )}
 
         {editing && (
           <View style={styles.editActionsRow}>
@@ -628,6 +685,7 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1 },
   cardLabel: { marginBottom: 2 },
   lockedHint: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  passwordCard: { gap: tokens.space.xs },
   lockedHintText: { fontStyle: 'italic' },
   cardInput: {
     fontFamily: tokens.font.bodyBold,

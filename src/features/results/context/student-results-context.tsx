@@ -19,7 +19,7 @@ import { nextAttemptSeq, pointsForAttempt } from '@/features/learning/lib/attemp
 import { useLanguage } from '@/shared/i18n/language-context';
 import { canonicalAttempts, inActiveClass } from '../lib/totals';
 
-export { isPass, levelScore, totalsFor, type LevelScore, type Totals } from '../lib/totals';
+export { activitySlots, isPass, levelScore, totalsFor, type LevelScore, type Totals } from '../lib/totals';
 
 import {
   ACTIVITIES_PER_LEVEL,

@@ -116,3 +116,20 @@ export function levelScore(
   const { totalPoints, completed } = totalsFor(inLevel);
   return { points: totalPoints, maxPoints: POINTS_PER_LEVEL, done: completed, of: ACTIVITIES_PER_LEVEL };
 }
+
+/**
+ * The attempt that counts for each activity 1-6 of one level, by the same
+ * canonical rule as the totals; null where the activity was never played.
+ * Drives the per-activity strip on the Full Record (Correction 1, F5).
+ */
+export function activitySlots<T extends ScoredAttempt>(
+  entries: T[],
+  slot: { category: string; activityType: 'quiz' | 'jigsaw'; level: number },
+): (T | null)[] {
+  const inLevel = canonicalAttempts(
+    entries.filter(
+      (e) => e.category === slot.category && e.activityType === slot.activityType && e.level === slot.level,
+    ),
+  );
+  return Array.from({ length: ACTIVITIES_PER_LEVEL }, (_, i) => inLevel.find((e) => e.activityNum === i + 1) ?? null);
+}

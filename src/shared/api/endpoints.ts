@@ -32,6 +32,7 @@ import type {
   RegisterRequest,
   SubmitResultRequest,
   UpdateCategoryRequest,
+  UpdateIdentityRequest,
   UpdateProfileRequest,
   UploadUrlRequest,
   UploadUrlResponse,
@@ -111,6 +112,11 @@ export const usersApi = {
     return request('/users/me', { method: 'PATCH', body: patch });
   },
 
+  /** Username, email, LRN or teacher ID; the API checks the current password. */
+  updateIdentity(patch: UpdateIdentityRequest): Promise<ApiUserProfile> {
+    return request('/users/me/identity', { method: 'PATCH', body: patch });
+  },
+
   /** Teachers may read student profiles; admins may read any. */
   get(uid: string): Promise<ApiUserProfile> {
     return request(`/users/${encodeURIComponent(uid)}`);
@@ -145,6 +151,11 @@ export const classesApi = {
   /** Resolved against Firestore, so a student can join from any device. */
   join(code: string): Promise<JoinClassResponse> {
     return request('/classes/join', { method: 'POST', body: { code } });
+  },
+
+  /** The student leaves the class they joined (Correction 1, N3). */
+  leave(): Promise<void> {
+    return request('/classes/leave', { method: 'POST' });
   },
 
   members(

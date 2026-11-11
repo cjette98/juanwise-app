@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalAttempts, inActiveClass, isPass, levelScore, totalsFor, type ScoredAttempt } from './totals';
+import { activitySlots, canonicalAttempts, inActiveClass, isPass, levelScore, totalsFor, type ScoredAttempt } from './totals';
 
 /**
  * The app's totals must equal the server's (juanwise-be results/scoring.ts):
@@ -115,5 +115,21 @@ describe('levelScore', () => {
       { uid: 'u1', category: 'history', activityType: 'quiz', level: 1 },
     );
     expect(score).toEqual({ points: 25, maxPoints: 90, done: 2, of: 6 });
+  });
+});
+
+describe('activitySlots', () => {
+  it('gives the counting attempt for activities 1-6, null where unplayed', () => {
+    const slots = activitySlots(
+      [
+        fail({ activityNum: 1, timestamp: 1 }),
+        attempt({ activityNum: 1, points: 10, attemptSeq: 2, timestamp: 2 }),
+        fail({ activityNum: 3 }),
+        attempt({ activityNum: 2, level: 2, points: 15 }),
+        attempt({ activityNum: 2, activityType: 'jigsaw', points: 15 }),
+      ],
+      { category: 'history', activityType: 'quiz', level: 1 },
+    );
+    expect(slots.map((s) => (s ? s.points : null))).toEqual([10, null, 0, null, null, null]);
   });
 });

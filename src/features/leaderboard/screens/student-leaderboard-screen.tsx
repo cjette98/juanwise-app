@@ -209,7 +209,7 @@ export default function StudentLeaderboardScreen() {
   const peekSummary = peekUid ? rows.find((s) => s.uid === peekUid) || null : null;
 
   const openSummary = (row: BoardRow) =>
-    router.navigate({ pathname: '/student-summary', params: { studentName: row.studentName, uid: row.uid } });
+    router.navigate({ pathname: '/student-summary', params: { studentName: row.studentName, uid: row.uid, board: gameType } });
 
   const handleRowPress = (row: BoardRow) => {
     if (row.uid === uid) openSummary(row);
@@ -264,6 +264,7 @@ export default function StudentLeaderboardScreen() {
           {showLegend && (
             <Card style={styles.legendCard}>
               <BodyStrong style={styles.legendTitle}>{t('trophyGuideIntroNoFilter')}</BodyStrong>
+              <Caption style={styles.legendFoot}>{t('trophySameEverywhere')}</Caption>
               {TROPHY_TIERS.map((tier) => (
                 <View key={tier.trophy} style={styles.legendRow}>
                   <Caption style={styles.legendRowDetailStrong}>{t(TIER_NAME_KEY[tier.trophy])}</Caption>

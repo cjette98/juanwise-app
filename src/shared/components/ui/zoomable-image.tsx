@@ -1,7 +1,6 @@
 // src/shared/components/ui/zoomable-image.tsx
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  Dimensions,
   Image,
   Modal,
   Pressable,
@@ -10,24 +9,27 @@ import {
   View,
   type ImageSourcePropType,
   type ImageStyle,
+  type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Icon } from './icon';
-import { Caption } from './text';
+import { Body, BodyStrong, Caption } from './text';
 import { tokens } from '@/shared/theme/tokens';
-import { ZOOM_STEPS, centredScrollOffset, nextZoomIndex } from './zoom-steps';
+import { DOUBLE_TAP_ZOOM, MIN_ZOOM, clampPan, clampZoom, stepZoom } from './zoom-steps';
 
 /**
  * A picture that opens full screen and zooms, used for every mini-lesson
- * image. The client evaluation (item 3.3) asked for exactly that: the
- * illustrations carry the detail of the lesson and were previously stuck at
- * thumbnail size with no way to open them.
+ * image. The client evaluation (item 3.3) asked for that, and Correction 1
+ * (F8) found the details still could not be zoomed: zooming was a tap that
+ * stepped 1x/2x/3x inside scroll views, and an Android scroll view does not
+ * pinch. The viewer now pinches (1x-4x), drags a zoomed picture, double-taps
+ * between 1x and 2.5x, and has + and − buttons for anyone who cannot pinch.
  *
- * Zooming is a tap that steps through 1x/2x/3x rather than a pinch handler:
- * the app has no gesture-handler root today, a tap is what a child tries
- * first, and the panning a zoomed picture needs is what the two nested scroll
- * views give. On iOS the outer scroll view also pinches natively.
+ * `details` puts the lesson's own words under the picture, so the opened
+ * view shows the whole mini-lesson rather than the picture alone.
  */
 export function ZoomableImage({
   source,
@@ -37,6 +39,9 @@ export function ZoomableImage({
   openLabel,
   zoomHint,
   closeLabel,
+  zoomInLabel,
+  zoomOutLabel,
+  details,
 }: {
   source: ImageSourcePropType;
   /** The thumbnail's style — the full-screen view sizes itself. */
@@ -50,28 +55,15 @@ export function ZoomableImage({
   resizeMode?: 'cover' | 'contain';
   /** Accessibility label for the thumbnail, e.g. "Open the picture". */
   openLabel: string;
-  /** The line under the opened picture, e.g. "Tap the picture to zoom". */
+  /** The line under the opened picture, e.g. "Pinch or double-tap to zoom". */
   zoomHint: string;
   closeLabel: string;
+  zoomInLabel?: string;
+  zoomOutLabel?: string;
+  /** Shown under the opened picture: the lesson it illustrates. */
+  details?: { title: string; text: string };
 }) {
   const [open, setOpen] = useState(false);
-  const [zoomIndex, setZoomIndex] = useState(0);
-  const zoom = ZOOM_STEPS[zoomIndex];
-  const { width, height } = Dimensions.get('window');
-  const verticalScroll = useRef<ScrollView>(null);
-  const horizontalScroll = useRef<ScrollView>(null);
-
-  // A zoom step resizes the canvas; open it on its middle, where the picture is.
-  const centre = () => {
-    const { x, y } = centredScrollOffset({ width, height }, zoom);
-    verticalScroll.current?.scrollTo({ y, animated: false });
-    horizontalScroll.current?.scrollTo({ x, animated: false });
-  };
-
-  const close = () => {
-    setOpen(false);
-    setZoomIndex(0);
-  };
 
   return (
     <>
@@ -84,66 +76,180 @@ export function ZoomableImage({
         <Image source={source} style={style} resizeMode={resizeMode} />
       </Pressable>
 
-      <Modal visible={open} animationType="fade" onRequestClose={close} statusBarTranslucent>
-        <View style={styles.viewer}>
-          <ScrollView
-            ref={verticalScroll}
-            onContentSizeChange={centre}
-            maximumZoomScale={ZOOM_STEPS[ZOOM_STEPS.length - 1]}
-            minimumZoomScale={1}
-            centerContent
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.pane}
-          >
-            <ScrollView
-              ref={horizontalScroll}
-              onContentSizeChange={centre}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pane}
-            >
-              <Pressable
-                onPress={() => setZoomIndex(nextZoomIndex)}
-                accessibilityRole="imagebutton"
-                accessibilityLabel={zoomHint}
-              >
-                <Image
-                  source={source}
-                  style={{ width: width * zoom, height: height * zoom }}
-                  resizeMode="contain"
-                />
-              </Pressable>
-            </ScrollView>
-          </ScrollView>
+      <Modal visible={open} animationType="fade" onRequestClose={() => setOpen(false)} statusBarTranslucent>
+        {/* A Modal is its own native root, so gestures need their own handler root inside it. */}
+        <GestureHandlerRootView style={styles.viewer}>
+          {open && (
+            <ZoomStage
+              source={source}
+              zoomHint={zoomHint}
+              zoomInLabel={zoomInLabel ?? '+'}
+              zoomOutLabel={zoomOutLabel ?? '−'}
+            />
+          )}
 
-          <Caption style={styles.hint}>{zoomHint}</Caption>
+          {details && (
+            <ScrollView style={styles.details} contentContainerStyle={styles.detailsContent}>
+              <BodyStrong style={styles.detailsTitle}>{details.title}</BodyStrong>
+              <Body style={styles.detailsText}>{details.text}</Body>
+            </ScrollView>
+          )}
 
           <Pressable
             style={styles.closeButton}
-            onPress={close}
+            onPress={() => setOpen(false)}
             accessibilityRole="button"
             accessibilityLabel={closeLabel}
             hitSlop={12}
           >
             <Icon name="close" size={22} color={tokens.color.onDark} strokeWidth={3} />
           </Pressable>
-        </View>
+        </GestureHandlerRootView>
       </Modal>
     </>
   );
 }
 
+/** The opened picture. Mounted only while the viewer is open, so it always starts at 1x. */
+function ZoomStage({
+  source,
+  zoomHint,
+  zoomInLabel,
+  zoomOutLabel,
+}: {
+  source: ImageSourcePropType;
+  zoomHint: string;
+  zoomInLabel: string;
+  zoomOutLabel: string;
+}) {
+  const scale = useSharedValue(1);
+  const startScale = useSharedValue(1);
+  const x = useSharedValue(0);
+  const y = useSharedValue(0);
+  const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
+  const frameW = useSharedValue(0);
+  const frameH = useSharedValue(0);
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    frameW.value = e.nativeEvent.layout.width;
+    frameH.value = e.nativeEvent.layout.height;
+  };
+
+  const pinch = Gesture.Pinch()
+    .onStart(() => {
+      startScale.value = scale.value;
+    })
+    .onUpdate((e) => {
+      scale.value = clampZoom(startScale.value * e.scale);
+      x.value = clampPan(x.value, scale.value, frameW.value);
+      y.value = clampPan(y.value, scale.value, frameH.value);
+    });
+
+  const pan = Gesture.Pan()
+    .averageTouches(true)
+    .onStart(() => {
+      startX.value = x.value;
+      startY.value = y.value;
+    })
+    .onUpdate((e) => {
+      x.value = clampPan(startX.value + e.translationX, scale.value, frameW.value);
+      y.value = clampPan(startY.value + e.translationY, scale.value, frameH.value);
+    });
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      const next = scale.value > MIN_ZOOM ? MIN_ZOOM : DOUBLE_TAP_ZOOM;
+      scale.value = withTiming(next);
+      x.value = withTiming(clampPan(x.value, next, frameW.value));
+      y.value = withTiming(clampPan(y.value, next, frameH.value));
+    });
+
+  const gesture = Gesture.Race(doubleTap, Gesture.Simultaneous(pinch, pan));
+
+  const zoomBy = (direction: 1 | -1) => {
+    const next = stepZoom(scale.value, direction);
+    scale.value = withTiming(next);
+    x.value = withTiming(clampPan(x.value, next, frameW.value));
+    y.value = withTiming(clampPan(y.value, next, frameH.value));
+  };
+
+  const pictureStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: x.value }, { translateY: y.value }, { scale: scale.value }],
+  }));
+
+  return (
+    <View style={styles.stage}>
+      <GestureDetector gesture={gesture}>
+        <View style={styles.frame} onLayout={onLayout} collapsable={false}>
+          <Animated.Image source={source} style={[styles.picture, pictureStyle]} resizeMode="contain" />
+        </View>
+      </GestureDetector>
+
+      <View style={styles.toolbar}>
+        <Pressable
+          style={styles.zoomButton}
+          onPress={() => zoomBy(-1)}
+          accessibilityRole="button"
+          accessibilityLabel={zoomOutLabel}
+          hitSlop={8}
+        >
+          <Caption style={styles.zoomButtonText}>−</Caption>
+        </Pressable>
+        <Caption style={styles.hint}>{zoomHint}</Caption>
+        <Pressable
+          style={styles.zoomButton}
+          onPress={() => zoomBy(1)}
+          accessibilityRole="button"
+          accessibilityLabel={zoomInLabel}
+          hitSlop={8}
+        >
+          <Caption style={styles.zoomButtonText}>+</Caption>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   viewer: { flex: 1, backgroundColor: tokens.color.ink },
-  pane: { flexGrow: 1, alignItems: 'center', justifyContent: 'center' },
-  hint: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: tokens.space.xl,
-    textAlign: 'center',
-    color: tokens.color.onDarkMuted,
+  stage: { flex: 1, paddingTop: tokens.space.xxl + tokens.space.md + tokens.hit.min },
+  frame: { flex: 1, overflow: 'hidden' },
+  picture: { width: '100%', height: '100%' },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.space.md,
+    paddingVertical: tokens.space.sm,
+    paddingHorizontal: tokens.space.lg,
   },
+  hint: { flexShrink: 1, textAlign: 'center', color: tokens.color.onDarkMuted },
+  zoomButton: {
+    width: tokens.hit.min,
+    height: tokens.hit.min,
+    borderRadius: tokens.radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.color.onDarkChip,
+  },
+  zoomButtonText: {
+    color: tokens.color.onDark,
+    fontFamily: tokens.font.bodyBlack,
+    fontSize: tokens.type.h2.fontSize,
+    lineHeight: tokens.type.h2.lineHeight,
+  },
+  details: {
+    flexGrow: 0,
+    maxHeight: '38%',
+    backgroundColor: tokens.color.surface,
+    borderTopLeftRadius: tokens.radius.sheet,
+    borderTopRightRadius: tokens.radius.sheet,
+  },
+  detailsContent: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl, gap: tokens.space.xs },
+  detailsTitle: { color: tokens.color.ink },
+  detailsText: { color: tokens.color.inkBody },
   closeButton: {
     position: 'absolute',
     top: tokens.space.xxl + tokens.space.md,

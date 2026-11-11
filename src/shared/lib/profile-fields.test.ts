@@ -5,6 +5,8 @@ import {
   filterSectionInput,
   isFullName,
   isGradeLevel,
+  identityChanges,
+  identityError,
   isSection,
 } from './profile-fields';
 
@@ -70,5 +72,40 @@ describe('input filters', () => {
   it('keeps a trailing space in a name so the next word can be typed', () => {
     expect(filterNameInput('Juan ')).toBe('Juan ');
     expect(filterNameInput('Juan   ')).toBe('Juan ');
+  });
+});
+
+describe('identityChanges (Correction 1, F9)', () => {
+  const current = { username: 'venice', email: 'venice@gmail.com', lrn: '123456789054', teacherId: '' };
+
+  it('returns only what changed, trimmed, with the email lowercased', () => {
+    expect(
+      identityChanges(current, { ...current, username: ' venice_f ', email: 'Venice@Gmail.com ' }, false),
+    ).toEqual({ username: 'venice_f' });
+    expect(identityChanges(current, { ...current, email: 'venice.f@gmail.com' }, false)).toEqual({
+      email: 'venice.f@gmail.com',
+    });
+  });
+
+  it('keeps to the fields the role has', () => {
+    const draft = { ...current, lrn: '123456789012', teacherId: '1234567' };
+    expect(identityChanges(current, draft, false)).toEqual({ lrn: '123456789012' });
+    expect(identityChanges(current, draft, true)).toEqual({ teacherId: '1234567' });
+  });
+
+  it('is empty when nothing changed', () => {
+    expect(identityChanges(current, current, false)).toEqual({});
+  });
+});
+
+describe('identityError', () => {
+  it('names the first broken rule', () => {
+    expect(identityError({ username: 'a b' }, false)).toBe('invalidUsernameMsg');
+    expect(identityError({ username: 'ab' }, false)).toBe('invalidUsernameMsg');
+    expect(identityError({ email: 'venice@yopmail.com' }, false)).toBe('invalidGmailMsg');
+    expect(identityError({ email: 'maria@yopmail.com' }, true)).toBeNull();
+    expect(identityError({ lrn: '12345' }, false)).toBe('invalidLrnMsg');
+    expect(identityError({ teacherId: '12' }, true)).toBe('invalidTeacherIdMsg');
+    expect(identityError({ lrn: '123456789012' }, false)).toBeNull();
   });
 });

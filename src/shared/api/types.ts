@@ -49,6 +49,15 @@ export interface ApiCurrentUser extends ApiUserProfile {
   emailVerified: boolean;
 }
 
+/** Correction 1, F9: the user's own identity fields, confirmed with their password. */
+export interface UpdateIdentityRequest {
+  currentPassword: string;
+  username?: string;
+  email?: string;
+  lrn?: string;
+  teacherId?: string;
+}
+
 export interface UpdateProfileRequest {
   name?: string;
   avatar?: string | null;
