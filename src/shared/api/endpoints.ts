@@ -32,6 +32,7 @@ import type {
   RegisterRequest,
   SubmitResultRequest,
   UpdateCategoryRequest,
+  UpdateIdentityRequest,
   UpdateProfileRequest,
   UploadUrlRequest,
   UploadUrlResponse,
@@ -109,6 +110,11 @@ export const usersApi = {
 
   updateMe(patch: UpdateProfileRequest): Promise<ApiUserProfile> {
     return request('/users/me', { method: 'PATCH', body: patch });
+  },
+
+  /** Username, email, LRN or teacher ID; the API checks the current password. */
+  updateIdentity(patch: UpdateIdentityRequest): Promise<ApiUserProfile> {
+    return request('/users/me/identity', { method: 'PATCH', body: patch });
   },
 
   /** Teachers may read student profiles; admins may read any. */

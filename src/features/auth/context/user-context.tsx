@@ -135,6 +135,8 @@ type UserContextType = UserProfile & {
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   updateProfile: (fields: EditableProfile) => Promise<void>;
+  /** Changes username, email, LRN or teacher ID (Correction 1, F9). */
+  updateIdentity: (fields: Parameters<typeof usersApi.updateIdentity>[0]) => Promise<void>;
   /** Uploads to Cloud Storage and saves the resulting URL on the profile. */
   uploadPhoto: (fileUri: string, mimeType?: string) => Promise<void>;
   /** Sends a Firebase password-reset email; always resolves. */
@@ -269,6 +271,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     [apply],
   );
 
+  const updateIdentity: UserContextType['updateIdentity'] = useCallback(
+    async (fields) => {
+      apply(await usersApi.updateIdentity(fields));
+    },
+    [apply],
+  );
+
   const uploadPhoto: UserContextType['uploadPhoto'] = useCallback(
     async (fileUri, mimeType) => {
       const publicUrl = await mediaApi.upload(fileUri, 'profile-photo', { mimeType });
@@ -297,10 +306,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       logout,
       refreshProfile: loadProfile,
       updateProfile,
+      updateIdentity,
       uploadPhoto,
       requestPasswordReset,
     }),
-    [profile, ready, signedIn, error, login, register, logout, loadProfile, updateProfile, uploadPhoto, requestPasswordReset],
+    [profile, ready, signedIn, error, login, register, logout, loadProfile, updateProfile, updateIdentity, uploadPhoto, requestPasswordReset],
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

@@ -70,3 +70,71 @@ export function filterGradeInput(value: string): string {
 export function filterSectionInput(value: string): string {
   return value.replace(/[^A-Za-z0-9]/g, '').slice(0, MAX_SECTION);
 }
+
+// ─── Identity fields (Correction 1, F9) ──────────────────────────────────────
+// Set at registration and, since F9, fixable by the user from their profile.
+// Both screens check them with these; the API (`users.schema.ts`) has the same
+// rules and also checks the email's domain against the role.
+
+export const LRN_REGEX = /^\d{12}$/;
+export const TEACHER_ID_REGEX = /^\d{7}$/;
+export const GMAIL_REGEX = /^[^\s@]+@gmail\.com$/i;
+export const USERNAME_REGEX = /^\S+$/;
+
+/**
+ * Mirrors TEACHER_EMAIL_DOMAINS in juanwise-be `shared/constants.ts` — kept here
+ * only for instant feedback; the API re-checks it. Not every teacher has a
+ * department mailbox yet, and an admin is a teacher account granted the claim
+ * out of band, so admins inherit the same list.
+ */
+export const TEACHER_EMAIL_DOMAINS = ['@deped.gov.ph', '@gmail.com', '@yopmail.com'];
+export const TEACHER_EMAIL_REGEX = /^\S+@(deped\.gov\.ph|gmail\.com|yopmail\.com)$/i;
+
+/** 3 to 30 characters with no spaces, as the API's `usernameSchema`. */
+export function isUsername(value: string): boolean {
+  const username = value.trim();
+  return username.length >= 3 && username.length <= 30 && USERNAME_REGEX.test(username);
+}
+
+export interface IdentityFields {
+  username: string;
+  email: string;
+  lrn: string;
+  teacherId: string;
+}
+
+/**
+ * The identity fields the user actually changed, trimmed, holding only the
+ * ones their role has: LRN for a student, teacher ID for a teacher. An empty
+ * object means there is nothing to confirm with a password.
+ */
+export function identityChanges(
+  current: IdentityFields,
+  draft: IdentityFields,
+  isTeacher: boolean,
+): Partial<IdentityFields> {
+  const changes: Partial<IdentityFields> = {};
+  const keys: (keyof IdentityFields)[] = ['username', 'email', isTeacher ? 'teacherId' : 'lrn'];
+  // The API stores emails lowercased, so a change of case alone is no change.
+  const normal = (key: keyof IdentityFields, value: string) => (key === 'email' ? value.trim().toLowerCase() : value.trim());
+  for (const key of keys) {
+    const next = normal(key, draft[key]);
+    if (next !== normal(key, current[key])) changes[key] = next;
+  }
+  return changes;
+}
+
+/** The translation key of the first rule a changed identity field breaks, or null. */
+export function identityError(
+  changes: Partial<IdentityFields>,
+  isTeacher: boolean,
+): 'invalidUsernameMsg' | 'invalidGmailMsg' | 'invalidDepedGmailMsg' | 'invalidLrnMsg' | 'invalidTeacherIdMsg' | null {
+  if (changes.username !== undefined && !isUsername(changes.username)) return 'invalidUsernameMsg';
+  if (changes.email !== undefined) {
+    if (isTeacher && !TEACHER_EMAIL_REGEX.test(changes.email)) return 'invalidDepedGmailMsg';
+    if (!isTeacher && !GMAIL_REGEX.test(changes.email)) return 'invalidGmailMsg';
+  }
+  if (changes.lrn !== undefined && !LRN_REGEX.test(changes.lrn)) return 'invalidLrnMsg';
+  if (changes.teacherId !== undefined && !TEACHER_ID_REGEX.test(changes.teacherId)) return 'invalidTeacherIdMsg';
+  return null;
+}

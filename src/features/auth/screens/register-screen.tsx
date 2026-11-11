@@ -19,21 +19,13 @@ import {
   isFullName,
   isGradeLevel,
   isSection,
+  GMAIL_REGEX,
+  LRN_REGEX,
+  TEACHER_EMAIL_DOMAINS,
+  TEACHER_EMAIL_REGEX,
+  TEACHER_ID_REGEX,
+  USERNAME_REGEX,
 } from '@/shared/lib/profile-fields';
-
-const LRN_REGEX = /^\d{12}$/;
-const TEACHER_ID_REGEX = /^\d{7}$/;
-const GMAIL_REGEX = /^[^\s@]+@gmail\.com$/i;
-const USERNAME_REGEX = /^\S+$/;
-
-/**
- * Mirrors TEACHER_EMAIL_DOMAINS in juanwise-be `shared/constants.ts` — kept here
- * only for instant feedback; the API re-checks it. Not every teacher has a
- * department mailbox yet, and an admin is a teacher account granted the claim
- * out of band, so admins inherit the same list.
- */
-const TEACHER_EMAIL_DOMAINS = ['@deped.gov.ph', '@gmail.com', '@yopmail.com'];
-const TEACHER_EMAIL_REGEX = /^\S+@(deped\.gov\.ph|gmail\.com|yopmail\.com)$/i;
 
 export default function RegisterScreen() {
   const router = useRouter();
