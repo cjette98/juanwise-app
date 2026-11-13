@@ -269,7 +269,7 @@ const en = {
   trophyPaceTitle: 'Trophy = Pace (same basis)',
   legendBronzeOrNone: 'Bronze / None',
   starsExplain:
-    'Stars = average stars per activity. A pass in 20 s or less earns 15 points and 3 stars, in 40 s 10 points and 2 stars, in 60 s 5 points and 1 star. Each failed try first takes points off (5 after one, 15 after two), and stars never beat the points.',
+    'Stars = average stars per activity. A pass in 20 s or less earns 15 points and 3 stars, in 40 s 10 points and 2 stars, in 60 s 5 points and 1 star. Each failed try first takes points off (5 after one, 10 after two), and stars never beat the points.',
   sortFastest: 'Top Performers',
   sortHighestPoints: 'Highest Points',
   loadingResults: 'Loading...',
@@ -424,6 +424,12 @@ const en = {
   trophyGuideIntroNoFilter: 'How to earn a Trophy (your whole record: Quiz + Jigsaw)',
   trophySameEverywhere: 'Your trophy is the same on both tabs and on your Full Record. The tab only changes the ranking order.',
   starsExplainShort: 'Stars = average stars earned per activity',
+  starsExplainHow:
+    'Each finished activity earns 3, 2 or 1 stars (faster, with fewer tries, earns more). Add them up and divide by the activities you finished. Example: 3 + 2 + 1 = 6 stars ÷ 3 activities = 2.0 stars.',
+  percentExplainTitle: 'How the % is worked out',
+  percentExplain:
+    'It compares your rank with the other students: students ranked below you ÷ all the other students × 100. Example: #5 of 15 students → 10 below you ÷ 14 others = 71%.',
+  percentExplainYou: 'You: #{rank} of {total} → {below} ÷ {others} = {pct}%',
   myRankLine: 'Your rank: #{rank}. Tap for your full record.',
   onlyOneWithResults: 'You are the only one with results so far!',
   beatsPercent: 'You are doing better than {pct}% of the other students!',
@@ -536,6 +542,12 @@ const en = {
   editJigsawBtn: 'Edit the Jigsaw',
   publishBtn: 'Publish',
   archiveBtn: 'Archive',
+  packDeleteTitle: 'Delete {name}?',
+  packDeleteMsg: 'Its questions and jigsaw pictures go with it, and nothing brings them back. Archive it instead if you only want it out of the way.',
+  packDeleteKeepBtn: 'Keep the pack',
+  packDeleteConfirmBtn: 'Yes, delete it',
+  packDeleteFailedTitle: 'Not deleted',
+  packDeleteFailedMsg: 'Could not delete the pack.',
 
   // --- Admin — question editor ---
   questionTypeLabel: 'Question Type',
@@ -615,6 +627,9 @@ const en = {
   classCodeSaveFailedMsg: 'The class code was not saved.',
   classCodeInvalidMsg: 'Wrong class code. Please check it and try again.',
   classJoinFailedMsg: 'Could not join the class.',
+  classJoinedMsg: 'You joined the class!',
+  classClosedMsg: 'That class is no longer accepting students.',
+  classAlreadyJoinedMsg: 'You are already in another class. Leave it from your dashboard first.',
   noClassYetMsg: 'No class yet.',
   studentRemovedMsg: 'The student was removed from the roster.',
   studentRemoveFailedMsg: 'The student was not removed.',
@@ -712,10 +727,6 @@ const en = {
 
   // --- Performance progression extras ---
   performanceSubtitle: 'Compares the earliest answers against the most recent ones to show who is improving.',
-  perfGroupClass: 'In this class ({n})',
-  perfGroupGuests: 'Guests ({n})',
-  perfGuestsHint: 'Students who left or were removed from this class and now play as guests. Their results from this class are kept here.',
-  noGuestsPerf: 'No guests have results in this class.',
   levelChipShort: 'Lvl {n}',
   noAttemptsInCategory: 'No activities answered yet in {category}.',
   noAttemptsAtAll: 'No activities answered yet.',
@@ -1009,7 +1020,7 @@ const tl: Record<TranslationKey, string> = {
   trophyPaceTitle: 'Tropeo = Pace (parehong batayan)',
   legendBronzeOrNone: 'Tanso / Wala',
   starsExplain:
-    'Bituin = katamtamang bituin kada gawain. Pumasa sa 20 s o mas mabilis: 15 puntos at 3 bituin; sa 40 s: 10 puntos at 2 bituin; sa 60 s: 5 puntos at 1 bituin. Bawat bigong subok ay nagbabawas muna ng puntos (5 pagkatapos ng isa, 15 pagkatapos ng dalawa), at hindi lalampas ang bituin sa puntos.',
+    'Bituin = katamtamang bituin kada gawain. Pumasa sa 20 s o mas mabilis: 15 puntos at 3 bituin; sa 40 s: 10 puntos at 2 bituin; sa 60 s: 5 puntos at 1 bituin. Bawat bigong subok ay nagbabawas muna ng puntos (5 pagkatapos ng isa, 10 pagkatapos ng dalawa), at hindi lalampas ang bituin sa puntos.',
   sortFastest: 'Nangungunang Estudyante',
   sortHighestPoints: 'Pinakamataas na Puntos',
   loadingResults: 'Naglo-load...',
@@ -1164,6 +1175,12 @@ const tl: Record<TranslationKey, string> = {
   trophyGuideIntroNoFilter: 'Paano makakuha ng Tropeo (buong record mo: Quiz + Jigsaw)',
   trophySameEverywhere: 'Pareho ang tropeo mo sa dalawang tab at sa Kompletong Record. Ang tab ay nagbabago lang ng pagkakasunod ng ranggo.',
   starsExplainShort: 'Bituin = katamtamang bituin kada gawain',
+  starsExplainHow:
+    'Bawat natapos na gawain ay may 3, 2 o 1 bituin (mas mabilis at mas kaunting subok, mas marami). Pagsamahin ang lahat at hatiin sa bilang ng natapos mong gawain. Halimbawa: 3 + 2 + 1 = 6 bituin ÷ 3 gawain = 2.0 bituin.',
+  percentExplainTitle: 'Paano kinukuha ang %',
+  percentExplain:
+    'Inihahambing nito ang ranggo mo sa ibang mag-aaral: bilang ng mag-aaral na mas mababa sa iyo ÷ lahat ng ibang mag-aaral × 100. Halimbawa: #5 sa 15 mag-aaral → 10 ang mas mababa ÷ 14 na iba = 71%.',
+  percentExplainYou: 'Ikaw: #{rank} sa {total} → {below} ÷ {others} = {pct}%',
   myRankLine: 'Ranggo mo: pang-{rank}. Tap para sa buong record.',
   onlyOneWithResults: 'Ikaw pa lang ang may resulta sa ngayon!',
   beatsPercent: 'Mas magaling ka kaysa sa {pct}% ng ibang mag-aaral!',
@@ -1276,6 +1293,12 @@ const tl: Record<TranslationKey, string> = {
   editJigsawBtn: 'I-edit ang Jigsaw',
   publishBtn: 'I-publish',
   archiveBtn: 'I-archive',
+  packDeleteTitle: 'Burahin ang {name}?',
+  packDeleteMsg: 'Kasama nitong mabubura ang mga tanong at larawan ng jigsaw, at hindi na maibabalik. I-archive na lang kung gusto mo lang itong itabi.',
+  packDeleteKeepBtn: 'Itabi ang pack',
+  packDeleteConfirmBtn: 'Oo, burahin',
+  packDeleteFailedTitle: 'Hindi nabura',
+  packDeleteFailedMsg: 'Hindi nabura ang pack.',
 
   // --- Admin — question editor ---
   questionTypeLabel: 'Uri ng Tanong',
@@ -1355,6 +1378,9 @@ const tl: Record<TranslationKey, string> = {
   classCodeSaveFailedMsg: 'Hindi na-save ang class code.',
   classCodeInvalidMsg: 'Maling class code. Pakisuri at subukan ulit.',
   classJoinFailedMsg: 'Hindi nakasali sa klase.',
+  classJoinedMsg: 'Matagumpay kang sumali sa klase!',
+  classClosedMsg: 'Hindi na tumatanggap ng mag-aaral ang klaseng iyon.',
+  classAlreadyJoinedMsg: 'Nasa ibang klase ka na. Umalis muna roon mula sa iyong dashboard.',
   noClassYetMsg: 'Wala pang klase.',
   studentRemovedMsg: 'Naalis ang mag-aaral sa roster.',
   studentRemoveFailedMsg: 'Hindi naalis ang mag-aaral.',
@@ -1452,10 +1478,6 @@ const tl: Record<TranslationKey, string> = {
 
   // --- Performance progression extras ---
   performanceSubtitle: 'Hinahambing ang unang mga sagot laban sa pinakabagong mga sagot para makita kung sino ang umuunlad.',
-  perfGroupClass: 'Nasa klase ({n})',
-  perfGroupGuests: 'Guest ({n})',
-  perfGuestsHint: 'Mga estudyanteng umalis o tinanggal sa klaseng ito at naglalaro na bilang guest. Nananatili rito ang mga resulta nila mula sa klaseng ito.',
-  noGuestsPerf: 'Walang guest na may resulta sa klaseng ito.',
   levelChipShort: 'Lvl {n}',
   noAttemptsInCategory: 'Wala pang sinagutang gawain sa {category}.',
   noAttemptsAtAll: 'Wala pang sinagutang gawain.',

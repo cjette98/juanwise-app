@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Share, RefreshControl, TouchableOpacity } from 'react-native';
-import { TextInput } from '@/shared/components/ui/capped-text';
+import { NO_SUGGESTIONS_INPUT_PROPS, TextInput } from '@/shared/components/ui/capped-text';
 import { useRouter } from 'expo-router';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useClass } from '@/features/teacher/context/class-context';
@@ -138,6 +138,7 @@ export default function ClassOverviewScreen() {
                 style={styles.codeInput}
                 value={draftCode}
                 onChangeText={(v) => setDraftCode(v.toUpperCase())}
+                {...NO_SUGGESTIONS_INPUT_PROPS}
                 maxLength={10}
                 autoCapitalize="characters"
                 placeholder="A1B2C3D4E5"

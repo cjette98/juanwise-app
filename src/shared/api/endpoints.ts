@@ -259,6 +259,11 @@ export const packsApi = {
   archive(id: string): Promise<ApiPack> {
     return request(`/packs/${encodeURIComponent(id)}/archive`, { method: 'POST' });
   },
+
+  /** Deletes an unused pack with its questions and pictures; 409 while a class still uses it. */
+  remove(id: string): Promise<void> {
+    return request(`/packs/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
 };
 
 /* ----------------------------------------------------------------- content */

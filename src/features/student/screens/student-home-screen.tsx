@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Modal, Alert, Image } from 'react-native';
-import { Text, TextInput } from '@/shared/components/ui/capped-text';
+import { NO_SUGGESTIONS_INPUT_PROPS, Text, TextInput } from '@/shared/components/ui/capped-text';
 import { useUser } from '@/features/auth/context/user-context';
 import { useStudentResults, totalsFor } from '@/features/results/context/student-results-context';
 import { useLanguage } from '@/shared/i18n/language-context';
@@ -199,6 +199,7 @@ export default function StudentHome() {
               style={styles.modalInput}
               value={codeInput}
               onChangeText={(v) => setCodeInput(v.toUpperCase())}
+              {...NO_SUGGESTIONS_INPUT_PROPS}
               maxLength={10}
               autoCapitalize="characters"
               placeholder="A1B2C3D4E5"

@@ -108,6 +108,30 @@ export default function PackListScreen() {
     }
   };
 
+  // Correction 2, #3: clear away drafts and other packs nobody plays. Archive
+  // only hides a pack; this takes its questions and pictures with it, so it
+  // is confirmed first. The API refuses it while a class still uses the pack.
+  const handleDelete = (pack: ApiPack) => {
+    Alert.alert(t('packDeleteTitle', { name: pack.name }), t('packDeleteMsg'), [
+      { text: t('packDeleteKeepBtn'), style: 'cancel' },
+      {
+        text: t('packDeleteConfirmBtn'),
+        style: 'destructive',
+        onPress: async () => {
+          setBusyId(pack.id);
+          try {
+            await packsApi.remove(pack.id);
+            await load();
+          } catch (err) {
+            Alert.alert(t('packDeleteFailedTitle'), errorMessage(err, t('packDeleteFailedMsg')));
+          } finally {
+            setBusyId(null);
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -228,6 +252,17 @@ export default function PackListScreen() {
                     <Caption style={styles.actionBtnText}>{t('archiveBtn')}</Caption>
                   </TouchableOpacity>
                 )}
+                {/* As on the web: never the default library, and only once no class uses it. */}
+                {owned && pack.origin !== 'system' && pack.classCount === 0 && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.deleteBtn, busy && styles.busyBtn]}
+                    onPress={() => handleDelete(pack)}
+                    disabled={busy}
+                    accessibilityRole="button"
+                  >
+                    <Caption style={[styles.actionBtnText, styles.deleteBtnText]}>{t('deleteBtn')}</Caption>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           );
@@ -274,6 +309,9 @@ const styles = StyleSheet.create({
   duplicateBtn: { backgroundColor: '#8E8E93' },
   publishBtn: { backgroundColor: '#2E9E5B' },
   archiveBtn: { backgroundColor: '#C4304A' },
+  // Outlined, as in the client's mock-up, so it reads apart from Archive.
+  deleteBtn: { backgroundColor: '#FFF', borderWidth: 1.5, borderColor: '#C4304A' },
+  deleteBtnText: { color: '#C4304A' },
   cancelBtn: { backgroundColor: '#8E8E93' },
   busyBtn: { opacity: 0.6 },
   actionBtnText: { color: '#FFF', fontFamily: tokens.font.bodyBold },

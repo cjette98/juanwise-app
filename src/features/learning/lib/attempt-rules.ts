@@ -11,15 +11,15 @@ const MAX_LEVEL = 5;
 /**
  * The client's reference sheet (Correction 1, F4), as juanwise-be
  * `results/scoring.ts` scores it: base points and time stars by finish time,
- * less 5 after one failed try and 15 after two, never below 0. Stars are the
- * lower of the time stars and the points stars.
+ * less 5 after one failed try and 10 after two (Correction 2, #4), never below
+ * 0. Stars are the lower of the time stars and the points stars.
  */
 export const TIME_WINDOWS = [
   { maxSec: 20, points: 15, stars: 3 },
   { maxSec: 40, points: 10, stars: 2 },
   { maxSec: 60, points: 5, stars: 1 },
 ] as const;
-export const FAILED_TRY_PENALTIES = [5, 10, 10] as const;
+export const FAILED_TRY_PENALTIES = [5, 5, 5] as const;
 
 /** Points and stars for a pass that took `timeUsed` seconds on try `attemptSeq`. */
 export function scorePass(timeUsed: number, attemptSeq: number): { points: number; stars: 0 | 1 | 2 | 3 } {

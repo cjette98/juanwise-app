@@ -51,10 +51,10 @@ export function countedTime(entry: { activityType: 'quiz' | 'jigsaw'; timeUsed: 
 
 export type Trophy = 'gold' | 'silver' | 'bronze' | null;
 
-// Points are 1/2, 1/3 and 1/6 of COMBINED_MAX_POINTS and time 2/3, 5/6 and all
-// of COMBINED_MAX_TIME_SECONDS, as on the backend: the same shares as the old
-// 450 / 300 / 150 against 900, moved with the ceilings (Correction 1, F3). A
-// tier needs its points within its time, so each label is an upper bound.
+// Points are 1/2, 1/3 and 1/6 of COMBINED_MAX_POINTS (Correction 1, F3) and
+// time 1/3, 2/3 and all of COMBINED_MAX_TIME_SECONDS, the client's corrected
+// seconds (Correction 2, #6), as on the backend. A tier needs its points within
+// its time, so each label is an upper bound.
 export const TROPHY_TIERS: {
   trophy: Exclude<Trophy, null>;
   label: string;
@@ -62,7 +62,7 @@ export const TROPHY_TIERS: {
   maxTimeSeconds: number;
   timeLabel: string;
 }[] = [
-  { trophy: 'gold', label: '🥇 Gold Trophy', minPoints: 2700, maxTimeSeconds: 14400, timeLabel: '≤ 14,400 sec (4 h)' },
-  { trophy: 'silver', label: '🥈 Silver Trophy', minPoints: 1800, maxTimeSeconds: 18000, timeLabel: '≤ 18,000 sec (5 h)' },
+  { trophy: 'gold', label: '🥇 Gold Trophy', minPoints: 2700, maxTimeSeconds: 7200, timeLabel: '≤ 7,200 sec (2 h)' },
+  { trophy: 'silver', label: '🥈 Silver Trophy', minPoints: 1800, maxTimeSeconds: 14400, timeLabel: '≤ 14,400 sec (4 h)' },
   { trophy: 'bronze', label: '🥉 Bronze Trophy', minPoints: 900, maxTimeSeconds: 21600, timeLabel: '≤ 21,600 sec (6 h)' },
 ];
