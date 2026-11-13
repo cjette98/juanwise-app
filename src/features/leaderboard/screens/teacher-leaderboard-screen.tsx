@@ -304,6 +304,7 @@ export default function TeacherLeaderboardScreen() {
                 <Icon name="star" size={13} color={tokens.color.gold} filled />
                 <Caption style={styles.legendFootText}>{t('starsExplain')}</Caption>
               </View>
+              <Caption style={styles.legendExplain}>{t('starsExplainHow')}</Caption>
             </Card>
           )}
         </ScreenHeader>
@@ -492,6 +493,7 @@ const styles = StyleSheet.create({
   legendFoot: { marginTop: tokens.space.xs, fontStyle: 'italic' },
   legendFootRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2, marginTop: tokens.space.xs },
   legendFootText: { fontStyle: 'italic', flex: 1 },
+  legendExplain: { color: tokens.color.inkMuted },
   legendDivider: { height: 1, backgroundColor: tokens.color.divider, marginVertical: tokens.space.sm },
 
   body: { paddingHorizontal: tokens.space.lg, paddingTop: tokens.space.lg, gap: tokens.space.sm },

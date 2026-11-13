@@ -53,9 +53,6 @@ export default function PerformanceProgressionScreen() {
   const [category, setCategory] = useState<string | null>(null);
   const [activityType, setActivityType] = useState<'quiz' | 'jigsaw' | null>(null);
   const [level, setLevel] = useState<number | null>(null);
-  // Correction 1, F10: students on the roster now, apart from guests, the
-  // students who left or were removed and still have results in this class.
-  const [group, setGroup] = useState<'class' | 'guests'>('class');
 
   const filter: ResultFilter = useMemo(
     () => ({
@@ -94,19 +91,19 @@ export default function PerformanceProgressionScreen() {
   }, [classId, category, activityType, level, filterKey]);
   const totalsByUid = serverRows?.key === filterKey ? serverRows.byUid : null;
 
-  const { classRows, guestRows } = useMemo(() => {
+  // Only the students on the roster now. A student who left, or was removed,
+  // plays as a guest, and guests are watched from the admin console only,
+  // never in a teacher's view (Correction 2, #2).
+  const progression = useMemo<StudentProgression[]>(() => {
     const onRoster = new Set(roster.map((m) => m.uid));
-    const sorted = [...getProgression(roster, filter)].sort((a, b) => {
-      const orderDiff = TREND_META[a.trend].order - TREND_META[b.trend].order;
-      if (orderDiff !== 0) return orderDiff;
-      return b.pointsDelta - a.pointsDelta;
-    });
-    return {
-      classRows: sorted.filter((p) => onRoster.has(p.uid)),
-      guestRows: sorted.filter((p) => !onRoster.has(p.uid)),
-    };
+    return getProgression(roster, filter)
+      .filter((p) => onRoster.has(p.uid))
+      .sort((a, b) => {
+        const orderDiff = TREND_META[a.trend].order - TREND_META[b.trend].order;
+        if (orderDiff !== 0) return orderDiff;
+        return b.pointsDelta - a.pointsDelta;
+      });
   }, [roster, filter, getProgression]);
-  const progression = group === 'class' ? classRows : guestRows;
 
   const counts = useMemo(() => {
     const base: Record<ProgressionTrend, number> = {
@@ -131,29 +128,6 @@ export default function PerformanceProgressionScreen() {
       </View>
 
       <ScrollView contentContainerStyle={[styles.scrollContent, readableColumn]}>
-        {/* WHO: the class, or guests who have left it */}
-        <View style={styles.chipRow}>
-          {(['class', 'guests'] as const).map((key) => {
-            const active = group === key;
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[styles.chip, styles.gameChip, active && styles.gameChipActive]}
-                onPress={() => setGroup(key)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                <Caption style={[styles.chipText, active && { color: '#FFF' }]}>
-                  {key === 'class'
-                    ? t('perfGroupClass', { n: classRows.length })
-                    : t('perfGroupGuests', { n: guestRows.length })}
-                </Caption>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        {group === 'guests' && <Caption style={styles.groupHint}>{t('perfGuestsHint')}</Caption>}
-
         {/* SUMMARY PILLS */}
         <View style={styles.summaryRow}>
           {(Object.keys(TREND_META) as ProgressionTrend[]).map((key) => {
@@ -239,7 +213,7 @@ export default function PerformanceProgressionScreen() {
         {/* STUDENT LIST */}
         {!ready && <Body style={styles.emptyText}>{t('loading')}</Body>}
         {ready && progression.length === 0 && (
-          <Body style={styles.emptyText}>{t(group === 'class' ? 'noStudentsYetPerf' : 'noGuestsPerf')}</Body>
+          <Body style={styles.emptyText}>{t('noStudentsYetPerf')}</Body>
         )}
 
         {progression.map((p) => {
@@ -329,7 +303,6 @@ export default function PerformanceProgressionScreen() {
 }
 
 const styles = StyleSheet.create({
-  groupHint: { color: '#5C3A21' },
   container: { flex: 1, backgroundColor: '#F5EFE0' },
   header: {
     backgroundColor: '#9B4FD6', paddingTop: 10, paddingBottom: 16, paddingHorizontal: 16,

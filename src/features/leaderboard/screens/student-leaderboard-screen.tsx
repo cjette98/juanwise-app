@@ -306,6 +306,22 @@ export default function StudentLeaderboardScreen() {
                 <Icon name="star" size={13} color={tokens.color.gold} filled />
                 <Caption style={styles.legendFootText}>{t('starsExplainShort')}</Caption>
               </View>
+              <Caption style={styles.legendExplain}>{t('starsExplainHow')}</Caption>
+
+              <View style={styles.legendDivider} />
+              <BodyStrong>{t('percentExplainTitle')}</BodyStrong>
+              <Caption style={styles.legendExplain}>{t('percentExplain')}</Caption>
+              {myRank !== null && beats !== null && (
+                <Caption style={styles.legendRowDetailStrong}>
+                  {t('percentExplainYou', {
+                    rank: myRank,
+                    total: rows.length,
+                    below: rows.length - myRank,
+                    others: rows.length - 1,
+                    pct: beats,
+                  })}
+                </Caption>
+              )}
             </Card>
           )}
 
@@ -498,7 +514,9 @@ const styles = StyleSheet.create({
   legendPaceRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2 },
   legendFoot: { marginTop: tokens.space.xs, fontStyle: 'italic' },
   legendFootRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs / 2, marginTop: tokens.space.xs },
-  legendFootText: { fontStyle: 'italic' },
+  // flex: 1 so the line wraps inside the card instead of running off it.
+  legendFootText: { flex: 1, fontStyle: 'italic' },
+  legendExplain: { color: tokens.color.inkMuted },
   legendDivider: { height: 1, backgroundColor: tokens.color.divider, marginVertical: tokens.space.sm },
 
   bannerTouchable: { minHeight: tokens.hit.min, marginTop: tokens.space.md },

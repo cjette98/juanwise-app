@@ -1,6 +1,7 @@
 // src/shared/components/ui/capped-text.tsx
 import React from 'react';
 import {
+  Platform,
   Text as NativeText,
   TextInput as NativeTextInput,
   type TextInputProps,
@@ -22,6 +23,23 @@ export const PLAIN_TEXT_MAX_FONT_MULTIPLIER = 1;
 export function Text({ maxFontSizeMultiplier, ...rest }: TextProps) {
   return <NativeText maxFontSizeMultiplier={maxFontSizeMultiplier ?? PLAIN_TEXT_MAX_FONT_MULTIPLIER} {...rest} />;
 }
+
+/**
+ * For a field whose `onChangeText` rewrites what was typed (upper-cases it,
+ * drops characters). Android keyboards with word suggestions hold the current
+ * word as "composing" text; when the app swaps the value under it, Gboard and
+ * Samsung Keyboard commit that word again, so one tap types two letters
+ * (Correction 2, #1). With suggestions off nothing is composing, and the
+ * `visible-password` keyboard is the one Android variant that turns them off
+ * on every keyboard app. These fields only take letters and digits anyway.
+ */
+export const NO_SUGGESTIONS_INPUT_PROPS: TextInputProps = {
+  autoCorrect: false,
+  spellCheck: false,
+  autoComplete: 'off',
+  importantForAutofill: 'no',
+  ...(Platform.OS === 'android' ? { keyboardType: 'visible-password' as const } : null),
+};
 
 export function TextInput({ maxFontSizeMultiplier, ...rest }: TextInputProps) {
   return (

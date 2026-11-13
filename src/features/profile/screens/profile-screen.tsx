@@ -12,7 +12,7 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { Text, TextInput } from '@/shared/components/ui/capped-text';
+import { NO_SUGGESTIONS_INPUT_PROPS, Text, TextInput } from '@/shared/components/ui/capped-text';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useUser } from '@/features/auth/context/user-context';
@@ -490,6 +490,7 @@ export default function ProfileScreen() {
                         style={[styles.cardInput, styles.inlineInput]}
                         value={draftSection}
                         onChangeText={(text) => setDraftSection(filterSectionInput(text))}
+                        {...NO_SUGGESTIONS_INPUT_PROPS}
                         maxLength={MAX_SECTION}
                         placeholder={t('section')}
                         placeholderTextColor={tokens.color.inkFaint}

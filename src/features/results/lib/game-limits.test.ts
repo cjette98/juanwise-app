@@ -31,18 +31,18 @@ describe('game limits', () => {
   });
 
   // Must match TROPHY_TIERS in juanwise-be src/shared/constants.ts.
-  it('keeps trophy time allowances at 2/3, 5/6 and all of the ceiling', () => {
+  it('keeps trophy time allowances at 2 h, 4 h and 6 h (Correction 2, #6)', () => {
     expect(TROPHY_TIERS.map((t) => [t.trophy, t.minPoints, t.maxTimeSeconds])).toEqual([
-      ['gold', 2700, 14400],
-      ['silver', 1800, 18000],
+      ['gold', 2700, 7200],
+      ['silver', 1800, 14400],
       ['bronze', 900, 21600],
     ]);
   });
 
   it('labels each tier with its time limit', () => {
     expect(TROPHY_TIERS.map((t) => t.timeLabel)).toEqual([
+      '≤ 7,200 sec (2 h)',
       '≤ 14,400 sec (4 h)',
-      '≤ 18,000 sec (5 h)',
       '≤ 21,600 sec (6 h)',
     ]);
   });

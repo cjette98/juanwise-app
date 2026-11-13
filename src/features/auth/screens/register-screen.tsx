@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Image, Alert, type TextInputProps } from 'react-native';
-import { TextInput } from '@/shared/components/ui/capped-text';
+import { NO_SUGGESTIONS_INPUT_PROPS, TextInput } from '@/shared/components/ui/capped-text';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useUser } from '@/features/auth/context/user-context';
@@ -269,6 +269,7 @@ export default function RegisterScreen() {
               placeholder="Infinity1"
               value={section}
               onChangeText={(text) => setSection(filterSectionInput(text))}
+              {...NO_SUGGESTIONS_INPUT_PROPS}
               onBlur={() => markTouched('section')}
               maxLength={MAX_SECTION}
               error={sectionError}
@@ -327,6 +328,7 @@ export default function RegisterScreen() {
               placeholder="Infinity1"
               value={teacherSection}
               onChangeText={(text) => setTeacherSection(filterSectionInput(text))}
+              {...NO_SUGGESTIONS_INPUT_PROPS}
               onBlur={() => markTouched('teacherSection')}
               maxLength={MAX_SECTION}
               error={teacherSectionError}

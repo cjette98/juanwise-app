@@ -217,17 +217,22 @@ export function ClassProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: t('classCodeInvalidMsg') };
       }
       try {
-        const { message, class: joined } = await classesApi.join(clean);
+        // The API's `message` is in one language only, so the app says it in
+        // the student's own (Correction 2, #7).
+        const { class: joined } = await classesApi.join(clean);
         if (mounted.current) {
           setCurrentClass(joined);
           writeCache(CLASS_CACHE_KEY, joined);
         }
         // The student's `classId` changed, and results are stamped with it.
         await refreshProfile();
-        return { success: true, message };
+        return { success: true, message: t('classJoinedMsg') };
       } catch (err) {
-        if (err instanceof ApiError && err.code === 'CONFLICT') {
-          return { success: true, message: err.message };
+        if (err instanceof ApiError) {
+          if (err.code === 'NOT_FOUND') return { success: false, message: t('classCodeInvalidMsg') };
+          if (err.code === 'BAD_REQUEST') return { success: false, message: t('classClosedMsg') };
+          // Already in another class: they have to leave it first.
+          if (err.code === 'CONFLICT') return { success: false, message: t('classAlreadyJoinedMsg') };
         }
         return { success: false, message: errorMessage(err, t('classJoinFailedMsg')) };
       }
