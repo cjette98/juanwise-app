@@ -8,9 +8,10 @@
 // - Points, time and "completed" come from passed activities only, each
 //   attempt's time held within 1 s and its budget (`countedTime`).
 // - Every failed or timed-out attempt counts toward `failedAttempts`, including
-//   ones the player later retried and passed, and its deduction (stored as
-//   negative points) comes off `totalPoints`, which never goes below 0.
-//   (Correction 3, #1)
+//   ones the player later retried and passed. Its deduction (stored as
+//   negative points) comes off `totalPoints` only if the activity was never
+//   passed, since a retry pass's points already carry it; the total never
+//   goes below 0. (Correction 3, #1)
 // - History is scoped to the class the player is in now, as the class
 //   leaderboard is.
 //
@@ -89,11 +90,37 @@ export function deductionOf(entry: ScoredAttempt): number {
   return isPass(entry) ? 0 : Math.max(0, -entry.points);
 }
 
+/**
+ * What one activity is worth: its pass's points, which already carry the
+ * failed tries before it, or every failure's deduction if it was never passed
+ * (Correction 3, #1).
+ */
+export function netPoints(tries: ScoredAttempt[]): number {
+  const pass = tries.find(isPass);
+  return pass ? pass.points : -tries.reduce((sum, e) => sum + deductionOf(e), 0);
+}
+
+/** One student's tries at one activity. */
+export function triesAt<T extends ScoredAttempt>(
+  entries: T[],
+  slot: { uid?: string; category: string; activityType: 'quiz' | 'jigsaw'; level: number; activityNum: number },
+): T[] {
+  return entries.filter(
+    (e) =>
+      (slot.uid === undefined || e.uid === slot.uid) &&
+      e.category === slot.category &&
+      e.activityType === slot.activityType &&
+      e.level === slot.level &&
+      e.activityNum === slot.activityNum,
+  );
+}
+
 export function totalsFor(entries: ScoredAttempt[]): Totals {
   const passed = canonicalAttempts(entries).filter(isPass);
   const failed = entries.filter((e) => !isPass(e));
+  const passedSlots = new Set(passed.map(slotKey));
   const earned = passed.reduce((sum, e) => sum + e.points, 0);
-  const deducted = failed.reduce((sum, e) => sum + deductionOf(e), 0);
+  const deducted = failed.filter((e) => !passedSlots.has(slotKey(e))).reduce((sum, e) => sum + deductionOf(e), 0);
   const totalTimeSec = passed.reduce((sum, e) => sum + countedTime(e), 0);
   const completed = passed.length;
   return {

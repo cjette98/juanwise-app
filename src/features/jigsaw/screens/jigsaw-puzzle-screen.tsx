@@ -11,7 +11,7 @@ import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/share
 import { isPass, levelScore, starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { JIGSAW_TIME_BUDGET_SECONDS } from '@/features/results/lib/game-limits';
 import { useUser } from '@/features/auth/context/user-context';
-import { triesLeft } from '@/features/learning/lib/attempt-rules';
+import { scorePass, triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useSound } from '@/shared/audio/sound-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
@@ -424,6 +424,11 @@ export default function JigsawPuzzleScreen() {
     setPlacedIds(empty);
   };
 
+  // A retry pass already carries the failed tries' deduction; spell it out
+  // against what the time alone earned (Correction 3, #1).
+  const timePoints = result ? scorePass(result.timeUsed, 1).points : 0;
+  const retryCut = result ? timePoints - result.points : 0;
+
   return (
     <Screen>
       <ScreenHeader
@@ -691,6 +696,9 @@ export default function JigsawPuzzleScreen() {
               <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
             <ScoreBadge points={result?.points ?? 0} tone="win" label={t('pointsWord')} />
+            {retryCut > 0 && (
+              <Body style={styles.deductionLine}>{t('passNetLine', { points: timePoints, deducted: retryCut, net: result?.points ?? 0 })}</Body>
+            )}
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -729,7 +737,7 @@ export default function JigsawPuzzleScreen() {
               </View>
               <H2 style={styles.timeUpTitle}>{t('activityCompleteIncorrect')}</H2>
             </View>
-            <ScoreBadge points={0} tone="loss" label={t('pointsWord')} />
+            <ScoreBadge points={result?.points ?? 0} tone="loss" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -762,6 +770,7 @@ export default function JigsawPuzzleScreen() {
 }
 
 const styles = StyleSheet.create({
+  deductionLine: { color: tokens.color.dangerInk, textAlign: 'center', marginTop: -tokens.space.sm, marginBottom: tokens.space.md },
   headerStatsRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs, marginTop: tokens.space.sm },
   headerStatsText: { color: tokens.color.gold, fontFamily: tokens.font.bodyBold },
   scrollContent: { alignItems: 'center', paddingBottom: tokens.space.sm },

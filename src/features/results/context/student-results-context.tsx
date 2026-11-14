@@ -19,7 +19,7 @@ import { deductionFor, nextAttemptSeq, scorePass } from '@/features/learning/lib
 import { useLanguage } from '@/shared/i18n/language-context';
 import { canonicalAttempts, inActiveClass } from '../lib/totals';
 
-export { activitySlots, deductionOf, isPass, levelScore, totalsFor, type LevelScore, type Totals } from '../lib/totals';
+export { activitySlots, deductionOf, isPass, levelScore, netPoints, triesAt, totalsFor, type LevelScore, type Totals } from '../lib/totals';
 
 import {
   ACTIVITIES_PER_LEVEL,
@@ -303,7 +303,7 @@ export function StudentResultsProvider({ children }: { children: React.ReactNode
       };
 
       // Mirror the server's rule so the student still sees the right outcome
-      // offline: a pass is worth the attempt's share (15/10/6), medal by fraction of the budget.
+      // offline: a pass is worth its time window, a failure its deduction.
       const queueOffline = async () => {
         if (uid) await enqueueResult(uid, payload);
         const optimistic = scoreLocally(attempt, uid, name, classId ?? null, nextAttemptSeq(results, attempt));
@@ -483,7 +483,7 @@ function scoreLocally(
   const timeUsed = Math.max(MIN_ACTIVITY_TIME_SECONDS, Math.min(Math.round(attempt.timeUsed), budget));
   const passed = !attempt.timedOut && attempt.requiredCount > 0 && attempt.correctCount >= attempt.requiredCount;
 
-  const score = passed ? scorePass(timeUsed) : { points: -deductionFor(attemptSeq), stars: 0 };
+  const score = passed ? scorePass(timeUsed, attemptSeq) : { points: -deductionFor(attemptSeq), stars: 0 };
   const medal: Medal = score.stars === 3 ? 'gold' : score.stars === 2 ? 'silver' : score.stars === 1 ? 'bronze' : null;
 
   return {

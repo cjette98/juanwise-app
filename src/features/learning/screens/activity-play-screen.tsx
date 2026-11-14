@@ -15,7 +15,7 @@ import { matchesIdentificationAnswer } from '@/features/learning/lib/answer-matc
 import { Screen, ScreenHeader, Card, Button, Icon, ScoreBadge, StarRow, ZoomableImage, H1, H2, Body, BodyStrong, Label, Caption } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
 import { typeScale } from '@/shared/theme/typography';
-import { triesLeft } from '@/features/learning/lib/attempt-rules';
+import { scorePass, triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { difficultyLabelKey } from '@/features/learning/lib/activity-list-model';
 import { useSound } from '@/shared/audio/sound-context';
@@ -336,6 +336,11 @@ export default function ActivityPlayScreen() {
     ? { borderColor: picked.correct ? tokens.color.success : tokens.color.danger }
     : null;
 
+  // A retry pass already carries the failed tries' deduction; spell it out
+  // against what the time alone earned (Correction 3, #1).
+  const timePoints = result ? scorePass(result.timeUsed, 1).points : 0;
+  const retryCut = result ? timePoints - result.points : 0;
+
   return (
     <Screen>
       <ScreenHeader
@@ -520,6 +525,9 @@ export default function ActivityPlayScreen() {
               <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
             <ScoreBadge points={result?.points ?? 0} tone="win" label={t('pointsWord')} />
+            {retryCut > 0 && (
+              <Body style={styles.deductionLine}>{t('passNetLine', { points: timePoints, deducted: retryCut, net: result?.points ?? 0 })}</Body>
+            )}
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -556,7 +564,7 @@ export default function ActivityPlayScreen() {
               </View>
               <H2 style={styles.timeUpTitle}>{incorrectTitle}</H2>
             </View>
-            <ScoreBadge points={0} tone="loss" label={t('pointsWord')} />
+            <ScoreBadge points={result?.points ?? 0} tone="loss" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -592,6 +600,7 @@ export default function ActivityPlayScreen() {
 }
 
 const styles = StyleSheet.create({
+  deductionLine: { color: tokens.color.dangerInk, textAlign: 'center', marginTop: -tokens.space.sm, marginBottom: tokens.space.md },
   body: { padding: tokens.space.xl, alignItems: 'center' },
   hintCard: { width: '100%', alignItems: 'center' },
   hintChip: {
