@@ -272,7 +272,7 @@ const en = {
   trophyPaceTitle: 'Trophy = Pace (same basis)',
   legendBronzeOrNone: 'Bronze / None',
   starsExplain:
-    'Stars = average stars per activity. A pass in 20 s or less earns 15 points and 3 stars, in 40 s 10 points and 2 stars, in 60 s 5 points and 1 star. A pass keeps those points on any try. Each failed try takes points off your total: 5 for the first, 10 for the second and third.',
+    'Stars = average stars per activity. A pass in 20 s or less earns 15 points and 3 stars, in 40 s 10 points and 2 stars, in 60 s 5 points and 1 star. Correct on the 2nd try: 5 points less; on the 3rd try: 10 less, never below 5. An activity you never get right costs 5, 10 and 10 for its three failed tries.',
   sortFastest: 'Top Performers',
   sortHighestPoints: 'Highest Points',
   loadingResults: 'Loading...',
@@ -1026,7 +1026,7 @@ const tl: Record<TranslationKey, string> = {
   trophyPaceTitle: 'Tropeo = Pace (parehong batayan)',
   legendBronzeOrNone: 'Tanso / Wala',
   starsExplain:
-    'Bituin = katamtamang bituin kada gawain. Pumasa sa 20 s o mas mabilis: 15 puntos at 3 bituin; sa 40 s: 10 puntos at 2 bituin; sa 60 s: 5 puntos at 1 bituin. Sa anumang subok, buo ang puntos ng pagpasa. Bawat bigong subok ay nagbabawas sa kabuuang puntos: 5 sa una, 10 sa ikalawa at ikatlo.',
+    'Bituin = katamtamang bituin kada gawain. Pumasa sa 20 s o mas mabilis: 15 puntos at 3 bituin; sa 40 s: 10 puntos at 2 bituin; sa 60 s: 5 puntos at 1 bituin. Tama sa ikalawang subok: bawas 5 puntos; sa ikatlo: bawas 10, hindi bababa sa 5. Ang gawaing hindi kailanman natama ay may bawas na 5, 10 at 10 sa tatlong bigong subok.',
   sortFastest: 'Nangungunang Estudyante',
   sortHighestPoints: 'Pinakamataas na Puntos',
   loadingResults: 'Naglo-load...',
