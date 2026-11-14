@@ -8,7 +8,7 @@ import Svg, { Path, Image as SvgImage, ClipPath, Defs, G } from 'react-native-sv
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
-import { isPass, levelScore, starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
+import { deductionOf, isPass, levelScore, netPoints, starsForMedal, triesAt, useStudentResults } from '@/features/results/context/student-results-context';
 import { JIGSAW_TIME_BUDGET_SECONDS } from '@/features/results/lib/game-limits';
 import { useUser } from '@/features/auth/context/user-context';
 import { triesLeft } from '@/features/learning/lib/attempt-rules';
@@ -88,6 +88,14 @@ export default function JigsawPuzzleScreen() {
     () => levelScore(results, { uid, category, activityType: 'jigsaw', level }),
     [results, uid, category, level],
   );
+  // This activity's tries so far: a pass shows its points less the failed
+  // tries' deductions, and a failure shows its deduction (Correction 3, #1).
+  const activityTries = useMemo(
+    () => triesAt(results, { uid, category, activityType: 'jigsaw', level, activityNum }),
+    [results, uid, category, level, activityNum],
+  );
+  const deducted = activityTries.reduce((sum, r) => sum + deductionOf(r), 0);
+  const activityNet = netPoints(activityTries);
   const { getEffectiveCategoryContent } = useClassContent();
   const { t } = useLanguage();
   const label = t(getCategoryMeta(category).labelKey) || params.label;
@@ -690,7 +698,10 @@ export default function JigsawPuzzleScreen() {
               </View>
               <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
-            <ScoreBadge points={result?.points ?? 0} tone="win" label={t('pointsWord')} />
+            <ScoreBadge points={deducted > 0 ? activityNet : result?.points ?? 0} tone={activityNet < 0 ? 'loss' : 'win'} label={t('pointsWord')} />
+            {deducted > 0 && (
+              <Body style={styles.deductionLine}>{t('passNetLine', { points: result?.points ?? 0, deducted, net: activityNet })}</Body>
+            )}
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -729,7 +740,7 @@ export default function JigsawPuzzleScreen() {
               </View>
               <H2 style={styles.timeUpTitle}>{t('activityCompleteIncorrect')}</H2>
             </View>
-            <ScoreBadge points={0} tone="loss" label={t('pointsWord')} />
+            <ScoreBadge points={result?.points ?? 0} tone="loss" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -762,6 +773,7 @@ export default function JigsawPuzzleScreen() {
 }
 
 const styles = StyleSheet.create({
+  deductionLine: { color: tokens.color.dangerInk, textAlign: 'center', marginTop: -tokens.space.sm, marginBottom: tokens.space.md },
   headerStatsRow: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs, marginTop: tokens.space.sm },
   headerStatsText: { color: tokens.color.gold, fontFamily: tokens.font.bodyBold },
   scrollContent: { alignItems: 'center', paddingBottom: tokens.space.sm },

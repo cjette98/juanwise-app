@@ -16,7 +16,7 @@ import {
   TrophyBadge,
 } from '@/shared/components/ui';
 import { tokens, categoryColor } from '@/shared/theme/tokens';
-import { useStudentResults, ActivityResult, activitySlots, getCanonicalAttempts, isPass, totalsFor, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
+import { useStudentResults, ActivityResult, activitySlots, getCanonicalAttempts, isPass, netPoints, totalsFor, triesAt, TROPHY_TIERS, Trophy, COMBINED_MAX_POINTS } from '@/features/results/context/student-results-context';
 import { CATEGORY_META } from '@/shared/content/category-meta';
 import { useLanguage, type TranslationKey } from '@/shared/i18n/language-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -70,9 +70,14 @@ function computeTrophy(totalPoints: number, totalTimeUsed: number): Trophy {
 // (lib/totals.ts), so a level's points here add up to the board's.
 function levelStats(attempts: ActivityResult[], slot: { category: string; activityType: 'quiz' | 'jigsaw'; level: number }) {
   const slots = activitySlots(attempts, slot);
-  const { totalPoints, totalTimeSec, completed } = totalsFor(slots.filter((a): a is ActivityResult => a !== null));
+  const inLevel = attempts.filter(
+    (a) => a.category === slot.category && a.activityType === slot.activityType && a.level === slot.level,
+  );
+  // Every try, so failed ones' deductions come off the level's points.
+  const { totalPoints, totalTimeSec, completed } = totalsFor(inLevel);
   return {
     slots,
+    nets: slots.map((a, i) => (a ? netPoints(triesAt(inLevel, { ...slot, activityNum: i + 1 })) : null)),
     passedCount: completed,
     totalPoints,
     totalTime: totalTimeSec,
@@ -387,7 +392,7 @@ export default function StudentSummaryScreen() {
                                       ]}
                                     >
                                       <Caption style={styles.activityCellLabel}>{t('activityShort', { n: i + 1 })}</Caption>
-                                      <Caption style={[styles.activityCellValue, !!a && a.points < 0 && styles.deduction]}>{a ? a.points : '–'}</Caption>
+                                      <Caption style={[styles.activityCellValue, (stats.nets[i] ?? 0) < 0 && styles.deduction]}>{stats.nets[i] ?? '–'}</Caption>
                                     </View>
                                   ))}
                                 </View>

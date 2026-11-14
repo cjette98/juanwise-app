@@ -6,7 +6,7 @@ import { TextInput } from '@/shared/components/ui/capped-text';
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
-import { isPass, levelScore, starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
+import { deductionOf, isPass, levelScore, netPoints, starsForMedal, triesAt, useStudentResults } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { ApiError, errorMessage } from '@/shared/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -70,6 +70,14 @@ export default function ActivityPlayScreen() {
     () => levelScore(results, { uid, category, activityType: 'quiz', level }),
     [results, uid, category, level],
   );
+  // This activity's tries so far: a pass shows its points less the failed
+  // tries' deductions, and a failure shows its deduction (Correction 3, #1).
+  const activityTries = useMemo(
+    () => triesAt(results, { uid, category, activityType: 'quiz', level, activityNum }),
+    [results, uid, category, level, activityNum],
+  );
+  const deducted = activityTries.reduce((sum, r) => sum + deductionOf(r), 0);
+  const activityNet = netPoints(activityTries);
   // Content and the app-wide "Mini-Lesson" toggle both come from the content
   // module now, so an admin's edit reaches every student's device.
   const { showMiniLesson, ready: adminReady, getEffectiveQuestion } = useClassContent();
@@ -519,7 +527,10 @@ export default function ActivityPlayScreen() {
               </View>
               <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
-            <ScoreBadge points={result?.points ?? 0} tone="win" label={t('pointsWord')} />
+            <ScoreBadge points={deducted > 0 ? activityNet : result?.points ?? 0} tone={activityNet < 0 ? 'loss' : 'win'} label={t('pointsWord')} />
+            {deducted > 0 && (
+              <Body style={styles.deductionLine}>{t('passNetLine', { points: result?.points ?? 0, deducted, net: activityNet })}</Body>
+            )}
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -556,7 +567,7 @@ export default function ActivityPlayScreen() {
               </View>
               <H2 style={styles.timeUpTitle}>{incorrectTitle}</H2>
             </View>
-            <ScoreBadge points={0} tone="loss" label={t('pointsWord')} />
+            <ScoreBadge points={result?.points ?? 0} tone="loss" label={t('pointsWord')} />
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>
               <View style={styles.detailRow}>
@@ -592,6 +603,7 @@ export default function ActivityPlayScreen() {
 }
 
 const styles = StyleSheet.create({
+  deductionLine: { color: tokens.color.dangerInk, textAlign: 'center', marginTop: -tokens.space.sm, marginBottom: tokens.space.md },
   body: { padding: tokens.space.xl, alignItems: 'center' },
   hintCard: { width: '100%', alignItems: 'center' },
   hintChip: {

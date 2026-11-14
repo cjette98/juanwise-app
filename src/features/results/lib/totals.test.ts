@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activitySlots, canonicalAttempts, inActiveClass, isPass, levelScore, totalsFor, type ScoredAttempt } from './totals';
+import { activitySlots, canonicalAttempts, inActiveClass, isPass, levelScore, netPoints, totalsFor, triesAt, type ScoredAttempt } from './totals';
 
 /**
  * The app's totals must equal the server's (juanwise-be results/scoring.ts):
@@ -28,6 +28,20 @@ function attempt(over: Partial<ScoredAttempt> = {}): ScoredAttempt {
   };
 }
 const fail = (over: Partial<ScoredAttempt> = {}) => attempt({ points: 0, ...over });
+
+describe('netPoints / triesAt (Correction 3, #1)', () => {
+  it('nets an activity: pass points less every failed try', () => {
+    expect(netPoints([attempt({ points: 15 })])).toBe(15);
+    expect(netPoints([fail({ points: -5 }), attempt({ attemptSeq: 2, points: 15 })])).toBe(10);
+    expect(netPoints([fail({ points: -5 }), fail({ attemptSeq: 2, points: -10 }), attempt({ attemptSeq: 3, points: 15 })])).toBe(0);
+    expect(netPoints([fail({ points: -5 }), fail({ points: -10 }), fail({ points: -10 })])).toBe(-25);
+  });
+
+  it('picks one student\'s tries at one activity', () => {
+    const rows = [attempt(), attempt({ activityNum: 2 }), attempt({ uid: 'u2' }), attempt({ level: 2 })];
+    expect(triesAt(rows, { uid: 'u1', category: 'history', activityType: 'quiz', level: 1, activityNum: 1 })).toHaveLength(1);
+  });
+});
 
 describe('isPass', () => {
   it('is a pass only when points were earned', () => {

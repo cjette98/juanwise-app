@@ -89,6 +89,32 @@ export function deductionOf(entry: ScoredAttempt): number {
   return isPass(entry) ? 0 : Math.max(0, -entry.points);
 }
 
+/**
+ * What one activity is worth after its failed tries: the pass's points (0
+ * without one) less every deduction, e.g. -5 then a 15-point pass is 10. The
+ * pass's own row keeps its 15, so result pop-ups and the Full Record show this
+ * instead (Correction 3, #1).
+ */
+export function netPoints(tries: ScoredAttempt[]): number {
+  const pass = tries.find(isPass);
+  return (pass?.points ?? 0) - tries.reduce((sum, e) => sum + deductionOf(e), 0);
+}
+
+/** One student's tries at one activity. */
+export function triesAt<T extends ScoredAttempt>(
+  entries: T[],
+  slot: { uid?: string; category: string; activityType: 'quiz' | 'jigsaw'; level: number; activityNum: number },
+): T[] {
+  return entries.filter(
+    (e) =>
+      (slot.uid === undefined || e.uid === slot.uid) &&
+      e.category === slot.category &&
+      e.activityType === slot.activityType &&
+      e.level === slot.level &&
+      e.activityNum === slot.activityNum,
+  );
+}
+
 export function totalsFor(entries: ScoredAttempt[]): Totals {
   const passed = canonicalAttempts(entries).filter(isPass);
   const failed = entries.filter((e) => !isPass(e));
