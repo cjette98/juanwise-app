@@ -12,13 +12,19 @@ import {
 const empty: LocalTrack = { unlockedLevel: 1, completed: [], failed: [], exhausted: [], attempts: {} };
 
 describe('scorePass / deductionFor (Correction 3, #1)', () => {
-  // A pass earns its time window on any try, as juanwise-be scores it.
+  // As juanwise-be scores it: the time window, less the last failure's
+  // deduction on a retry, never below 5. Fail, fail, correct is 15 - 10 = 5.
   it.each([
-    [18, 15, 3],
-    [37, 10, 2],
-    [55, 5, 1],
-  ])('a pass in %is: %i points, %i stars', (time, points, stars) => {
-    expect(scorePass(time)).toEqual({ points, stars });
+    [18, 1, 15, 3],
+    [37, 1, 10, 2],
+    [55, 1, 5, 1],
+    [18, 2, 10, 2],
+    [37, 2, 5, 1],
+    [55, 2, 5, 1],
+    [18, 3, 5, 1],
+    [55, 3, 5, 1],
+  ])('a pass in %is on try %i: %i points, %i stars', (time, seq, points, stars) => {
+    expect(scorePass(time, seq)).toEqual({ points, stars });
   });
 
   it('deducts 5 for the first failed try and 10 for the second and third', () => {
