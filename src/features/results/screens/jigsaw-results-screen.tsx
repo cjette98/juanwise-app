@@ -72,7 +72,7 @@ export default function JigsawResultsScreen() {
                   <Icon name="clock" size={13} color={tokens.color.inkMuted} />
                   <Caption>{t('secondsSuffix', { seconds: r.timeUsed })}</Caption>
                 </View>
-                <BodyStrong style={styles.rowPoints}>{t('pointsSuffixShort', { points: r.points })}</BodyStrong>
+                <BodyStrong style={[styles.rowPoints, r.points < 0 && styles.deduction]}>{t('pointsSuffixShort', { points: r.points })}</BodyStrong>
               </View>
             </Card>
           );
@@ -97,4 +97,5 @@ const styles = StyleSheet.create({
   rowStats: { alignItems: 'flex-end', gap: tokens.space.xs },
   rowStatLine: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
   rowPoints: { color: tokens.color.points },
+  deduction: { color: tokens.color.danger },
 });

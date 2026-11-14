@@ -133,6 +133,7 @@ export default function ProfileScreen() {
   const [draftLrn, setDraftLrn] = useState(lrn);
   const [draftTeacherId, setDraftTeacherId] = useState(teacherId);
   const [currentPassword, setCurrentPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -175,6 +176,7 @@ export default function ProfileScreen() {
     setDraftLrn(lrn);
     setDraftTeacherId(teacherId);
     setCurrentPassword('');
+    setShowPassword(false);
     expand();
     setEditing(true);
   };
@@ -240,6 +242,7 @@ export default function ProfileScreen() {
       expand();
       setEditing(false);
       setCurrentPassword('');
+      setShowPassword(false);
       Alert.alert(
         t('profileUpdatedTitle'),
         pendingIdentity.username ? t('usernameChangedMsg', { username: pendingIdentity.username }) : t('profileUpdatedMsg'),
@@ -526,17 +529,27 @@ export default function ProfileScreen() {
         {editing && identityChanged && (
           <Card style={styles.passwordCard}>
             <Label style={styles.cardLabel}>{t('currentPasswordLabel')}</Label>
-            <TextInput
-              style={styles.cardInput}
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder={t('currentPasswordLabel')}
-              placeholderTextColor={tokens.color.inkFaint}
-              accessibilityLabel={t('currentPasswordLabel')}
-            />
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[styles.cardInput, styles.passwordInput]}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder={t('currentPasswordLabel')}
+                placeholderTextColor={tokens.color.inkFaint}
+                accessibilityLabel={t('currentPasswordLabel')}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword((prev) => !prev)}
+                style={styles.eyeBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t(showPassword ? 'hidePasswordBtn' : 'showPasswordBtn')}
+              >
+                <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={tokens.color.inkMuted} />
+              </TouchableOpacity>
+            </View>
             <Caption>{t('currentPasswordHint')}</Caption>
           </Card>
         )}
@@ -688,6 +701,9 @@ const styles = StyleSheet.create({
   cardLabel: { marginBottom: 2 },
   lockedHint: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   passwordCard: { gap: tokens.space.xs },
+  passwordRow: { flexDirection: 'row', alignItems: 'center' },
+  passwordInput: { flex: 1 },
+  eyeBtn: { minWidth: tokens.hit.min, minHeight: tokens.hit.min, alignItems: 'center', justifyContent: 'center' },
   lockedHintText: { fontStyle: 'italic' },
   cardInput: {
     fontFamily: tokens.font.bodyBold,

@@ -293,7 +293,7 @@ export default function StudentSummaryScreen() {
                     </View>
                     <View style={styles.historyStatLine}>
                       <Icon name="star" size={13} color={tokens.color.gold} filled />
-                      <BodyStrong style={styles.historyStatPoints}>{t('pointsSuffixShort', { points: r.points })}</BodyStrong>
+                      <BodyStrong style={[styles.historyStatPoints, r.points < 0 && styles.deduction]}>{t('pointsSuffixShort', { points: r.points })}</BodyStrong>
                     </View>
                   </View>
                 </Card>
@@ -387,7 +387,7 @@ export default function StudentSummaryScreen() {
                                       ]}
                                     >
                                       <Caption style={styles.activityCellLabel}>{t('activityShort', { n: i + 1 })}</Caption>
-                                      <Caption style={styles.activityCellValue}>{a ? a.points : '–'}</Caption>
+                                      <Caption style={[styles.activityCellValue, !!a && a.points < 0 && styles.deduction]}>{a ? a.points : '–'}</Caption>
                                     </View>
                                   ))}
                                 </View>
@@ -453,6 +453,7 @@ const styles = StyleSheet.create({
   historyStatLine: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   historyStatText: { color: tokens.color.ink },
   historyStatPoints: { color: tokens.color.points },
+  deduction: { color: tokens.color.danger },
 
   categoryCard: { borderWidth: 2, padding: 0, overflow: 'hidden' },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', padding: tokens.space.md, gap: tokens.space.sm, minHeight: tokens.hit.min },

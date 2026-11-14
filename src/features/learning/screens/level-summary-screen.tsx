@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { useStudentResults, ActivityResult, isPass } from '@/features/results/context/student-results-context';
+import { useStudentResults, ActivityResult, deductionOf, isPass } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum, toBool } from '@/shared/lib/params';
@@ -108,10 +108,13 @@ export default function LevelSummaryScreen() {
       const firstAttempt = forActivity[0] || null;
       // The attempt that actually unlocked this activity.
       const passingAttempt = [...forActivity].reverse().find(isPass) || null;
+      // The pass's points less every failed try's deduction (Correction 3, #1).
+      const deducted = forActivity.reduce((sum, r) => sum + deductionOf(r), 0);
       return {
         num,
         firstAttempt,
         passingAttempt,
+        netPoints: (passingAttempt?.points ?? 0) - deducted,
         exhausted: !passingAttempt && forActivity.length >= MAX_ATTEMPTS,
         firstAttemptCorrect: !!firstAttempt && isPass(firstAttempt),
       };
@@ -132,7 +135,7 @@ export default function LevelSummaryScreen() {
     }
   }, [allComplete, isReadOnly, playSfx]);
 
-  const totalPoints = perActivity.reduce((sum, a) => sum + (a.passingAttempt?.points ?? 0), 0);
+  const totalPoints = Math.max(0, perActivity.reduce((sum, a) => sum + a.netPoints, 0));
   const totalTime = perActivity.reduce((sum, a) => sum + (a.passingAttempt?.timeUsed ?? 0), 0);
   const totalTimeCap = maxTimePerActivity(activityType) * 6;
   const levelMedal = medalForPoints(totalPoints);
@@ -257,7 +260,7 @@ export default function LevelSummaryScreen() {
                       {statusText}
                     </Caption>
                   </View>
-                  <BodyStrong style={styles.activityPoints}>{t('pointsSuffixShort', { points: p ? p.points : 0 })}</BodyStrong>
+                  <BodyStrong style={[styles.activityPoints, a.netPoints < 0 && styles.deduction]}>{t('pointsSuffixShort', { points: a.netPoints })}</BodyStrong>
                 </View>
               </Card>
             );
@@ -331,6 +334,7 @@ const styles = StyleSheet.create({
   activityRowRight: { flex: 1.4, alignItems: 'flex-end', gap: 4 },
   statusChip: { flexDirection: 'row', alignItems: 'center', gap: tokens.space.xs },
   activityPoints: { color: tokens.color.points },
+  deduction: { color: tokens.color.danger },
   warningCard: {
     flexDirection: 'row',
     alignItems: 'center',
