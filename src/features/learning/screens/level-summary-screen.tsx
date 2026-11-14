@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { useStudentResults, ActivityResult, deductionOf, isPass } from '@/features/results/context/student-results-context';
+import { useStudentResults, ActivityResult, isPass, netPoints } from '@/features/results/context/student-results-context';
 import { useUser } from '@/features/auth/context/user-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { toNum, toBool } from '@/shared/lib/params';
@@ -108,13 +108,11 @@ export default function LevelSummaryScreen() {
       const firstAttempt = forActivity[0] || null;
       // The attempt that actually unlocked this activity.
       const passingAttempt = [...forActivity].reverse().find(isPass) || null;
-      // The pass's points less every failed try's deduction (Correction 3, #1).
-      const deducted = forActivity.reduce((sum, r) => sum + deductionOf(r), 0);
       return {
         num,
         firstAttempt,
         passingAttempt,
-        netPoints: (passingAttempt?.points ?? 0) - deducted,
+        netPoints: netPoints(forActivity),
         exhausted: !passingAttempt && forActivity.length >= MAX_ATTEMPTS,
         firstAttemptCorrect: !!firstAttempt && isPass(firstAttempt),
       };

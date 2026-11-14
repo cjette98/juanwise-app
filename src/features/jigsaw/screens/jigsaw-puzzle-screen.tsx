@@ -8,10 +8,10 @@ import Svg, { Path, Image as SvgImage, ClipPath, Defs, G } from 'react-native-sv
 import { useGameProgress } from '@/features/learning/context/game-progress-context';
 import { useClassContent } from '@/features/learning/context/class-content-context';
 import ActivityTimer, { ActivityTimerHandle, ActivityTimerResult } from '@/shared/components/activity-timer';
-import { deductionOf, isPass, levelScore, netPoints, starsForMedal, triesAt, useStudentResults } from '@/features/results/context/student-results-context';
+import { isPass, levelScore, starsForMedal, useStudentResults } from '@/features/results/context/student-results-context';
 import { JIGSAW_TIME_BUDGET_SECONDS } from '@/features/results/lib/game-limits';
 import { useUser } from '@/features/auth/context/user-context';
-import { triesLeft } from '@/features/learning/lib/attempt-rules';
+import { scorePass, triesLeft } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { useSound } from '@/shared/audio/sound-context';
 import { getCategoryMeta } from '@/shared/content/category-meta';
@@ -88,14 +88,6 @@ export default function JigsawPuzzleScreen() {
     () => levelScore(results, { uid, category, activityType: 'jigsaw', level }),
     [results, uid, category, level],
   );
-  // This activity's tries so far: a pass shows its points less the failed
-  // tries' deductions, and a failure shows its deduction (Correction 3, #1).
-  const activityTries = useMemo(
-    () => triesAt(results, { uid, category, activityType: 'jigsaw', level, activityNum }),
-    [results, uid, category, level, activityNum],
-  );
-  const deducted = activityTries.reduce((sum, r) => sum + deductionOf(r), 0);
-  const activityNet = netPoints(activityTries);
   const { getEffectiveCategoryContent } = useClassContent();
   const { t } = useLanguage();
   const label = t(getCategoryMeta(category).labelKey) || params.label;
@@ -432,6 +424,11 @@ export default function JigsawPuzzleScreen() {
     setPlacedIds(empty);
   };
 
+  // A retry pass already carries the failed tries' deduction; spell it out
+  // against what the time alone earned (Correction 3, #1).
+  const timePoints = result ? scorePass(result.timeUsed, 1).points : 0;
+  const retryCut = result ? timePoints - result.points : 0;
+
   return (
     <Screen>
       <ScreenHeader
@@ -698,9 +695,9 @@ export default function JigsawPuzzleScreen() {
               </View>
               <H2 style={styles.successTitle}>{t('activityCompleteTitle')}</H2>
             </View>
-            <ScoreBadge points={deducted > 0 ? activityNet : result?.points ?? 0} tone={activityNet < 0 ? 'loss' : 'win'} label={t('pointsWord')} />
-            {deducted > 0 && (
-              <Body style={styles.deductionLine}>{t('passNetLine', { points: result?.points ?? 0, deducted, net: activityNet })}</Body>
+            <ScoreBadge points={result?.points ?? 0} tone="win" label={t('pointsWord')} />
+            {retryCut > 0 && (
+              <Body style={styles.deductionLine}>{t('passNetLine', { points: timePoints, deducted: retryCut, net: result?.points ?? 0 })}</Body>
             )}
             <View style={styles.detailBlock}>
               <Body style={styles.detailLine}>{t('detailStudent', { name: studentName })}</Body>

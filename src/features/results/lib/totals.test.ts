@@ -30,10 +30,10 @@ function attempt(over: Partial<ScoredAttempt> = {}): ScoredAttempt {
 const fail = (over: Partial<ScoredAttempt> = {}) => attempt({ points: 0, ...over });
 
 describe('netPoints / triesAt (Correction 3, #1)', () => {
-  it('nets an activity: pass points less every failed try', () => {
+  it('is the pass\'s points, or every deduction when never passed', () => {
     expect(netPoints([attempt({ points: 15 })])).toBe(15);
-    expect(netPoints([fail({ points: -5 }), attempt({ attemptSeq: 2, points: 15 })])).toBe(10);
-    expect(netPoints([fail({ points: -5 }), fail({ attemptSeq: 2, points: -10 }), attempt({ attemptSeq: 3, points: 15 })])).toBe(0);
+    expect(netPoints([fail({ points: -5 }), attempt({ attemptSeq: 2, points: 10 })])).toBe(10);
+    expect(netPoints([fail({ points: -5 }), fail({ attemptSeq: 2, points: -10 }), attempt({ attemptSeq: 3, points: 5 })])).toBe(5);
     expect(netPoints([fail({ points: -5 }), fail({ points: -10 }), fail({ points: -10 })])).toBe(-25);
   });
 
@@ -87,6 +87,15 @@ describe('totalsFor', () => {
     ]);
     expect(totals.failedAttempts).toBe(2);
     expect(totals.totalPoints).toBe(6);
+  });
+
+  it('counts a passed activity at its pass alone: fail, fail, correct = 5', () => {
+    const totals = totalsFor([
+      fail({ attemptSeq: 1, points: -5 }),
+      fail({ attemptSeq: 2, points: -10 }),
+      attempt({ attemptSeq: 3, points: 5 }),
+    ]);
+    expect(totals).toMatchObject({ totalPoints: 5, completed: 1, failedAttempts: 2 });
   });
 
   it('takes every failed try off the total, never below 0 (Correction 3, #1)', () => {

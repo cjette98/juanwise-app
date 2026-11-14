@@ -483,7 +483,7 @@ function scoreLocally(
   const timeUsed = Math.max(MIN_ACTIVITY_TIME_SECONDS, Math.min(Math.round(attempt.timeUsed), budget));
   const passed = !attempt.timedOut && attempt.requiredCount > 0 && attempt.correctCount >= attempt.requiredCount;
 
-  const score = passed ? scorePass(timeUsed) : { points: -deductionFor(attemptSeq), stars: 0 };
+  const score = passed ? scorePass(timeUsed, attemptSeq) : { points: -deductionFor(attemptSeq), stars: 0 };
   const medal: Medal = score.stars === 3 ? 'gold' : score.stars === 2 ? 'silver' : score.stars === 1 ? 'bronze' : null;
 
   return {
