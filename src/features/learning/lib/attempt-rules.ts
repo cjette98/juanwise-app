@@ -10,24 +10,27 @@ const MAX_LEVEL = 5;
 
 /**
  * The client's reference sheet (Correction 1, F4), as juanwise-be
- * `results/scoring.ts` scores it: base points and time stars by finish time,
- * less 5 after one failed try and 10 after two (Correction 2, #4), never below
- * 0. Stars are the lower of the time stars and the points stars.
+ * `results/scoring.ts` scores it: a pass earns points and stars by finish time
+ * on any try. Each failed try is its own deduction, -5 for the first and -10
+ * for the second and third, taken off the total (Correction 3, #1).
  */
 export const TIME_WINDOWS = [
   { maxSec: 20, points: 15, stars: 3 },
   { maxSec: 40, points: 10, stars: 2 },
   { maxSec: 60, points: 5, stars: 1 },
 ] as const;
-export const FAILED_TRY_PENALTIES = [5, 5, 5] as const;
+export const FAILED_TRY_DEDUCTIONS = [5, 10, 10] as const;
 
-/** Points and stars for a pass that took `timeUsed` seconds on try `attemptSeq`. */
-export function scorePass(timeUsed: number, attemptSeq: number): { points: number; stars: 0 | 1 | 2 | 3 } {
+/** Points and stars for a pass that took `timeUsed` seconds. */
+export function scorePass(timeUsed: number): { points: number; stars: 1 | 2 | 3 } {
   const window = TIME_WINDOWS.find((w) => timeUsed <= w.maxSec) ?? TIME_WINDOWS[TIME_WINDOWS.length - 1];
-  const penalty = FAILED_TRY_PENALTIES.slice(0, Math.max(0, attemptSeq - 1)).reduce((sum, p) => sum + p, 0);
-  const points = Math.max(0, window.points - penalty);
-  const pointStars = points >= 15 ? 3 : points >= 10 ? 2 : points >= 5 ? 1 : 0;
-  return { points, stars: Math.min(window.stars, pointStars) as 0 | 1 | 2 | 3 };
+  return { points: window.points, stars: window.stars };
+}
+
+/** What failed try `attemptSeq` (1-based) takes off the total. */
+export function deductionFor(attemptSeq: number): number {
+  const index = Math.min(Math.max(attemptSeq, 1), FAILED_TRY_DEDUCTIONS.length) - 1;
+  return FAILED_TRY_DEDUCTIONS[index];
 }
 
 export type SlotStatus = 'open' | 'passed' | 'exhausted';

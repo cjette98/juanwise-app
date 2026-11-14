@@ -4,8 +4,9 @@ import { activitySlots, canonicalAttempts, inActiveClass, isPass, levelScore, to
 /**
  * The app's totals must equal the server's (juanwise-be results/scoring.ts):
  * one canonical attempt per activity (a pass beats a failure, else the latest),
- * points from passes only, time and "completed" from passes only, and every
- * failed or timed-out attempt counted (Adjustment 3, items 1 and 6).
+ * points from passes only, less each failed try's deduction (Correction 3,
+ * #1), time and "completed" from passes only, and every failed or timed-out
+ * attempt counted (Adjustment 3, items 1 and 6).
  */
 
 let seq = 0;
@@ -72,6 +73,21 @@ describe('totalsFor', () => {
     ]);
     expect(totals.failedAttempts).toBe(2);
     expect(totals.totalPoints).toBe(6);
+  });
+
+  it('takes every failed try off the total, never below 0 (Correction 3, #1)', () => {
+    // The client's example: puzzles 1-3 passed for 15 + 10 + 5, puzzle 4
+    // failed three times for -5, -10, -10.
+    const totals = totalsFor([
+      attempt({ activityNum: 1, points: 15 }),
+      attempt({ activityNum: 2, points: 10 }),
+      attempt({ activityNum: 3, points: 5 }),
+      fail({ activityNum: 4, attemptSeq: 1, points: -5, timedOut: true }),
+      fail({ activityNum: 4, attemptSeq: 2, points: -10, timedOut: true }),
+      fail({ activityNum: 4, attemptSeq: 3, points: -10, timedOut: true }),
+    ]);
+    expect(totals).toMatchObject({ totalPoints: 5, completed: 3, failedAttempts: 3 });
+    expect(totalsFor([fail({ points: -5, timedOut: true })]).totalPoints).toBe(0);
   });
 
   it('reports no average before anything is completed', () => {

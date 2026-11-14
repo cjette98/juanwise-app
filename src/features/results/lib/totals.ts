@@ -8,7 +8,9 @@
 // - Points, time and "completed" come from passed activities only, each
 //   attempt's time held within 1 s and its budget (`countedTime`).
 // - Every failed or timed-out attempt counts toward `failedAttempts`, including
-//   ones the player later retried and passed.
+//   ones the player later retried and passed, and its deduction (stored as
+//   negative points) comes off `totalPoints`, which never goes below 0.
+//   (Correction 3, #1)
 // - History is scoped to the class the player is in now, as the class
 //   leaderboard is.
 //
@@ -47,9 +49,9 @@ export interface Totals {
 
 /**
  * A pass is every answer right before the timer ran out, as on the server.
- * Under the reference sheet's scoring a pass can be worth 0 points (a second
- * try in 41-60 s), so points no longer tell a pass from a failure. A row
- * without the counts falls back to the old reading, where every pass scored.
+ * Rows scored before Correction 3 can hold a 0-point pass, so points alone do
+ * not tell a pass from a failure. A row without the counts falls back to the
+ * old reading, where every pass scored.
  */
 export function isPass(entry: {
   points: number;
@@ -82,16 +84,23 @@ export function canonicalAttempts<T extends ScoredAttempt>(entries: T[]): T[] {
   return [...bySlot.values()];
 }
 
+/** What a failed attempt took off the total: its negative points, else 0. */
+export function deductionOf(entry: ScoredAttempt): number {
+  return isPass(entry) ? 0 : Math.max(0, -entry.points);
+}
+
 export function totalsFor(entries: ScoredAttempt[]): Totals {
   const passed = canonicalAttempts(entries).filter(isPass);
-  const totalPoints = passed.reduce((sum, e) => sum + e.points, 0);
+  const failed = entries.filter((e) => !isPass(e));
+  const earned = passed.reduce((sum, e) => sum + e.points, 0);
+  const deducted = failed.reduce((sum, e) => sum + deductionOf(e), 0);
   const totalTimeSec = passed.reduce((sum, e) => sum + countedTime(e), 0);
   const completed = passed.length;
   return {
-    totalPoints,
+    totalPoints: Math.max(0, earned - deducted),
     totalTimeSec,
     completed,
-    failedAttempts: entries.filter((e) => !isPass(e)).length,
+    failedAttempts: failed.length,
     avgTimeSec: completed > 0 ? Math.round((totalTimeSec / completed) * 10) / 10 : null,
   };
 }

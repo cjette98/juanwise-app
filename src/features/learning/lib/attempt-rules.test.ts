@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyAttemptToTrack,
+  deductionFor,
   nextAttemptSeq,
   scorePass,
   slotStatus,
@@ -10,20 +11,18 @@ import {
 
 const empty: LocalTrack = { unlockedLevel: 1, completed: [], failed: [], exhausted: [], attempts: {} };
 
-describe('scorePass (Correction 1, F4)', () => {
-  // The reference sheet's trace cases, as juanwise-be scores them, with the
-  // third try losing 10 rather than 15 (Correction 2, #4).
+describe('scorePass / deductionFor (Correction 3, #1)', () => {
+  // A pass earns its time window on any try, as juanwise-be scores it.
   it.each([
-    [18, 1, 15, 3],
-    [37, 1, 10, 2],
-    [55, 1, 5, 1],
-    [18, 2, 10, 2],
-    [50, 2, 0, 0],
-    [9, 3, 5, 1],
-    [18, 3, 5, 1],
-    [30, 3, 0, 0],
-  ])('%is on try %i: %i points, %i stars', (time, seq, points, stars) => {
-    expect(scorePass(time, seq)).toEqual({ points, stars });
+    [18, 15, 3],
+    [37, 10, 2],
+    [55, 5, 1],
+  ])('a pass in %is: %i points, %i stars', (time, points, stars) => {
+    expect(scorePass(time)).toEqual({ points, stars });
+  });
+
+  it('deducts 5 for the first failed try and 10 for the second and third', () => {
+    expect([1, 2, 3].map(deductionFor)).toEqual([5, 10, 10]);
   });
 });
 

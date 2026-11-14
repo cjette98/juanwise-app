@@ -15,11 +15,11 @@ import {
 import { Medal } from '@/shared/components/activity-timer';
 import { useUser } from '@/features/auth/context/user-context';
 import { useClass } from '@/features/teacher/context/class-context';
-import { nextAttemptSeq, scorePass } from '@/features/learning/lib/attempt-rules';
+import { deductionFor, nextAttemptSeq, scorePass } from '@/features/learning/lib/attempt-rules';
 import { useLanguage } from '@/shared/i18n/language-context';
 import { canonicalAttempts, inActiveClass } from '../lib/totals';
 
-export { activitySlots, isPass, levelScore, totalsFor, type LevelScore, type Totals } from '../lib/totals';
+export { activitySlots, deductionOf, isPass, levelScore, totalsFor, type LevelScore, type Totals } from '../lib/totals';
 
 import {
   ACTIVITIES_PER_LEVEL,
@@ -483,7 +483,7 @@ function scoreLocally(
   const timeUsed = Math.max(MIN_ACTIVITY_TIME_SECONDS, Math.min(Math.round(attempt.timeUsed), budget));
   const passed = !attempt.timedOut && attempt.requiredCount > 0 && attempt.correctCount >= attempt.requiredCount;
 
-  const score = passed ? scorePass(timeUsed, attemptSeq) : { points: 0, stars: 0 };
+  const score = passed ? scorePass(timeUsed) : { points: -deductionFor(attemptSeq), stars: 0 };
   const medal: Medal = score.stars === 3 ? 'gold' : score.stars === 2 ? 'silver' : score.stars === 1 ? 'bronze' : null;
 
   return {
